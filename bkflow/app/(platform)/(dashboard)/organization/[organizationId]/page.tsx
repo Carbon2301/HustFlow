@@ -1,4 +1,4 @@
-import { create } from "@/actions/create-board";
+import { create } from "@/actions/create-board/index";
 import { Button } from "@/components/ui/button";
 import { db } from "@/lib/db";
 import { Board } from "./board";
