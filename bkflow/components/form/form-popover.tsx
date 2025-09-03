@@ -16,7 +16,7 @@ import { createBoard } from "@/actions/create-board";
 import { FormInput } from "./form-input";
 import { FormSubmit } from "./form-submit";
 import { FormPicker } from "./form-picker";
-import { ElementRef, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 
 interface FormPopoverProps {
@@ -33,7 +33,8 @@ export const FormPopover = ({
   sideOffset = 0,
 }: FormPopoverProps) => {
     const router = useRouter();
-    const closeRef = useRef<ElementRef<"button">>(null);
+    const closeRef = useRef<HTMLButtonElement>(null);
+    const [isMounted, setIsMounted] = useState(false);
 
     const { execute, fieldErrors } = useAction(createBoard, {
     onSuccess: (data) => {
@@ -46,10 +47,18 @@ export const FormPopover = ({
     }
 });
 
+    useEffect(() => {
+      setIsMounted(true);
+    }, []);
+
     const onSubmit = (formData: FormData) => {
         const title = formData.get("title") as string;
         const image = formData.get("image") as string;
     execute({ title, image });
+  }
+
+  if (!isMounted) {
+    return <>{children}</>;
   }
 
   return (

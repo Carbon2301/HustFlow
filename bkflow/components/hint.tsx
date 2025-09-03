@@ -1,3 +1,6 @@
+"use client";
+
+import { useEffect, useState } from "react";
 import {
   Tooltip,
   TooltipContent,
@@ -18,10 +21,20 @@ export const Hint = ({
   side = "bottom",
   sideOffset = 0
 }: HintProps) => {
+  const [isMounted, setIsMounted] = useState(false);
+
+  useEffect(() => {
+    setIsMounted(true);
+  }, []);
+
+  if (!isMounted) {
+    return <>{children}</>;
+  }
+
   return (
     <TooltipProvider>
       <Tooltip delayDuration={0}>
-        <TooltipTrigger>
+        <TooltipTrigger asChild>
           {children}
         </TooltipTrigger>
         <TooltipContent

@@ -5,7 +5,6 @@ import { redirect } from "next/navigation";
 import { Hint } from "@/components/hint";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FormPopover } from "@/components/form/form-popover";
-import { Form } from "radix-ui";
 import { auth } from "@clerk/nextjs/server";
 
 export const BoardList = async () => {
@@ -45,26 +44,27 @@ export const BoardList = async () => {
             </Link>
           ))}
           <FormPopover sideOffset={10} side="right">
-          <div
-            role="button"
-            className="aspect-video relative h-full w-full bg-muted rounded-sm flex flex-col gap-y-1 items-center justify-center hover:opacity-75 transition"
-          >
-            <p className="text-sm">Create new board</p>
-            <span className="text-xs">
-              5 remaining
-            </span>
-            <Hint
-              sideOffset={40}
-              description={`
-                Free Workspaces can have up to 5 open boards. For unlimited boards upgrade this workspace.
-              `}
+            <button
+              type="button"
+              aria-label="Create new board"
+              className="aspect-video relative h-full w-full bg-muted rounded-sm flex flex-col gap-y-1 items-center justify-center hover:opacity-75 transition"
             >
-              <HelpCircle
-                className="absolute bottom-2 right-2 h-[14px] w-[14px]"
-              />
-            </Hint>
-          </div>
-        </FormPopover>
+              <p className="text-sm">Create new board</p>
+              <span className="text-xs">
+                5 remaining
+              </span>
+              <Hint
+                sideOffset={12}
+                description={`
+                  Free Workspaces can have up to 5 open boards. For unlimited boards upgrade this workspace.
+                `}
+              >
+                <span className="absolute bottom-2 right-2">
+                  <HelpCircle className="h-[14px] w-[14px]" />
+                </span>
+              </Hint>
+            </button>
+          </FormPopover>
       </div>
     </div>
   );
