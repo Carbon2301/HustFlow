@@ -6,14 +6,15 @@ import { db } from "@/lib/db";
 import { ListContainer } from "./_components/list-container";
 
 interface BoardIdPageProps {
-  params: {
+  params: Promise<{
     boardId: string;
-  };
+  }>;
 };
 
 const BoardIdPage = async ({
   params,
 }: BoardIdPageProps) => {
+  const { boardId } = await params;
   const { orgId } = await auth();
 
   if (!orgId) {
@@ -22,7 +23,7 @@ const BoardIdPage = async ({
   
   const lists = await db.list.findMany({
     where: {
-      boardId: params.boardId,
+      boardId,
       board: {
         orgId,
       },
@@ -42,7 +43,7 @@ const BoardIdPage = async ({
   return (
     <div className="p-4 h-full overflow-x-auto">
       <ListContainer
-        boardId={params.boardId}
+        boardId={boardId}
         data={lists}
       />
     </div>
