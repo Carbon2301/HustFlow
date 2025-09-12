@@ -5,6 +5,7 @@ const isPublicRoute = createRouteMatcher([
   "/",
   "/sign-in(.*)",
   "/sign-up(.*)",
+  "/api/webhook",
 ]);
 
 const isSelectOrgRoute = createRouteMatcher(["/select-org(.*)"]);

@@ -21,6 +21,7 @@ const buttonVariants = cva(
         link: "text-primary underline-offset-4 hover:underline",
         primary: "bg-sky-700 text-primary-foreground hover:bg-sky-700/90",
         transparent: "bg-transparent text-white hover:bg-white/20",
+        gray: "bg-neutral-200 text-secondary-foreground hover:bg-neutral-300",
       },
       size: {
         default:
@@ -34,6 +35,7 @@ const buttonVariants = cva(
         "icon-sm":
           "size-7 rounded-[min(var(--radius-md),12px)] in-data-[slot=button-group]:rounded-lg",
         "icon-lg": "size-9",
+        inline: "h-auto px-2 py-1.5 text-sm"
       },
     },
     defaultVariants: {
