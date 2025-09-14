@@ -18,7 +18,7 @@ export const ListForm = () => {
   const router = useRouter();
   const params = useParams();
 
-  const formRef = useRef<HTMLFormElement>(null);
+  const formRef = useRef<HTMLFormElement>(null!);
   const inputRef = useRef<HTMLInputElement>(null);
 
   const [isEditing, setIsEditing] = useState(false);
@@ -70,30 +70,31 @@ export const ListForm = () => {
         <form
           action={onSubmit}
           ref={formRef}
-          className="w-full p-3 rounded-md bg-white space-y-4 shadow-md"
+          className="w-full p-3 rounded-xl bg-white space-y-3 shadow-md border border-neutral-100"
         >
           <FormInput
             ref={inputRef}
             errors={fieldErrors}
             id="title"
-            className="text-sm px-2 py-1 h-7 font-medium border-transparent hover:border-input focus:border-input transition"
-            placeholder="Enter list title..."
+            className="text-sm px-2 py-1.5 h-8 font-medium border-neutral-200 hover:border-violet-300 focus:border-violet-400 focus:ring-1 focus:ring-violet-200 transition rounded-lg"
+            placeholder="List name…"
           />
           <input
             hidden
             defaultValue={params.boardId}
             name="boardId"
           />
-          <div className="flex items-center gap-x-1">
-            <FormSubmit>
+          <div className="flex items-center gap-x-2">
+            <FormSubmit className="h-8 text-sm bg-violet-600 hover:bg-violet-700 text-white rounded-lg px-3">
               Add list
             </FormSubmit>
-            <Button 
+            <Button
               onClick={disableEditing}
               size="sm"
               variant="ghost"
+              className="h-8 w-8 p-0 text-neutral-500 hover:text-neutral-700 rounded-lg"
             >
-              <X className="h-5 w-5" />
+              <X className="h-4 w-4" />
             </Button>
           </div>
         </form>
@@ -105,9 +106,9 @@ export const ListForm = () => {
     <ListWrapper>
       <button
         onClick={enableEditing}
-        className="w-full rounded-md bg-white/80 hover:bg-white/50 transition p-3 flex items-center font-medium text-sm"
+        className="w-full rounded-xl bg-white/80 hover:bg-white/95 border border-transparent hover:border-white/60 transition-all duration-150 p-3 flex items-center gap-x-2 font-medium text-sm text-white/90 hover:text-white backdrop-blur-sm"
       >
-        <Plus className="h-4 w-4 mr-2" />
+        <Plus className="h-4 w-4" />
         Add a list
       </button>
     </ListWrapper>

@@ -36,28 +36,32 @@ export const ListItem = ({
 
   return (
     <Draggable draggableId={data.id} index={index}>
-      {(provided) => (
-        <li 
+      {(provided, snapshot) => (
+        <li
           {...provided.draggableProps}
           ref={provided.innerRef}
           className="shrink-0 h-full w-[272px] select-none"
         >
-          <div 
+          <div
             {...provided.dragHandleProps}
-            className="w-full rounded-md bg-[#f1f2f4] shadow-md pb-2"
+            className={cn(
+              "w-full rounded-xl bg-[#f1f2f4] shadow-sm pb-2 flex flex-col",
+              snapshot.isDragging && "shadow-xl opacity-95 rotate-1"
+            )}
           >
-            <ListHeader 
+            <ListHeader
               onAddCard={enableEditing}
               data={data}
             />
             <Droppable droppableId={data.id} type="card">
-              {(provided) => (
+              {(provided, snapshot) => (
                 <ol
                   ref={provided.innerRef}
                   {...provided.droppableProps}
                   className={cn(
-                    "mx-1 px-1 py-0.5 flex flex-col gap-y-2",
+                    "mx-2 px-0 py-0.5 flex flex-col gap-y-1.5 flex-1",
                     data.cards.length > 0 ? "mt-2" : "mt-0",
+                    snapshot.isDraggingOver && "bg-violet-50/50 rounded-lg"
                   )}
                 >
                   {data.cards.map((card, index) => (

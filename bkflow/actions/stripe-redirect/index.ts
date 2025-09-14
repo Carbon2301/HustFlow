@@ -2,19 +2,17 @@
 
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-import { ACTION, ENTITY_TYPE } from "@prisma/client";
 
 import { db } from "@/lib/db";
-import { createAuditLog } from "@/lib/create-audit-log";
 import { createSafeAction } from "@/lib/create-safe-action";
 
 import { StripeRedirect } from "./schema";
-import { InputType, ReturnType } from "./types";
+import { ReturnType } from "./types";
 
 import { absoluteUrl } from "@/lib/utils";
 import { stripe } from "@/lib/stripe";
 
-const handler = async (data: InputType): Promise<ReturnType> => {
+const handler = async (): Promise<ReturnType> => {
   const { userId, orgId } = await auth();
   const user = await currentUser();
 
@@ -46,7 +44,6 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       const stripeSession = await stripe.checkout.sessions.create({
         success_url: settingsUrl,
         cancel_url: settingsUrl,
-        payment_method_types: ["card"],
         mode: "subscription",
         billing_address_collection: "auto",
         customer_email: user.emailAddresses[0].emailAddress,
@@ -55,7 +52,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
             price_data: {
               currency: "USD",
               product_data: {
-                name: "Taskify Pro",
+                name: "BKFlow Pro",
                 description: "Unlimited boards for your organization"
               },
               unit_amount: 2000,

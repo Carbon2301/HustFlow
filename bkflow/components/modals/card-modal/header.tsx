@@ -64,20 +64,25 @@ export const Header = ({
   }
 
   return (
-    <div className="flex items-start gap-x-3 mb-6 w-full">
-      <Layout className="h-5 w-5 mt-1 text-neutral-700" />
-      <div className="w-full">
+    <div className="flex items-start gap-x-3 mb-4 w-full">
+      <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+        <Layout className="h-4 w-4 text-violet-600" />
+      </div>
+      <div className="w-full min-w-0">
         <form action={onSubmit}>
           <FormInput
             ref={inputRef}
             onBlur={onBlur}
             id="title"
             defaultValue={title}
-            className="font-semibold text-xl px-1 text-neutral-700 bg-transparent border-transparent relative -left-1.5 w-[95%] focus-visible:bg-white focus-visible:border-input mb-0.5 truncate"
+            className="font-semibold text-lg px-2 text-neutral-800 bg-transparent border-transparent relative -left-2 w-[calc(100%+0.5rem)] focus-visible:bg-white focus-visible:border-neutral-300 focus-visible:ring-1 focus-visible:ring-violet-200 rounded-lg mb-0.5 truncate transition"
           />
         </form>
-        <p className="text-sm text-muted-foreground">
-          in list <span className="underline">{data.list.title}</span>
+        <p className="text-xs text-neutral-400 pl-0.5">
+          in list{" "}
+          <span className="font-medium text-neutral-600 hover:underline cursor-default">
+            {data.list.title}
+          </span>
         </p>
       </div>
     </div>
@@ -86,11 +91,11 @@ export const Header = ({
 
 Header.Skeleton = function HeaderSkeleton() {
   return (
-    <div className="flex items-start gap-x-3 mb-6">
-      <Skeleton className="h-6 w-6 mt-1 bg-neutral-200" />
-      <div>
-        <Skeleton className="w-24 h-6 mb-1 bg-neutral-200" />
-        <Skeleton className="w-12 h-4 bg-neutral-200" />
+    <div className="flex items-start gap-x-3 mb-4">
+      <Skeleton className="h-8 w-8 rounded-lg bg-neutral-100" />
+      <div className="space-y-2 flex-1">
+        <Skeleton className="w-2/3 h-6 rounded-lg bg-neutral-100" />
+        <Skeleton className="w-24 h-3.5 rounded bg-neutral-100" />
       </div>
     </div>
   );

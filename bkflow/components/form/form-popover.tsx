@@ -10,13 +10,14 @@ import {
   PopoverClose,
 } from "@/components/ui/popover";
 import { useAction } from "@/hooks/use-action";
+import { useIsMounted } from "@/hooks/use-is-mounted";
 import { Button } from "@/components/ui/button";
 import { createBoard } from "@/actions/create-board";
 
 import { FormInput } from "./form-input";
 import { FormSubmit } from "./form-submit";
 import { FormPicker } from "./form-picker";
-import { useEffect, useRef, useState } from "react";
+import { useRef } from "react";
 import { useRouter } from "next/navigation";
 
 interface FormPopoverProps {
@@ -34,11 +35,11 @@ export const FormPopover = ({
 }: FormPopoverProps) => {
     const router = useRouter();
     const closeRef = useRef<HTMLButtonElement>(null);
-    const [isMounted, setIsMounted] = useState(false);
+    const isMounted = useIsMounted();
 
     const { execute, fieldErrors } = useAction(createBoard, {
     onSuccess: (data) => {
-        toast.success("Board created successfully");
+        toast.success("Board created!");
         closeRef.current?.click();
         router.push(`/board/${data.id}`);
     },
@@ -46,10 +47,6 @@ export const FormPopover = ({
         toast.error(error);
     }
 });
-
-    useEffect(() => {
-      setIsMounted(true);
-    }, []);
 
     const onSubmit = (formData: FormData) => {
         const title = formData.get("title") as string;
@@ -68,36 +65,37 @@ export const FormPopover = ({
       </PopoverTrigger>
       <PopoverContent
         align={align}
-        className="w-80 pt-3"
+        className="w-80 pt-4 pb-4 px-4 shadow-xl rounded-xl border border-neutral-200"
         side={side}
         sideOffset={sideOffset}
       >
-        <div className="text-sm font-medium text-center text-neutral-600 pb-4">
+        <div className="text-sm font-semibold text-center text-neutral-700 pb-3">
           Create board
         </div>
         <PopoverClose ref={closeRef} asChild>
           <Button
-            className="h-auto w-auto p-2 absolute top-2 right-2 text-neutral-600"
+            className="h-7 w-7 p-0 absolute top-3 right-3 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 rounded-md"
             variant="ghost"
           >
-            <X className="h-4 w-4" />
+            <X className="h-3.5 w-3.5" />
           </Button>
         </PopoverClose>
         <form action={onSubmit} className="space-y-4">
-            <div className="space-y-4">
-                <FormPicker
-                  id="image"
-                  errors={fieldErrors}
-                />
-                <FormInput 
-                    id="title"
-                    label="Board title"
-                    type="text"
-                    errors={fieldErrors}
-                />
-            </div>
-            <FormSubmit className="w-full">
-               Create
+          <div className="space-y-3">
+            <FormPicker
+              id="image"
+              errors={fieldErrors}
+            />
+            <FormInput
+              id="title"
+              label="Board title"
+              type="text"
+              errors={fieldErrors}
+              className="rounded-lg text-sm"
+            />
+          </div>
+          <FormSubmit className="w-full bg-violet-600 hover:bg-violet-700 text-white rounded-lg h-9 font-medium">
+            Create board
           </FormSubmit>
         </form>
       </PopoverContent>

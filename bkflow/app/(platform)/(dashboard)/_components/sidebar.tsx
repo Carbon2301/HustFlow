@@ -19,7 +19,7 @@ interface SidebarProps {
 export const Sidebar = ({
   storageKey = "t-sidebar-state",
 }: SidebarProps) => {
-  const [expanded, setExpanded] = useLocalStorage<Record<string, any>>(
+  const [expanded, setExpanded] = useLocalStorage<Record<string, boolean>>(
     storageKey,
     {}
   );
@@ -39,9 +39,14 @@ export const Sidebar = ({
     if (!isLoadedUser || !user) return;
 
     let cancelled = false;
-    setIsLoadingMemberships(true);
+    Promise.resolve().then(() => {
+      if (!cancelled) {
+        setIsLoadingMemberships(true);
+      }
+    });
+
     user
-      .getOrganizationMemberships({ limit: 50 })
+      .getOrganizationMemberships({ pageSize: 50 })
       .then((result) => {
         if (cancelled) return;
         setMemberships(
@@ -54,7 +59,7 @@ export const Sidebar = ({
         );
         setIsLoadingMemberships(false);
       })
-      .catch((error) => {
+      .catch(() => {
         if (cancelled) return;
         setIsLoadingMemberships(false);
       });
@@ -69,7 +74,6 @@ export const Sidebar = ({
       if (expanded[key]) {
         acc.push(key);
       }
-
       return acc;
   }, []);
 
@@ -94,11 +98,11 @@ export const Sidebar = ({
   if (!isLoadedOrg || !isLoadedUser || isLoadingMemberships) {
     return (
       <>
-        <div className="flex items-center justify-between mb-2">
-          <Skeleton className="h-10 w-[50%]" />
-          <Skeleton className="h-10 w-10" />
+        <div className="flex items-center justify-between mb-3 px-1">
+          <Skeleton className="h-4 w-24 rounded-md" />
+          <Skeleton className="h-7 w-7 rounded-md" />
         </div>
-        <div className="space-y-2">
+        <div className="space-y-1.5">
           <NavItem.Skeleton />
           <NavItem.Skeleton />
           <NavItem.Skeleton />
@@ -109,28 +113,24 @@ export const Sidebar = ({
 
   return (
     <>
-      <div className="font-medium text-xs flex items-center mb-1">
-        <span className="pl-4">
-          Workspaces
-        </span>
+      <div className="font-semibold text-xs text-neutral-400 uppercase tracking-wider flex items-center mb-2 px-2">
+        <span className="flex-1">Workspaces</span>
         <Button
           asChild
           type="button"
           size="icon"
           variant="ghost"
-          className="ml-auto"
+          className="h-7 w-7 text-neutral-500 hover:text-violet-600 hover:bg-violet-50 rounded-lg"
         >
-          <Link href="/select-org">
-            <Plus
-              className="h-4 w-4"
-            />
+          <Link href="/select-org" title="Add workspace">
+            <Plus className="h-3.5 w-3.5" />
           </Link>
         </Button>
       </div>
       <Accordion
         type="multiple"
         defaultValue={defaultAccordionValue}
-        className="space-y-2"
+        className="space-y-0.5"
       >
         {orderedMemberships.map((organization) => (
           <NavItem
@@ -142,8 +142,12 @@ export const Sidebar = ({
           />
         ))}
         {memberships.length === 0 && (
-          <div className="px-4 py-2 text-xs text-muted-foreground">
-            No workspaces found for this account.
+          <div className="px-2 py-4 text-xs text-neutral-400 text-center">
+            No workspaces yet.
+            <br />
+            <Link href="/select-org" className="text-violet-600 hover:underline mt-1 inline-block">
+              Create one →
+            </Link>
           </div>
         )}
       </Accordion>

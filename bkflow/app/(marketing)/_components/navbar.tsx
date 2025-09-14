@@ -4,18 +4,18 @@ import Link from "next/link";
 
 export const Navbar = () => {
     return (
-        <div className="fixed top-0 w-full h-14 px-14 border-b shadow">
-            <div className="md:max-w-screen-2xl mx-auto flex items-center w-full justify-between">
+        <div className="fixed top-0 w-full h-16 px-6 border-b border-neutral-200/80 bg-white/95 backdrop-blur-sm shadow-sm z-50">
+            <div className="md:max-w-screen-xl mx-auto flex items-center w-full h-full justify-between">
                 <Logo />
-                <div className="space-x-4 md:block md:w-auto flex items-center justify-between  w-full">
-                    <Button size="sm" variant="outline" asChild>
+                <div className="flex items-center gap-x-3">
+                    <Button size="sm" variant="ghost" asChild className="text-neutral-600 hover:text-neutral-900">
                         <Link href="/sign-in">
-                            Login
+                            Sign in
                         </Link>
                     </Button>
-                    <Button size="sm" asChild>
+                    <Button size="sm" asChild className="bg-neutral-900 hover:bg-neutral-700 text-white rounded-lg px-4">
                         <Link href="/sign-up">
-                            Get Taskify for free
+                            Get started free
                         </Link>
                     </Button>
                 </div>

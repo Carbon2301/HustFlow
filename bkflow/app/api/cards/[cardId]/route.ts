@@ -1,13 +1,15 @@
 import { auth } from "@clerk/nextjs/server"; 
+import { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
 
 export async function GET(
-  req: Request,
-  { params }: { params: { cardId: string } }
+  req: NextRequest,
+  { params }: { params: Promise<{ cardId: string }> }
 ) {
   try {
+    const { cardId } = await params;
     const { userId, orgId } = await auth();
 
     if (!userId || !orgId) {
@@ -16,7 +18,7 @@ export async function GET(
 
     const card = await db.card.findUnique({
       where: {
-        id: params.cardId,
+        id: cardId,
         list: {
           board: {
             orgId,
@@ -33,7 +35,7 @@ export async function GET(
     });
 
     return NextResponse.json(card);
-  } catch (error) {
+  } catch {
     return new NextResponse("Internal Error", { status: 500 });
   }
 }

@@ -1,6 +1,7 @@
 "use client";
 
 import { toast } from "sonner";
+import { Sparkles, Settings } from "lucide-react";
 
 import { useAction } from "@/hooks/use-action";
 import { Button } from "@/components/ui/button";
@@ -11,9 +12,9 @@ interface SubscriptionButtonProps {
   isPro: boolean;
 };
 
-export const SubscriptionButton = ({ 
+export const SubscriptionButton = ({
   isPro,
- }: SubscriptionButtonProps) => {
+}: SubscriptionButtonProps) => {
   const proModal = useProModal();
 
   const { execute, isLoading } = useAction(stripeRedirect, {
@@ -35,11 +36,25 @@ export const SubscriptionButton = ({
 
   return (
     <Button
-      variant="primary"
+      className={isPro
+        ? "gap-x-2 rounded-lg h-9 font-medium"
+        : "gap-x-2 bg-violet-600 hover:bg-violet-700 text-white rounded-lg h-9 font-medium shadow-sm"
+      }
+      variant={isPro ? "outline" : "default"}
       onClick={onClick}
       disabled={isLoading}
     >
-      {isPro ? "Manage subscription" : "Upgrade to pro"}
+      {isPro ? (
+        <>
+          <Settings className="h-4 w-4" />
+          {isLoading ? "Loading…" : "Manage subscription"}
+        </>
+      ) : (
+        <>
+          <Sparkles className="h-4 w-4" />
+          Upgrade to Pro
+        </>
+      )}
     </Button>
   )
 };

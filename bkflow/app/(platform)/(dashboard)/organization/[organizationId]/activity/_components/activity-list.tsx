@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { ActivityItem } from "@/components/activity-item";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Activity } from "lucide-react";
 
 export const ActivityList = async () => {
   const { orgId } = await auth();
@@ -21,11 +22,22 @@ export const ActivityList = async () => {
     }
   });
 
+  if (auditLogs.length === 0) {
+    return (
+      <div className="flex flex-col items-center justify-center min-h-[300px] border border-dashed border-neutral-200 rounded-2xl p-8 text-center bg-neutral-50/50 mt-4">
+        <div className="w-12 h-12 bg-neutral-100 rounded-2xl flex items-center justify-center mb-4">
+          <Activity className="h-6 w-6 text-neutral-400" />
+        </div>
+        <h3 className="font-semibold text-neutral-800 text-base">No activity found</h3>
+        <p className="text-sm text-neutral-400 max-w-sm mt-1">
+          Perform some actions on your boards (like creating lists or cards) to start seeing the activity log.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <ol className="space-y-4 mt-4">
-      <p className="hidden last:block text-xs text-center text-muted-foreground">
-        No activity found inside this organization
-      </p>
       {auditLogs.map((log) => (
         <ActivityItem key={log.id} data={log} />
       ))}
@@ -36,11 +48,11 @@ export const ActivityList = async () => {
 ActivityList.Skeleton = function ActivityListSkeleton() {
   return (
     <ol className="space-y-4 mt-4">
-      <Skeleton className="w-[80%] h-14" />
-      <Skeleton className="w-[50%] h-14" />
-      <Skeleton className="w-[70%] h-14" />
-      <Skeleton className="w-[80%] h-14" />
-      <Skeleton className="w-[75%] h-14" />
+      <Skeleton className="w-[80%] h-14 rounded-xl" />
+      <Skeleton className="w-[50%] h-14 rounded-xl" />
+      <Skeleton className="w-[70%] h-14 rounded-xl" />
+      <Skeleton className="w-[80%] h-14 rounded-xl" />
+      <Skeleton className="w-[75%] h-14 rounded-xl" />
     </ol>
   );
 };

@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { HelpCircle, User2 } from "lucide-react";
+import { HelpCircle, LayoutGrid, Plus } from "lucide-react";
 
 import { db } from "@/lib/db";
 import { Hint } from "@/components/hint";
@@ -31,42 +31,48 @@ export const BoardList = async () => {
   const isPro = await checkSubscription();
 
   return (
-    <div className="space-y-4">
-      <div className="flex items-center font-semibold text-lg text-neutral-700">
-        <User2 className="h-6 w-6 mr-2" />
-        Your boards
+    <div className="space-y-5">
+      <div className="flex items-center gap-x-2 text-neutral-700 font-semibold text-sm">
+        <LayoutGrid className="h-4 w-4 text-violet-600" />
+        <span>Your boards</span>
+        <span className="text-neutral-400 font-normal text-xs ml-1">
+          ({boards.length})
+        </span>
       </div>
-      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
         {boards.map((board) => (
           <Link
             key={board.id}
             href={`/board/${board.id}`}
-            className="group relative aspect-video bg-no-repeat bg-center bg-cover bg-sky-700 rounded-sm h-full w-full p-2 overflow-hidden"
+            className="group relative aspect-video bg-no-repeat bg-center bg-cover bg-neutral-800 rounded-xl overflow-hidden shadow-sm hover:shadow-md transition-all duration-200"
             style={{ backgroundImage: `url(${board.imageThumbUrl})` }}
           >
-            <div className="absolute inset-0 bg-black/30 group-hover:bg-black/40 transition" />
-            <p className="relative font-semibold text-white">
-              {board.title}
-            </p>
+            <div className="absolute inset-0 bg-black/30 group-hover:bg-black/45 transition-colors duration-200" />
+            <div className="absolute bottom-0 left-0 right-0 p-2.5">
+              <p className="relative font-semibold text-white text-sm leading-tight drop-shadow-sm">
+                {board.title}
+              </p>
+            </div>
           </Link>
         ))}
         <FormPopover sideOffset={10} side="right">
           <div
             role="button"
-            className="aspect-video relative h-full w-full bg-muted rounded-sm flex flex-col gap-y-1 items-center justify-center hover:opacity-75 transition"
+            className="group aspect-video relative h-full w-full bg-neutral-100 border-2 border-dashed border-neutral-200 rounded-xl flex flex-col gap-y-1.5 items-center justify-center hover:bg-violet-50 hover:border-violet-300 transition-all duration-200 cursor-pointer"
           >
-            <p className="text-sm">Create new board</p>
-            <span className="text-xs">
+            <Plus className="h-5 w-5 text-neutral-400 group-hover:text-violet-500 transition-colors" />
+            <p className="text-sm font-medium text-neutral-500 group-hover:text-violet-600 transition-colors">
+              New board
+            </p>
+            <span className="text-xs text-neutral-400 group-hover:text-violet-400 transition-colors">
               {isPro ? "Unlimited" : `${MAX_FREE_BOARDS - availableCount} remaining`}
             </span>
             <Hint
               sideOffset={12}
-              description={`
-                Free Workspaces can have up to 5 open boards. For unlimited boards upgrade this workspace.
-              `}
+              description={`Free workspaces can have up to ${MAX_FREE_BOARDS} boards. Upgrade to Pro for unlimited boards.`}
             >
               <HelpCircle
-                className="absolute bottom-2 right-2 h-[14px] w-[14px]"
+                className="absolute bottom-2 right-2 h-3.5 w-3.5 text-neutral-300 hover:text-neutral-500 transition-colors"
               />
             </Hint>
           </div>
@@ -78,15 +84,16 @@ export const BoardList = async () => {
 
 BoardList.Skeleton = function SkeletonBoardList() {
   return (
-    <div className="grid gird-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
-      <Skeleton className="aspect-video h-full w-full p-2" />
-      <Skeleton className="aspect-video h-full w-full p-2" />
-      <Skeleton className="aspect-video h-full w-full p-2" />
-      <Skeleton className="aspect-video h-full w-full p-2" />
-      <Skeleton className="aspect-video h-full w-full p-2" />
-      <Skeleton className="aspect-video h-full w-full p-2" />
-      <Skeleton className="aspect-video h-full w-full p-2" />
-      <Skeleton className="aspect-video h-full w-full p-2" />
+    <div className="space-y-5">
+      <div className="flex items-center gap-x-2">
+        <Skeleton className="h-4 w-4 rounded" />
+        <Skeleton className="h-4 w-28 rounded" />
+      </div>
+      <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-3">
+        {Array.from({ length: 8 }).map((_, i) => (
+          <Skeleton key={i} className="aspect-video h-full w-full rounded-xl" />
+        ))}
+      </div>
     </div>
   );
 };

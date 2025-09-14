@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useIsMounted } from "@/hooks/use-is-mounted";
 import {
   Tooltip,
   TooltipContent,
@@ -21,11 +21,7 @@ export const Hint = ({
   side = "bottom",
   sideOffset = 0
 }: HintProps) => {
-  const [isMounted, setIsMounted] = useState(false);
-
-  useEffect(() => {
-    setIsMounted(true);
-  }, []);
+  const isMounted = useIsMounted();
 
   if (!isMounted) {
     return <>{children}</>;

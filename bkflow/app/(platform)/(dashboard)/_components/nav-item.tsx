@@ -10,9 +10,9 @@ import {
 } from "lucide-react";
 
 import { cn } from "@/lib/utils";
-import { 
+import {
   AccordionContent,
-  AccordionItem, 
+  AccordionItem,
   AccordionTrigger
 } from "@/components/ui/accordion";
 import { Button } from "@/components/ui/button";
@@ -44,22 +44,22 @@ export const NavItem = ({
   const routes = [
     {
       label: "Boards",
-      icon: <Layout className="h-4 w-4 mr-2" />,
+      icon: <Layout className="h-4 w-4" />,
       href: `/organization/${organization.id}`,
     },
     {
       label: "Activity",
-      icon: <Activity className="h-4 w-4 mr-2" />,
+      icon: <Activity className="h-4 w-4" />,
       href: `/organization/${organization.id}/activity`,
     },
     {
       label: "Settings",
-      icon: <Settings className="h-4 w-4 mr-2" />,
+      icon: <Settings className="h-4 w-4" />,
       href: `/organization/${organization.id}/settings`,
     },
     {
       label: "Billing",
-      icon: <CreditCard className="h-4 w-4 mr-2" />,
+      icon: <CreditCard className="h-4 w-4" />,
       href: `/organization/${organization.id}/billing`,
     },
   ];
@@ -76,40 +76,43 @@ export const NavItem = ({
       <AccordionTrigger
         onClick={() => onExpand(organization.id)}
         className={cn(
-          "flex items-center gap-x-2 p-1.5 text-neutral-700 rounded-md hover:bg-neutral-500/10 transition text-start no-underline hover:no-underline",
-          isActive && !isExpanded && "bg-sky-500/10 text-sky-700"
+          "flex items-center gap-x-2 p-2 text-neutral-600 rounded-lg hover:bg-neutral-100 transition-colors text-start no-underline hover:no-underline group",
+          isActive && !isExpanded && "bg-violet-50 text-violet-700 hover:bg-violet-50/80"
         )}
       >
-        <div className="flex items-center gap-x-2">
-          <div className="w-7 h-7 relative">
+        <div className="flex items-center gap-x-2.5 flex-1 min-w-0">
+          <div className="w-7 h-7 relative flex-shrink-0">
             <Image
               fill
               src={organization.imageUrl}
-              alt="Organization"
-              className="rounded-sm object-cover"
+              alt={organization.name}
+              className="rounded-md object-cover"
             />
           </div>
-          <span className="font-medium text-sm">
+          <span className="font-medium text-sm truncate">
             {organization.name}
           </span>
         </div>
       </AccordionTrigger>
-      <AccordionContent className="pt-1 text-neutral-700">
-        {routes.map((route) => (
-          <Button
-            key={route.href}
-            size="sm"
-            onClick={() => onClick(route.href)}
-            className={cn(
-              "w-full font-normal justify-start pl-10 mb-1",
-              pathname === route.href && "bg-sky-500/10 text-sky-700"
-            )}
-            variant="ghost"
-          >
-            {route.icon}
-            {route.label}
-          </Button>
-        ))}
+      <AccordionContent className="pt-1 pb-0">
+        {routes.map((route) => {
+          const isRoutActive = pathname === route.href;
+          return (
+            <Button
+              key={route.href}
+              size="sm"
+              onClick={() => onClick(route.href)}
+              className={cn(
+                "w-full font-normal justify-start pl-9 mb-0.5 gap-x-2.5 text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 rounded-lg transition-colors",
+                isRoutActive && "bg-violet-50 text-violet-700 hover:bg-violet-50 font-medium"
+              )}
+              variant="ghost"
+            >
+              {route.icon}
+              {route.label}
+            </Button>
+          );
+        })}
       </AccordionContent>
     </AccordionItem>
   );
@@ -117,11 +120,11 @@ export const NavItem = ({
 
 NavItem.Skeleton = function SkeletonNavItem() {
   return (
-    <div className="flex items-center gap-x-2">
-      <div className="w-10 h-10 relative shrink-0">
-        <Skeleton className="h-full w-full absolute" />
+    <div className="flex items-center gap-x-2 p-2">
+      <div className="w-7 h-7 relative shrink-0">
+        <Skeleton className="h-full w-full rounded-md" />
       </div>
-      <Skeleton className="h-10 w-full" />
+      <Skeleton className="h-5 w-full rounded-md" />
     </div>
   );
 };

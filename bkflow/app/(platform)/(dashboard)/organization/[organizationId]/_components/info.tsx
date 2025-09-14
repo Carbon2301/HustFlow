@@ -1,10 +1,11 @@
 "use client";
 
 import Image from "next/image";
-import { CreditCard } from "lucide-react";
+import { CreditCard, Sparkles } from "lucide-react";
 import { useOrganization } from "@clerk/nextjs";
 
 import { Skeleton } from "@/components/ui/skeleton";
+import { cn } from "@/lib/utils";
 
 interface InfoProps {
   isPro: boolean;
@@ -15,29 +16,43 @@ export const Info = ({
 }: InfoProps) => {
   const { organization, isLoaded } = useOrganization();
 
-  if (!isLoaded) {
+  if (!isLoaded || !organization) {
     return (
       <Info.Skeleton />
     );
   }
 
   return (
-    <div className="flex items-center gap-x-4">
-      <div className="w-[60px] h-[60px] relative">
+    <div className="flex items-center gap-x-4 mb-6">
+      <div className="w-14 h-14 relative flex-shrink-0">
         <Image
           fill
-          src={organization?.imageUrl!}
-          alt="Organization"
-          className="rounded-md object-cover"
+          src={organization.imageUrl}
+          alt={organization.name}
+          className="rounded-xl object-cover ring-2 ring-neutral-100"
         />
       </div>
-      <div className="space-y-1">
-        <p className="font-semibold text-xl">
-          {organization?.name}
+      <div className="space-y-0.5">
+        <p className="font-semibold text-xl text-neutral-900 leading-tight">
+          {organization.name}
         </p>
-        <div className="flex items-center text-xs text-muted-foreground">
-          <CreditCard className="h-3 w-3 mr-1" />
-          {isPro ? "Pro" : "Free"}
+        <div className={cn(
+          "inline-flex items-center gap-x-1 text-xs font-medium px-2 py-0.5 rounded-full",
+          isPro
+            ? "bg-violet-50 text-violet-700 border border-violet-200"
+            : "bg-neutral-100 text-neutral-500"
+        )}>
+          {isPro ? (
+            <>
+              <Sparkles className="h-3 w-3" />
+              Pro plan
+            </>
+          ) : (
+            <>
+              <CreditCard className="h-3 w-3" />
+              Free plan
+            </>
+          )}
         </div>
       </div>
     </div>
@@ -46,16 +61,11 @@ export const Info = ({
 
 Info.Skeleton = function SkeletonInfo() {
   return (
-    <div className="flex items-center gap-x-4">
-      <div className="w-[60px] h-[60px] relative">
-        <Skeleton className="w-full h-full absolute" />
-      </div>
+    <div className="flex items-center gap-x-4 mb-6">
+      <Skeleton className="w-14 h-14 rounded-xl" />
       <div className="space-y-2">
-        <Skeleton className="h-10 w-[200px]" />
-        <div className="flex items-center">
-          <Skeleton className="h-4 w-4 mr-2" />
-          <Skeleton className="h-4 w-[100px]" />
-        </div>
+        <Skeleton className="h-6 w-40 rounded-md" />
+        <Skeleton className="h-5 w-20 rounded-full" />
       </div>
     </div>
   );

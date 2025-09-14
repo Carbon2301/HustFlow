@@ -6,7 +6,7 @@ import { CardWithList } from "@/types";
 import { fetcher } from "@/lib/fetcher";
 import { AuditLog } from "@prisma/client";
 import { useCardModal } from "@/hooks/use-card-modal";
-import { Dialog, DialogContent } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 import { Header } from "./header";
 import { Description } from "./description";
@@ -35,28 +35,36 @@ export const CardModal = () => {
       open={isOpen}
       onOpenChange={onClose}
     >
-      <DialogContent>
-        {!cardData
-          ? <Header.Skeleton />
-          : <Header data={cardData} />
-        }
-        <div className="grid grid-cols-1 md:grid-cols-4 md:gap-4">
-          <div className="col-span-3">
-            <div className="w-full space-y-6">
-              {!cardData
-                ? <Description.Skeleton />
-                : <Description data={cardData} />
-              }
-              {!auditLogsData
-                ? <Activity.Skeleton />
-                : <Activity items={auditLogsData} />
-              }
-            </div>
-          </div>
+      <DialogContent className="max-w-2xl w-full rounded-2xl p-0 overflow-hidden shadow-2xl border border-neutral-200">
+        <DialogTitle className="sr-only">
+          {cardData?.title || "Card details"}
+        </DialogTitle>
+        <DialogDescription className="sr-only">
+          Card details and activities
+        </DialogDescription>
+        <div className="p-5 pb-0">
           {!cardData
-            ? <Actions.Skeleton />
-            : <Actions data={cardData} />
+            ? <Header.Skeleton />
+            : <Header data={cardData} />
           }
+        </div>
+        <div className="grid grid-cols-1 md:grid-cols-4 gap-0 p-5 pt-2">
+          <div className="col-span-3 pr-0 md:pr-5 space-y-5">
+            {!cardData
+              ? <Description.Skeleton />
+              : <Description data={cardData} />
+            }
+            {!auditLogsData
+              ? <Activity.Skeleton />
+              : <Activity items={auditLogsData} />
+            }
+          </div>
+          <div className="mt-4 md:mt-0">
+            {!cardData
+              ? <Actions.Skeleton />
+              : <Actions data={cardData} />
+            }
+          </div>
         </div>
       </DialogContent>
     </Dialog>

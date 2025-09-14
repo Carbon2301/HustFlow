@@ -12,6 +12,20 @@ import { defaultImages } from "@/constants/images";
 
 import { FormErrors } from "./form-errors";
 
+type BoardImage = {
+  id: string;
+  urls: {
+    thumb: string;
+    full: string;
+  };
+  links: {
+    html: string;
+  };
+  user: {
+    name: string;
+  };
+};
+
 interface FormPickerProps {
   id: string;
   errors?: Record<string, string[] | undefined>;
@@ -23,9 +37,9 @@ export const FormPicker = ({
 }: FormPickerProps) => {
   const { pending } = useFormStatus();
 
-  const [images, setImages] = useState<Array<Record<string, any>>>(defaultImages);
+  const [images, setImages] = useState<BoardImage[]>(defaultImages);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedImageId, setSelectedImageId] = useState(null);
+  const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchImages = async () => {
@@ -36,7 +50,9 @@ export const FormPicker = ({
         });
 
         if (result && result.response) {
-          const newImages = (result.response as Array<Record<string, any>>);
+          const newImages = Array.isArray(result.response)
+            ? result.response
+            : [result.response];
           setImages(newImages);
         } else {
           console.error("Failed to get images from Unsplash");
@@ -55,7 +71,7 @@ export const FormPicker = ({
   if (isLoading) {
     return (
       <div className="p-6 flex items-center justify-center">
-        <Loader2 className="h-6 w-6 text-sky-700 animate-spin" />
+        <Loader2 className="h-6 w-6 text-violet-600 animate-spin" />
       </div>
     );
   }

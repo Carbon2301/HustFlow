@@ -3,7 +3,7 @@
 import { toast } from "sonner";
 import { List } from "@prisma/client";
 import { useRef } from "react";
-import { MoreHorizontal, X } from "lucide-react";
+import { MoreHorizontal, X, Plus, Copy, Trash2 } from "lucide-react";
 
 import {
   Popover,
@@ -35,7 +35,7 @@ export const ListOptions = ({
       closeRef.current?.click();
     },
     onError: (error) => {
-      toast.error(error);
+      toast.error(error)
     }
   });
 
@@ -45,7 +45,7 @@ export const ListOptions = ({
       closeRef.current?.click();
     },
     onError: (error) => {
-      toast.error(error);
+      toast.error(error)
     }
   });
 
@@ -66,47 +66,54 @@ export const ListOptions = ({
   return (
     <Popover>
       <PopoverTrigger asChild>
-        <Button className="h-auto w-auto p-2" variant="ghost">
-          <MoreHorizontal className="h-4 w-4" />
+        <Button
+          className="h-7 w-7 p-0 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-200/60 rounded-md"
+          variant="ghost"
+        >
+          <MoreHorizontal className="h-3.5 w-3.5" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="px-0 pt-3 pb-3" side="bottom" align="start">
-        <div className="text-sm font-medium text-center text-neutral-600 pb-4">
+      <PopoverContent className="px-0 pt-3 pb-2 w-52 shadow-lg rounded-xl border border-neutral-200" side="bottom" align="start">
+        <div className="text-xs font-semibold text-center text-neutral-400 uppercase tracking-wider pb-2 px-4">
           List actions
         </div>
         <PopoverClose ref={closeRef} asChild>
-          <Button className="h-auto w-auto p-2 absolute top-2 right-2 text-neutral-600" variant="ghost">
-            <X className="h-4 w-4" />
+          <Button
+            className="h-7 w-7 p-0 absolute top-2 right-2 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 rounded-md"
+            variant="ghost"
+          >
+            <X className="h-3.5 w-3.5" />
           </Button>
         </PopoverClose>
         <Button
           onClick={onAddCard}
-          className="rounded-none w-full h-auto p-2 px-5 justify-start font-normal text-sm"
+          className="w-full h-9 px-4 justify-start font-normal text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 gap-x-2 rounded-none"
           variant="ghost"
         >
-          Add card...
+          <Plus className="h-4 w-4 text-neutral-400" />
+          Add card
         </Button>
         <form action={onCopy}>
-          <input hidden name="id" id="id" value={data.id} />
-          <input hidden name="boardId" id="boardId" value={data.boardId} />
+          <input hidden name="id" id="id" value={data.id} readOnly />
+          <input hidden name="boardId" id="boardId" value={data.boardId} readOnly />
           <FormSubmit
             variant="ghost"
-            className="rounded-none w-full h-auto p-2 px-5 justify-start font-normal text-sm"
+            className="w-full h-9 px-4 justify-start font-normal text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 gap-x-2 rounded-none"
           >
-            Copy list...
+            <Copy className="h-4 w-4 text-neutral-400" />
+            Copy list
           </FormSubmit>
         </form>
-        <Separator />
-        <form
-          action={onDelete}
-        >
-          <input hidden name="id" id="id" value={data.id} />
-          <input hidden name="boardId" id="boardId" value={data.boardId} />
+        <Separator className="my-1" />
+        <form action={onDelete}>
+          <input hidden name="id" id="id" value={data.id} readOnly />
+          <input hidden name="boardId" id="boardId" value={data.boardId} readOnly />
           <FormSubmit
             variant="ghost"
-            className="rounded-none w-full h-auto p-2 px-5 justify-start font-normal text-sm"
+            className="w-full h-9 px-4 justify-start font-normal text-sm text-red-500 hover:bg-red-50 hover:text-red-600 gap-x-2 rounded-none"
           >
-            Delete this list
+            <Trash2 className="h-4 w-4" />
+            Delete list
           </FormSubmit>
         </form>
       </PopoverContent>

@@ -2,6 +2,7 @@
 
 import { Card } from "@prisma/client";
 import { Draggable } from "@hello-pangea/dnd";
+import { AlignLeft } from "lucide-react";
 
 import { useCardModal } from "@/hooks/use-card-modal";
 
@@ -18,16 +19,32 @@ export const CardItem = ({
 
   return (
     <Draggable draggableId={data.id} index={index}>
-      {(provided) => (
+      {(provided, snapshot) => (
         <div
           {...provided.draggableProps}
           {...provided.dragHandleProps}
           ref={provided.innerRef}
           role="button"
           onClick={() => cardModal.onOpen(data.id)}
-          className="truncate border-2 border-transparent hover:border-black py-2 px-3 text-sm bg-white rounded-md shadow-sm"
+          className={`
+            group flex items-start gap-x-2
+            border border-transparent
+            hover:border-violet-200
+            py-2.5 px-3 text-sm
+            bg-white rounded-lg
+            shadow-sm hover:shadow
+            transition-all duration-150
+            cursor-pointer
+            select-none
+            ${snapshot.isDragging ? "shadow-md rotate-1 opacity-90 border-violet-300" : ""}
+          `}
         >
-          {data.title}
+          <span className="flex-1 leading-snug text-neutral-700 break-words min-w-0">
+            {data.title}
+          </span>
+          {data.description && (
+            <AlignLeft className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-neutral-300 group-hover:text-neutral-400 transition-colors" />
+          )}
         </div>
       )}
     </Draggable>

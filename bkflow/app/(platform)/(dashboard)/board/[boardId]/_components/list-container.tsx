@@ -2,7 +2,7 @@
 
 import { toast } from "sonner";
 import { useEffect, useState } from "react";
-import { DragDropContext, Droppable } from "@hello-pangea/dnd";
+import { DragDropContext, Droppable, type DropResult } from "@hello-pangea/dnd";
 
 import { ListWithCards } from "@/types";
 import { useAction } from "@/hooks/use-action";
@@ -53,7 +53,7 @@ export const ListContainer = ({
     setOrderedData(data);
   }, [data]);
 
-  const onDragEnd = (result: any) => {
+  const onDragEnd = (result: DropResult) => {
     const { destination, source, type } = result;
 
     if (!destination) {
@@ -82,7 +82,7 @@ export const ListContainer = ({
 
     // User moves a card
     if (type === "card") {
-      let newOrderedData = [...orderedData];
+      const newOrderedData = [...orderedData];
 
       // Source and destination list
       const sourceList = newOrderedData.find(list => list.id === source.droppableId);

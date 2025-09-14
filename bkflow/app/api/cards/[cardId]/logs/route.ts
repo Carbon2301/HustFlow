@@ -1,14 +1,16 @@
 import { auth } from "@clerk/nextjs/server";
+import { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 import { ENTITY_TYPE } from "@prisma/client";
 
 import { db } from "@/lib/db";
 
 export async function GET(
-  request: Request,
-  { params }: { params: { cardId: string } }
+  request: NextRequest,
+  { params }: { params: Promise<{ cardId: string }> }
 ) {
   try {
+    const { cardId } = await params;
     const { userId, orgId } = await auth();
 
     if (!userId || !orgId) {
@@ -18,7 +20,7 @@ export async function GET(
     const auditLogs = await db.auditLog.findMany({
       where: {
         orgId,
-        entityId: params.cardId,
+        entityId: cardId,
         entityType: ENTITY_TYPE.CARD,
       },
       orderBy: {
@@ -28,7 +30,7 @@ export async function GET(
     });
 
     return NextResponse.json(auditLogs);
-  } catch (error) {
+  } catch {
     return new NextResponse("Internal Error", { status: 500 });
   }
 };

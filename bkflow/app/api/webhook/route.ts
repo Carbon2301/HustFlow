@@ -5,9 +5,13 @@ import { NextResponse } from "next/server";
 import { db } from "@/lib/db";
 import { stripe } from "@/lib/stripe";
 
+const getSubscriptionPeriodEnd = (subscription: Stripe.Subscription) => {
+  return new Date(subscription.items.data[0].current_period_end * 1000);
+};
+
 export async function POST(req: Request) {
   const body = await req.text();
-  const signature = headers().get("Stripe-Signature") as string;
+  const signature = (await headers()).get("Stripe-Signature") as string;
 
   let event: Stripe.Event;
 
@@ -17,7 +21,7 @@ export async function POST(req: Request) {
       signature,
       process.env.STRIPE_WEBHOOK_SECRET!,
     )
-  } catch (error) {
+  } catch {
     return new NextResponse("Webhook error", { status: 400 });
   }
 
@@ -38,9 +42,7 @@ export async function POST(req: Request) {
         stripeSubscriptionId: subscription.id,
         stripeCustomerId: subscription.customer as string,
         stripePriceId: subscription.items.data[0].price.id,
-        stripeCurrentPeriodEnd: new Date(
-          subscription.current_period_end * 1000
-        ),
+        stripeCurrentPeriodEnd: getSubscriptionPeriodEnd(subscription),
       },
     });
   }
@@ -56,9 +58,7 @@ export async function POST(req: Request) {
       },
       data: {
         stripePriceId: subscription.items.data[0].price.id,
-        stripeCurrentPeriodEnd: new Date(
-          subscription.current_period_end * 1000,
-        ),
+        stripeCurrentPeriodEnd: getSubscriptionPeriodEnd(subscription),
       },
     });
   }

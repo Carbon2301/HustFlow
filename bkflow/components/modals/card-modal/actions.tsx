@@ -1,7 +1,7 @@
 "use client";
 
 import { toast } from "sonner";
-import { Copy, Trash } from "lucide-react";
+import { Copy, Trash2 } from "lucide-react";
 import { useParams } from "next/navigation";
 
 import { CardWithList } from "@/types";
@@ -22,7 +22,7 @@ export const Actions = ({
   const params = useParams();
   const cardModal = useCardModal();
 
-  const { 
+  const {
     execute: executeCopyCard,
     isLoading: isLoadingCopy,
   } = useAction(copyCard, {
@@ -35,7 +35,7 @@ export const Actions = ({
     },
   });
 
-  const { 
+  const {
     execute: executeDeleteCard,
     isLoading: isLoadingDelete,
   } = useAction(deleteCard, {
@@ -65,31 +65,31 @@ export const Actions = ({
       boardId,
     });
   };
-  
+
   return (
-    <div className="space-y-2 mt-2">
-      <p className="text-xs font-semibold">
+    <div className="space-y-1.5">
+      <p className="text-xs font-semibold text-neutral-400 uppercase tracking-wider mb-2">
         Actions
       </p>
       <Button
         onClick={onCopy}
         disabled={isLoadingCopy}
-        variant="gray"
-        className="w-full justify-start"
-        size="inline"
+        variant="ghost"
+        className="w-full justify-start h-9 text-sm font-medium text-neutral-600 hover:bg-neutral-100 hover:text-neutral-900 rounded-lg gap-x-2 px-3"
+        size="sm"
       >
-        <Copy className="h-4 w-4 mr-2" />
-        Copy
+        <Copy className="h-4 w-4 text-neutral-400" />
+        {isLoadingCopy ? "Copying…" : "Copy card"}
       </Button>
       <Button
         onClick={onDelete}
         disabled={isLoadingDelete}
-        variant="gray"
-        className="w-full justify-start"
-        size="inline"
+        variant="ghost"
+        className="w-full justify-start h-9 text-sm font-medium text-red-500 hover:bg-red-50 hover:text-red-600 rounded-lg gap-x-2 px-3"
+        size="sm"
       >
-        <Trash className="h-4 w-4 mr-2" />
-        Delete
+        <Trash2 className="h-4 w-4" />
+        {isLoadingDelete ? "Deleting…" : "Delete card"}
       </Button>
     </div>
   );
@@ -97,10 +97,10 @@ export const Actions = ({
 
 Actions.Skeleton = function ActionsSkeleton() {
   return (
-    <div className="space-y-2 mt-2">
-      <Skeleton className="w-20 h-4 bg-neutral-200" />
-      <Skeleton className="w-full h-8 bg-neutral-200" />
-      <Skeleton className="w-full h-8 bg-neutral-200" />
+    <div className="space-y-2">
+      <Skeleton className="w-20 h-3.5 rounded bg-neutral-100" />
+      <Skeleton className="w-full h-9 rounded-lg bg-neutral-100" />
+      <Skeleton className="w-full h-9 rounded-lg bg-neutral-100" />
     </div>
   );
 };

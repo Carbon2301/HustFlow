@@ -77,29 +77,30 @@ export const ListHeader = ({
   useEventListener("keydown", onKeyDown);
 
   return (
-    <div className="pt-2 px-2 text-sm font-semibold flex justify-between items-start- gap-x-2">
+    <div className="pt-3 px-3 pb-1 text-sm font-semibold flex justify-between items-center gap-x-1">
       {isEditing ? (
-        <form 
+        <form
           ref={formRef}
-          action={handleSubmit}  
-          className="flex-1 px-[2px]"
+          action={handleSubmit}
+          className="flex-1"
         >
-          <input hidden id="id" name="id" value={data.id} />
-          <input hidden id="boardId" name="boardId" value={data.boardId} />
+          <input hidden id="id" name="id" value={data.id} readOnly />
+          <input hidden id="boardId" name="boardId" value={data.boardId} readOnly />
           <FormInput
             ref={inputRef}
             onBlur={onBlur}
             id="title"
-            placeholder="Enter list title.."
+            placeholder="List name…"
             defaultValue={title}
-            className="text-sm px-[7px] py-1 h-7 font-medium border-transparent hover:border-input focus:border-input transition truncate bg-transparent focus:bg-white"
+            className="text-sm px-2 py-1 h-7 font-semibold border-transparent hover:border-input focus:border-violet-400 focus:ring-1 focus:ring-violet-200 transition rounded-md bg-transparent focus:bg-white truncate"
           />
           <button type="submit" hidden />
         </form>
       ) : (
         <div
           onClick={enableEditing}
-          className="w-full text-sm px-2.5 py-1 h-7 font-medium border-transparent"
+          className="flex-1 text-sm px-2 py-1 h-7 font-semibold text-neutral-700 hover:bg-neutral-200/60 rounded-md transition-colors cursor-pointer truncate"
+          title={title}
         >
           {title}
         </div>
@@ -107,7 +108,7 @@ export const ListHeader = ({
       <ListOptions
         onAddCard={onAddCard}
         data={data}
-      /> 
+      />
     </div>
   );
 };

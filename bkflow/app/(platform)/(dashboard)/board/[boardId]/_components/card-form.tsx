@@ -30,7 +30,7 @@ export const CardForm = forwardRef<HTMLTextAreaElement, CardFormProps>(({
   isEditing,
 }, ref) => {
   const params = useParams();
-  const formRef = useRef<HTMLFormElement>(null);
+  const formRef = useRef<HTMLFormElement>(null!);
 
   const { execute, fieldErrors } = useAction(createCard, {
     onSuccess: (data) => {
@@ -71,14 +71,15 @@ export const CardForm = forwardRef<HTMLTextAreaElement, CardFormProps>(({
       <form
         ref={formRef}
         action={onSubmit}
-        className="m-1 py-0.5 px-1 space-y-4"
+        className="mx-2 mt-1 mb-1 space-y-2"
       >
         <FormTextarea
           id="title"
           onKeyDown={onTextareakeyDown}
           ref={ref}
-          placeholder="Enter a title for this card..."
+          placeholder="Card title…"
           errors={fieldErrors}
+          className="text-sm resize-none rounded-lg border-neutral-200 focus:border-violet-400 focus:ring-1 focus:ring-violet-200 shadow-sm"
         />
         <input
           hidden
@@ -86,12 +87,12 @@ export const CardForm = forwardRef<HTMLTextAreaElement, CardFormProps>(({
           name="listId"
           defaultValue={listId}
         />
-        <div className="flex items-center gap-x-1">
-          <FormSubmit>
+        <div className="flex items-center gap-x-2">
+          <FormSubmit className="h-8 text-sm bg-violet-600 hover:bg-violet-700 text-white rounded-lg px-3">
             Add card
           </FormSubmit>
-          <Button onClick={disableEditing} size="sm" variant="ghost">
-            <X className="h-5 w-5" />
+          <Button onClick={disableEditing} size="sm" variant="ghost" className="h-8 w-8 p-0 text-neutral-400 hover:text-neutral-600 rounded-lg">
+            <X className="h-4 w-4" />
           </Button>
         </div>
       </form>
@@ -99,14 +100,14 @@ export const CardForm = forwardRef<HTMLTextAreaElement, CardFormProps>(({
   }
 
   return (
-    <div className="pt-2 px-2">
+    <div className="px-2 pt-1">
       <Button
         onClick={enableEditing}
-        className="h-auto px-2 py-1.5 w-full justify-start text-muted-foreground text-sm"
+        className="h-8 px-2 w-full justify-start text-neutral-500 hover:text-neutral-700 text-sm hover:bg-neutral-200/50 rounded-lg"
         size="sm"
         variant="ghost"
       >
-        <Plus className="h-4 w-4 mr-2" />
+        <Plus className="h-3.5 w-3.5 mr-1.5" />
         Add a card
       </Button>
     </div>
