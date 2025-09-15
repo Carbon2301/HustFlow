@@ -15,7 +15,7 @@ export async function generateMetadata({
 
   if (!orgId) {
     return {
-      title: "Board",
+      title: "Bảng",
     };
   }
 
@@ -27,7 +27,7 @@ export async function generateMetadata({
   });
 
   return {
-    title: board?.title || "Board",
+    title: board?.title || "Bảng",
   };
 }
 

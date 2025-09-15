@@ -9,11 +9,11 @@ export const Footer = () => {
                 <Logo />
                 <div className="flex items-center gap-x-1">
                     <Button size="sm" variant="ghost" className="text-xs text-neutral-500 hover:text-neutral-700" asChild>
-                        <Link href="#">Privacy Policy</Link>
+                        <Link href="#">Chính sách bảo mật</Link>
                     </Button>
                     <span className="text-neutral-300 text-xs">·</span>
                     <Button size="sm" variant="ghost" className="text-xs text-neutral-500 hover:text-neutral-700" asChild>
-                        <Link href="#">Terms of Service</Link>
+                        <Link href="#">Điều khoản dịch vụ</Link>
                     </Button>
                 </div>
             </div>

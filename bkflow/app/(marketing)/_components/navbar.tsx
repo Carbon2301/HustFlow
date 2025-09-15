@@ -10,12 +10,12 @@ export const Navbar = () => {
                 <div className="flex items-center gap-x-3">
                     <Button size="sm" variant="ghost" asChild className="text-neutral-600 hover:text-neutral-900">
                         <Link href="/sign-in">
-                            Sign in
+                            Đăng nhập
                         </Link>
                     </Button>
                     <Button size="sm" asChild className="bg-neutral-900 hover:bg-neutral-700 text-white rounded-lg px-4">
                         <Link href="/sign-up">
-                            Get started free
+                            Bắt đầu miễn phí
                         </Link>
                     </Button>
                 </div>

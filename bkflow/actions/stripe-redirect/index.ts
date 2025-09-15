@@ -18,7 +18,7 @@ const handler = async (): Promise<ReturnType> => {
 
   if (!userId || !orgId || !user) {
     return {
-      error: "Unauthorized",
+      error: "Không có quyền truy cập.",
     };
   }
 
@@ -53,7 +53,7 @@ const handler = async (): Promise<ReturnType> => {
               currency: "USD",
               product_data: {
                 name: "BKFlow Pro",
-                description: "Unlimited boards for your organization"
+                description: "Không giới hạn số lượng bảng cho tổ chức của bạn"
               },
               unit_amount: 2000,
               recurring: {
@@ -72,7 +72,7 @@ const handler = async (): Promise<ReturnType> => {
     }
   } catch {
     return {
-      error: "Something went wrong!"
+      error: "Đã xảy ra lỗi!"
     }
   };
 

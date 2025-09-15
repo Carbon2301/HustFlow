@@ -58,7 +58,7 @@ export const Description = ({
       queryClient.invalidateQueries({
         queryKey: ["card-logs", data.id]
       });
-      toast.success("Description updated");
+      toast.success("Đã cập nhật mô tả");
       disableEditing();
     },
     onError: (error) => {
@@ -78,40 +78,40 @@ export const Description = ({
   }
 
   return (
-    <div className="flex items-start gap-x-3 w-full">
-      <div className="w-8 h-8 rounded-lg bg-neutral-100 flex items-center justify-center flex-shrink-0 mt-0.5">
-        <AlignLeft className="h-4 w-4 text-neutral-500" />
+    <div className="flex items-start gap-x-4 w-full">
+      <div className="w-10 h-10 rounded-xl bg-neutral-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+        <AlignLeft className="h-5 w-5 text-neutral-500" />
       </div>
       <div className="w-full min-w-0">
-        <p className="font-semibold text-sm text-neutral-700 mb-2">
-          Description
+        <p className="font-semibold text-base text-neutral-800 mb-2.5">
+          Mô tả
         </p>
         {isEditing ? (
           <form
             action={onSubmit}
             ref={formRef}
-            className="space-y-2"
+            className="space-y-2.5"
           >
             <FormTextarea
               id="description"
-              className="w-full text-sm resize-none rounded-lg border-neutral-200 focus:border-violet-400 focus:ring-1 focus:ring-violet-200 shadow-sm min-h-[80px]"
-              placeholder="Add a more detailed description…"
+              className="w-full text-base resize-none rounded-xl border-neutral-200 focus:border-violet-400 focus:ring-1 focus:ring-violet-200 shadow-sm min-h-[110px] px-3.5 py-2.5"
+              placeholder="Thêm mô tả chi tiết hơn…"
               defaultValue={data.description || undefined}
               errors={fieldErrors}
               ref={textareaRef}
             />
             <div className="flex items-center gap-x-2">
-              <FormSubmit className="h-8 text-sm bg-violet-600 hover:bg-violet-700 text-white rounded-lg px-4">
-                Save
+              <FormSubmit className="h-9 text-sm bg-violet-600 hover:bg-violet-700 text-white rounded-lg px-5">
+                Lưu
               </FormSubmit>
               <Button
                 type="button"
                 onClick={disableEditing}
                 size="sm"
                 variant="ghost"
-                className="h-8 text-sm text-neutral-500 rounded-lg"
+                className="h-9 text-sm text-neutral-500 rounded-lg px-4"
               >
-                Cancel
+                Hủy
               </Button>
             </div>
           </form>
@@ -120,7 +120,7 @@ export const Description = ({
             onClick={enableEditing}
             role="button"
             className={`
-              min-h-[72px] text-sm rounded-lg px-3 py-2.5 cursor-pointer
+              min-h-[96px] text-base rounded-xl px-4 py-3 cursor-pointer
               transition-colors duration-150
               ${data.description
                 ? "text-neutral-700 bg-neutral-50 border border-neutral-200 hover:bg-neutral-100"
@@ -128,7 +128,7 @@ export const Description = ({
               }
             `}
           >
-            {data.description || "Click to add a description…"}
+            {data.description || "Nhấp để thêm mô tả…"}
           </div>
         )}
       </div>
@@ -138,11 +138,11 @@ export const Description = ({
 
 Description.Skeleton = function DescriptionSkeleton() {
   return (
-    <div className="flex items-start gap-x-3 w-full">
-      <Skeleton className="h-8 w-8 rounded-lg bg-neutral-100" />
-      <div className="w-full space-y-2">
-        <Skeleton className="w-24 h-4 rounded bg-neutral-100" />
-        <Skeleton className="w-full h-[72px] rounded-lg bg-neutral-100" />
+    <div className="flex items-start gap-x-4 w-full">
+      <Skeleton className="h-10 w-10 rounded-xl bg-neutral-100" />
+      <div className="w-full space-y-3">
+        <Skeleton className="w-28 h-5 rounded bg-neutral-100" />
+        <Skeleton className="w-full h-24 rounded-xl bg-neutral-100" />
       </div>
     </div>
   );

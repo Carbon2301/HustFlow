@@ -39,7 +39,7 @@ export const FormPopover = ({
 
     const { execute, fieldErrors } = useAction(createBoard, {
     onSuccess: (data) => {
-        toast.success("Board created!");
+        toast.success("Tạo bảng thành công!");
         closeRef.current?.click();
         router.push(`/board/${data.id}`);
     },
@@ -70,7 +70,7 @@ export const FormPopover = ({
         sideOffset={sideOffset}
       >
         <div className="text-sm font-semibold text-center text-neutral-700 pb-3">
-          Create board
+          Tạo bảng
         </div>
         <PopoverClose ref={closeRef} asChild>
           <Button
@@ -88,14 +88,14 @@ export const FormPopover = ({
             />
             <FormInput
               id="title"
-              label="Board title"
+              label="Tiêu đề bảng"
               type="text"
               errors={fieldErrors}
               className="rounded-lg text-sm"
             />
           </div>
           <FormSubmit className="w-full bg-violet-600 hover:bg-violet-700 text-white rounded-lg h-9 font-medium">
-            Create board
+            Tạo bảng
           </FormSubmit>
         </form>
       </PopoverContent>

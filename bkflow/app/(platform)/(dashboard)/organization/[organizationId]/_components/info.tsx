@@ -45,12 +45,12 @@ export const Info = ({
           {isPro ? (
             <>
               <Sparkles className="h-3 w-3" />
-              Pro plan
+              Gói Pro
             </>
           ) : (
             <>
               <CreditCard className="h-3 w-3" />
-              Free plan
+              Gói miễn phí
             </>
           )}
         </div>

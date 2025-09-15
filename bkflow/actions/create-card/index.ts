@@ -16,7 +16,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
   if (!userId || !orgId) {
     return {
-      error: "Unauthorized",
+      error: "Không có quyền truy cập.",
     };
   }
 
@@ -35,7 +35,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
     if (!list) {
       return {
-        error: "List not found",
+        error: "Không tìm thấy danh sách.",
       };
     }
 
@@ -63,7 +63,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     });
   } catch {
     return {
-      error: "Failed to create."
+      error: "Tạo thẻ thất bại."
     }
   }
 

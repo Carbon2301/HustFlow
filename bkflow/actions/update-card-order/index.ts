@@ -14,7 +14,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
   if (!userId || !orgId) {
     return {
-      error: "Unauthorized",
+      error: "Không có quyền truy cập.",
     };
   }
 
@@ -42,7 +42,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     updatedCards = await db.$transaction(transaction);
   } catch {
     return {
-      error: "Failed to reorder."
+      error: "Thay đổi thứ tự thẻ thất bại."
     }
   }
 

@@ -114,7 +114,7 @@ export const Sidebar = ({
   return (
     <>
       <div className="font-semibold text-xs text-neutral-400 uppercase tracking-wider flex items-center mb-2 px-2">
-        <span className="flex-1">Workspaces</span>
+        <span className="flex-1">Không gian làm việc</span>
         <Button
           asChild
           type="button"
@@ -122,7 +122,7 @@ export const Sidebar = ({
           variant="ghost"
           className="h-7 w-7 text-neutral-500 hover:text-violet-600 hover:bg-violet-50 rounded-lg"
         >
-          <Link href="/select-org" title="Add workspace">
+          <Link href="/select-org" title="Thêm không gian làm việc">
             <Plus className="h-3.5 w-3.5" />
           </Link>
         </Button>
@@ -143,10 +143,10 @@ export const Sidebar = ({
         ))}
         {memberships.length === 0 && (
           <div className="px-2 py-4 text-xs text-neutral-400 text-center">
-            No workspaces yet.
+            Chưa có không gian làm việc nào.
             <br />
             <Link href="/select-org" className="text-violet-600 hover:underline mt-1 inline-block">
-              Create one →
+              Tạo mới →
             </Link>
           </div>
         )}

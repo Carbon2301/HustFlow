@@ -16,7 +16,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
   if (!userId || !orgId) {
     return {
-      error: "Unauthorized",
+      error: "Không có quyền truy cập.",
     };
   }
 
@@ -38,7 +38,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     });
 
     if (!listToCopy) {
-      return { error: "List not found" };
+      return { error: "Không tìm thấy danh sách." };
     }
 
     const lastList = await db.list.findFirst({
@@ -52,7 +52,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     list = await db.list.create({
       data: {
         boardId: listToCopy.boardId,
-        title: `${listToCopy.title} - Copy`,
+        title: `${listToCopy.title} - Bản sao`,
         order: newOrder,
         cards: {
           createMany: {
@@ -77,7 +77,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     })
   } catch {
     return {
-      error: "Failed to copy."
+      error: "Sao chép danh sách thất bại."
     }
   }
 

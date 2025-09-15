@@ -32,7 +32,7 @@ export const Header = ({
         queryKey: ["card-logs", data.id]
       });
 
-      toast.success(`Renamed to "${data.title}"`);
+      toast.success(`Đã đổi tên thành "${data.title}"`);
       setTitle(data.title);
     },
     onError: (error) => {
@@ -64,9 +64,9 @@ export const Header = ({
   }
 
   return (
-    <div className="flex items-start gap-x-3 mb-4 w-full">
-      <div className="w-8 h-8 rounded-lg bg-violet-50 flex items-center justify-center flex-shrink-0 mt-0.5">
-        <Layout className="h-4 w-4 text-violet-600" />
+    <div className="flex items-start gap-x-4 mb-3 w-full">
+      <div className="w-10 h-10 rounded-xl bg-violet-50 flex items-center justify-center flex-shrink-0 mt-0.5">
+        <Layout className="h-5 w-5 text-violet-600" />
       </div>
       <div className="w-full min-w-0">
         <form action={onSubmit}>
@@ -75,12 +75,12 @@ export const Header = ({
             onBlur={onBlur}
             id="title"
             defaultValue={title}
-            className="font-semibold text-lg px-2 text-neutral-800 bg-transparent border-transparent relative -left-2 w-[calc(100%+0.5rem)] focus-visible:bg-white focus-visible:border-neutral-300 focus-visible:ring-1 focus-visible:ring-violet-200 rounded-lg mb-0.5 truncate transition"
+            className="font-bold text-xl px-2 text-neutral-800 bg-transparent border-transparent relative -left-2 w-[calc(100%+0.5rem)] focus-visible:bg-white focus-visible:border-neutral-300 focus-visible:ring-1 focus-visible:ring-violet-200 rounded-lg mb-0.5 truncate transition h-9 py-1"
           />
         </form>
-        <p className="text-xs text-neutral-400 pl-0.5">
-          in list{" "}
-          <span className="font-medium text-neutral-600 hover:underline cursor-default">
+        <p className="text-sm text-neutral-400 pl-0.5">
+          trong danh sách{" "}
+          <span className="font-semibold text-neutral-600 hover:underline cursor-default">
             {data.list.title}
           </span>
         </p>
@@ -91,11 +91,11 @@ export const Header = ({
 
 Header.Skeleton = function HeaderSkeleton() {
   return (
-    <div className="flex items-start gap-x-3 mb-4">
-      <Skeleton className="h-8 w-8 rounded-lg bg-neutral-100" />
+    <div className="flex items-start gap-x-4 mb-3">
+      <Skeleton className="h-10 w-10 rounded-xl bg-neutral-100" />
       <div className="space-y-2 flex-1">
-        <Skeleton className="w-2/3 h-6 rounded-lg bg-neutral-100" />
-        <Skeleton className="w-24 h-3.5 rounded bg-neutral-100" />
+        <Skeleton className="w-2/3 h-7 rounded-lg bg-neutral-100" />
+        <Skeleton className="w-28 h-4 rounded bg-neutral-100" />
       </div>
     </div>
   );

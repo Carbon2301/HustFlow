@@ -23,7 +23,7 @@ const MarketingPage = () => {
                 textFont.className
             )}>
                 <Kanban className="h-3.5 w-3.5" />
-                Team task management, reimagined
+                Quản lý công việc nhóm trực quan & hiệu quả
             </div>
 
             {/* Headline */}
@@ -32,10 +32,10 @@ const MarketingPage = () => {
                 headingFont.className
             )}>
                 <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-neutral-900 leading-tight tracking-tight mb-4">
-                    BKFlow helps your team
+                    BKFlow giúp đội ngũ của bạn
                 </h1>
                 <div className="text-4xl md:text-6xl lg:text-7xl font-bold bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
-                    move work forward.
+                    thúc đẩy công việc tiến lên.
                 </div>
             </div>
 
@@ -44,7 +44,7 @@ const MarketingPage = () => {
                 "text-base md:text-lg text-neutral-500 max-w-xl text-center leading-relaxed",
                 textFont.className
             )}>
-                Collaborate, manage projects, and reach new productivity peaks — from small teams to large organizations.
+                Cùng nhau cộng tác, quản lý dự án và đạt những đỉnh cao năng suất mới — từ các nhóm nhỏ đến các tổ chức lớn.
             </p>
 
             {/* CTA */}
@@ -55,7 +55,7 @@ const MarketingPage = () => {
                     className="bg-violet-600 hover:bg-violet-700 text-white px-8 py-6 text-base rounded-xl shadow-lg shadow-violet-200 hover:shadow-violet-300 transition-all"
                 >
                     <Link href="/sign-up" className="flex items-center gap-x-2">
-                        Get BKFlow for free
+                        Trải nghiệm BKFlow miễn phí
                         <ArrowRight className="h-4 w-4" />
                     </Link>
                 </Button>
@@ -63,7 +63,7 @@ const MarketingPage = () => {
 
             {/* Social proof */}
             <p className={cn("text-xs text-neutral-400", textFont.className)}>
-                No credit card required · Free forever for small teams
+                Không yêu cầu thẻ tín dụng · Miễn phí trọn đời cho nhóm nhỏ
             </p>
         </div>
     );

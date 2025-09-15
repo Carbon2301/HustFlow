@@ -47,12 +47,12 @@ export const SubscriptionButton = ({
       {isPro ? (
         <>
           <Settings className="h-4 w-4" />
-          {isLoading ? "Loading…" : "Manage subscription"}
+          {isLoading ? "Đang tải…" : "Quản lý gói đăng ký"}
         </>
       ) : (
         <>
           <Sparkles className="h-4 w-4" />
-          Upgrade to Pro
+          Nâng cấp lên gói Pro
         </>
       )}
     </Button>

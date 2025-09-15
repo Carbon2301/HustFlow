@@ -44,7 +44,7 @@ export const BoardOptions = ({ id }: BoardOptionsProps) => {
         align="start"
       >
         <div className="text-xs font-semibold text-center text-neutral-400 uppercase tracking-wider pb-2 px-4">
-          Board actions
+          Thao tác bảng
         </div>
         <PopoverClose asChild>
           <Button
@@ -61,7 +61,7 @@ export const BoardOptions = ({ id }: BoardOptionsProps) => {
           className="w-full h-9 px-4 justify-start font-normal text-sm text-red-500 hover:bg-red-50 hover:text-red-600 gap-x-2 rounded-none"
         >
           <Trash2 className="h-4 w-4" />
-          {isLoading ? "Deleting…" : "Delete this board"}
+          {isLoading ? "Đang xóa…" : "Xóa bảng này"}
         </Button>
       </PopoverContent>
     </Popover>

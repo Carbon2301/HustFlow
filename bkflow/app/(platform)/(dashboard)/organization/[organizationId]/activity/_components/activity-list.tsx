@@ -28,9 +28,9 @@ export const ActivityList = async () => {
         <div className="w-12 h-12 bg-neutral-100 rounded-2xl flex items-center justify-center mb-4">
           <Activity className="h-6 w-6 text-neutral-400" />
         </div>
-        <h3 className="font-semibold text-neutral-800 text-base">No activity found</h3>
+        <h3 className="font-semibold text-neutral-800 text-base">Không tìm thấy hoạt động nào</h3>
         <p className="text-sm text-neutral-400 max-w-sm mt-1">
-          Perform some actions on your boards (like creating lists or cards) to start seeing the activity log.
+          Thực hiện một số thao tác trên bảng của bạn (như tạo danh sách hoặc thẻ) để bắt đầu xem nhật ký hoạt động.
         </p>
       </div>
     );

@@ -22,7 +22,7 @@ export const Navbar = () => {
                         className="rounded-lg hidden md:flex items-center gap-x-1.5 bg-violet-600 hover:bg-violet-700 text-white h-8 px-3 text-sm font-medium shadow-sm"
                     >
                         <Plus className="h-3.5 w-3.5" />
-                        Create
+                        Tạo mới
                     </Button>
                 </FormPopover>
                 <FormPopover align="start" side="bottom" sideOffset={18}>

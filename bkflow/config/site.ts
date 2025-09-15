@@ -1,4 +1,4 @@
 export const siteConfig = {
   name: 'BKFlow',
-  description: 'BKFlow 是一个基于 Node.js 的流程引擎，提供了强大的流程建模和执行功能，支持多种流程类型和复杂的业务逻辑。',
+  description: 'BKFlow giúp đội ngũ của bạn quản lý công việc, cộng tác dự án và tối ưu hóa hiệu suất làm việc với mô hình bảng Kanban trực quan, linh hoạt.',
 };

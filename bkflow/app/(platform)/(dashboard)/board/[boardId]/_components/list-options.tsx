@@ -31,7 +31,7 @@ export const ListOptions = ({
 
   const { execute: executeDelete } = useAction(deleteList, {
     onSuccess: (data) => {
-      toast.success(`List "${data.title}" deleted`);
+      toast.success(`Đã xóa danh sách "${data.title}"`);
       closeRef.current?.click();
     },
     onError: (error) => {
@@ -41,7 +41,7 @@ export const ListOptions = ({
 
   const { execute: executeCopy } = useAction(copyList, {
     onSuccess: (data) => {
-      toast.success(`List "${data.title}" copied`);
+      toast.success(`Đã sao chép danh sách "${data.title}"`);
       closeRef.current?.click();
     },
     onError: (error) => {
@@ -75,7 +75,7 @@ export const ListOptions = ({
       </PopoverTrigger>
       <PopoverContent className="px-0 pt-3 pb-2 w-52 shadow-lg rounded-xl border border-neutral-200" side="bottom" align="start">
         <div className="text-xs font-semibold text-center text-neutral-400 uppercase tracking-wider pb-2 px-4">
-          List actions
+          Thao tác danh sách
         </div>
         <PopoverClose ref={closeRef} asChild>
           <Button
@@ -91,7 +91,7 @@ export const ListOptions = ({
           variant="ghost"
         >
           <Plus className="h-4 w-4 text-neutral-400" />
-          Add card
+          Thêm thẻ
         </Button>
         <form action={onCopy}>
           <input hidden name="id" id="id" value={data.id} readOnly />
@@ -101,7 +101,7 @@ export const ListOptions = ({
             className="w-full h-9 px-4 justify-start font-normal text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 gap-x-2 rounded-none"
           >
             <Copy className="h-4 w-4 text-neutral-400" />
-            Copy list
+            Sao chép danh sách
           </FormSubmit>
         </form>
         <Separator className="my-1" />
@@ -113,7 +113,7 @@ export const ListOptions = ({
             className="w-full h-9 px-4 justify-start font-normal text-sm text-red-500 hover:bg-red-50 hover:text-red-600 gap-x-2 rounded-none"
           >
             <Trash2 className="h-4 w-4" />
-            Delete list
+            Xóa danh sách
           </FormSubmit>
         </form>
       </PopoverContent>

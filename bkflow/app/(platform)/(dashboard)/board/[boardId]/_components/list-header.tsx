@@ -39,7 +39,7 @@ export const ListHeader = ({
 
   const { execute } = useAction(updateList, {
     onSuccess: (data) => {
-      toast.success(`Renamed to "${data.title}"`);
+      toast.success(`Đã đổi tên thành "${data.title}"`);
       setTitle(data.title);
       disableEditing();
     },
@@ -90,7 +90,7 @@ export const ListHeader = ({
             ref={inputRef}
             onBlur={onBlur}
             id="title"
-            placeholder="List name…"
+            placeholder="Nhập tên danh sách…"
             defaultValue={title}
             className="text-sm px-2 py-1 h-7 font-semibold border-transparent hover:border-input focus:border-violet-400 focus:ring-1 focus:ring-violet-200 transition rounded-md bg-transparent focus:bg-white truncate"
           />

@@ -26,11 +26,11 @@ export async function GET(
       orderBy: {
         createdAt: "desc",
       },
-      take: 3,
+      take: 30,
     });
 
     return NextResponse.json(auditLogs);
   } catch {
     return new NextResponse("Internal Error", { status: 500 });
   }
-};
+}

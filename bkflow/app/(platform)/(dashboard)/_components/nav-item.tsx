@@ -43,22 +43,22 @@ export const NavItem = ({
 
   const routes = [
     {
-      label: "Boards",
+      label: "Bảng",
       icon: <Layout className="h-4 w-4" />,
       href: `/organization/${organization.id}`,
     },
     {
-      label: "Activity",
+      label: "Nhật ký hoạt động",
       icon: <Activity className="h-4 w-4" />,
       href: `/organization/${organization.id}/activity`,
     },
     {
-      label: "Settings",
+      label: "Cài đặt",
       icon: <Settings className="h-4 w-4" />,
       href: `/organization/${organization.id}/settings`,
     },
     {
-      label: "Billing",
+      label: "Thanh toán",
       icon: <CreditCard className="h-4 w-4" />,
       href: `/organization/${organization.id}/billing`,
     },

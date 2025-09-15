@@ -33,7 +33,7 @@ export const ListContainer = ({
 
   const { execute: executeUpdateListOrder } = useAction(updateListOrder, {
     onSuccess: () => {
-      toast.success("List reordered");
+      toast.success("Đã sắp xếp lại thứ tự danh sách");
     },
     onError: (error) => {
       toast.error(error);
@@ -42,7 +42,7 @@ export const ListContainer = ({
 
   const { execute: executeUpdateCardOrder } = useAction(updateCardOrder, {
     onSuccess: () => {
-      toast.success("Card reordered");
+      toast.success("Đã sắp xếp lại thứ tự thẻ");
     },
     onError: (error) => {
       toast.error(error);

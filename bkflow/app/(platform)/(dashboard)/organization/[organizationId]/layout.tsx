@@ -11,7 +11,7 @@ export async function generateMetadata({
   const organizationId = params.organizationId || orgId;
 
   if (!organizationId) {
-    return { title: "Organization" };
+    return { title: "Tổ chức" };
   }
 
   try {
@@ -20,9 +20,9 @@ export async function generateMetadata({
       organizationId,
     });
 
-    return { title: organization.name || "Organization" };
+    return { title: organization.name || "Tổ chức" };
   } catch {
-    return { title: "Organization" };
+    return { title: "Tổ chức" };
   }
 };
 

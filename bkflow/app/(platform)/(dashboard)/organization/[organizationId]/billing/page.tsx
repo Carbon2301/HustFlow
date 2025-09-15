@@ -15,12 +15,12 @@ const BillingPage = async () => {
       <div className="space-y-3">
         <div>
           <p className="text-sm font-semibold text-neutral-700">
-            {isPro ? "Pro plan" : "Free plan"}
+            {isPro ? "Gói Pro" : "Gói miễn phí"}
           </p>
           <p className="text-xs text-neutral-400 mt-0.5">
             {isPro
-              ? "You have access to all Pro features. Manage or cancel your subscription below."
-              : "You are on the free plan. Upgrade to unlock unlimited boards and more."}
+              ? "Bạn đã được truy cập vào tất cả tính năng của gói Pro. Quản lý hoặc hủy gói đăng ký của bạn bên dưới."
+              : "Bạn đang sử dụng gói miễn phí. Nâng cấp để mở khóa số lượng bảng không giới hạn và các tính năng khác."}
           </p>
         </div>
         <SubscriptionButton isPro={isPro} />

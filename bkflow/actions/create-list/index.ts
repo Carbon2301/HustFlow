@@ -16,7 +16,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
   if (!userId || !orgId) {
     return {
-      error: "Unauthorized",
+      error: "Không có quyền truy cập.",
     };
   }
 
@@ -33,7 +33,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
     if (!board) {
       return {
-        error: "Board not found",
+        error: "Không tìm thấy bảng",
       };
     }
 
@@ -61,7 +61,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     })
   } catch {
     return {
-      error: "Failed to create."
+      error: "Tạo danh sách thất bại."
     }
   }
 
