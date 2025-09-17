@@ -1,17 +1,57 @@
 import { auth } from "@clerk/nextjs/server"
 import { redirect } from "next/navigation";
+import Link from "next/link";
+import { Activity, ChevronLeft, ChevronRight } from "lucide-react";
 
 import { db } from "@/lib/db";
 import { ActivityItem } from "@/components/activity-item";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Activity } from "lucide-react";
+import { cn } from "@/lib/utils";
 
-export const ActivityList = async () => {
+interface ActivityListProps {
+  page: number;
+}
+
+const getPages = (currentPage: number, totalPages: number) => {
+  if (totalPages <= 8) {
+    return Array.from({ length: totalPages }, (_, i) => i + 1);
+  }
+
+  if (currentPage <= 4) {
+    return [1, 2, 3, 4, 5, "...", totalPages - 2, totalPages - 1, totalPages];
+  }
+
+  if (currentPage >= totalPages - 3) {
+    return [1, 2, 3, "...", totalPages - 4, totalPages - 3, totalPages - 2, totalPages - 1, totalPages];
+  }
+
+  return [
+    1,
+    "...",
+    currentPage - 1,
+    currentPage,
+    currentPage + 1,
+    "...",
+    totalPages
+  ];
+};
+
+export const ActivityList = async ({ page }: ActivityListProps) => {
   const { orgId } = await auth();
 
   if (!orgId) {
     redirect("/select-org");
   }
+
+  const itemsPerPage = 50;
+
+  const totalLogs = await db.auditLog.count({
+    where: {
+      orgId,
+    },
+  });
+
+  const totalPages = Math.ceil(totalLogs / itemsPerPage);
 
   const auditLogs = await db.auditLog.findMany({
     where: {
@@ -19,7 +59,9 @@ export const ActivityList = async () => {
     },
     orderBy: {
       createdAt: "desc"
-    }
+    },
+    skip: (page - 1) * itemsPerPage,
+    take: itemsPerPage,
   });
 
   if (auditLogs.length === 0) {
@@ -36,12 +78,66 @@ export const ActivityList = async () => {
     );
   }
 
+  const pages = getPages(page, totalPages);
+
   return (
-    <ol className="space-y-4 mt-4">
-      {auditLogs.map((log) => (
-        <ActivityItem key={log.id} data={log} />
-      ))}
-    </ol>
+    <div className="flex flex-col gap-y-6">
+      <ol className="space-y-4 mt-4">
+        {auditLogs.map((log) => (
+          <ActivityItem key={log.id} data={log} />
+        ))}
+      </ol>
+      {totalPages > 1 && (
+        <div className="flex items-center justify-center gap-x-2 pt-6 pb-8">
+          <Link
+            href={`?page=${Math.max(1, page - 1)}`}
+            className={cn(
+              "flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-200 bg-white hover:bg-neutral-50 transition-all text-neutral-600 shadow-sm",
+              page <= 1 && "pointer-events-none opacity-40"
+            )}
+            aria-disabled={page <= 1}
+          >
+            <ChevronLeft className="h-4 w-4" />
+          </Link>
+          {pages.map((p, index) => {
+            if (p === "...") {
+              return (
+                <span
+                  key={`ellipsis-${index}`}
+                  className="flex h-9 w-9 items-center justify-center text-sm text-neutral-400 select-none"
+                >
+                  ...
+                </span>
+              );
+            }
+            return (
+              <Link
+                key={`page-${p}`}
+                href={`?page=${p}`}
+                className={cn(
+                  "flex h-9 w-9 items-center justify-center rounded-lg border text-sm font-medium transition-all shadow-sm",
+                  p === page
+                    ? "border-violet-600 bg-violet-600 text-white shadow-violet-100"
+                    : "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50"
+                )}
+              >
+                {p}
+              </Link>
+            );
+          })}
+          <Link
+            href={`?page=${Math.min(totalPages, page + 1)}`}
+            className={cn(
+              "flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-200 bg-white hover:bg-neutral-50 transition-all text-neutral-600 shadow-sm",
+              page >= totalPages && "pointer-events-none opacity-40"
+            )}
+            aria-disabled={page >= totalPages}
+          >
+            <ChevronRight className="h-4 w-4" />
+          </Link>
+        </div>
+      )}
+    </div>
   );
 };
 

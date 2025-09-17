@@ -1,52 +1,179 @@
 "use client";
 
+import { useState, useRef } from "react";
+import { useParams } from "next/navigation";
+import { toast } from "sonner";
 import { Card } from "@prisma/client";
 import { Draggable } from "@hello-pangea/dnd";
-import { AlignLeft } from "lucide-react";
+import { AlignLeft, ExternalLink, Copy, Trash2 } from "lucide-react";
 
 import { useCardModal } from "@/hooks/use-card-modal";
+import { DueDateBadge } from "@/components/due-date-badge";
+import { Hint } from "@/components/hint";
+import { useAction } from "@/hooks/use-action";
+import { copyCard } from "@/actions/copy-card";
+import { deleteCard } from "@/actions/delete-card";
+import { cn } from "@/lib/utils";
 
 interface CardItemProps {
   data: Card;
   index: number;
-};
+}
 
 export const CardItem = ({
   data,
   index,
 }: CardItemProps) => {
   const cardModal = useCardModal();
+  const params = useParams();
+  
+  const [showMenu, setShowMenu] = useState(false);
+  const [menuAlign, setMenuAlign] = useState<"left" | "right">("right");
+  const cardRef = useRef<HTMLDivElement>(null);
+
+  const handleContextMenu = (e: React.MouseEvent) => {
+    e.preventDefault();
+    e.stopPropagation();
+    const rect = cardRef.current?.getBoundingClientRect();
+
+    if (rect) {
+      setMenuAlign(window.innerWidth - rect.right < 240 ? "left" : "right");
+    }
+
+    setShowMenu(true);
+  };
+
+  const { execute: executeCopyCard, isLoading: isLoadingCopy } = useAction(copyCard, {
+    onSuccess: (copiedCard) => {
+      toast.success(`Đã sao chép thẻ "${copiedCard.title}"`);
+      setShowMenu(false);
+    },
+    onError: (error) => {
+      toast.error(error);
+    },
+  });
+
+  const { execute: executeDeleteCard, isLoading: isLoadingDelete } = useAction(deleteCard, {
+    onSuccess: (deletedCard) => {
+      toast.success(`Đã xóa thẻ "${deletedCard.title}"`);
+      setShowMenu(false);
+    },
+    onError: (error) => {
+      toast.error(error);
+    },
+  });
+
+  const onOpen = (e?: React.MouseEvent) => {
+    if (e) {
+      e.stopPropagation();
+    }
+    setShowMenu(false);
+    cardModal.onOpen(data.id);
+  };
+
+  const onCopy = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const boardId = params.boardId as string;
+    executeCopyCard({ id: data.id, boardId });
+  };
+
+  const onDelete = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    const boardId = params.boardId as string;
+    executeDeleteCard({ id: data.id, boardId });
+  };
 
   return (
     <Draggable draggableId={data.id} index={index}>
-      {(provided, snapshot) => (
-        <div
-          {...provided.draggableProps}
-          {...provided.dragHandleProps}
-          ref={provided.innerRef}
-          role="button"
-          onClick={() => cardModal.onOpen(data.id)}
-          className={`
-            group flex items-start gap-x-2
-            border border-transparent
-            hover:border-violet-200
-            py-2.5 px-3 text-sm
-            bg-white rounded-lg
-            shadow-sm hover:shadow
-            transition-all duration-150
-            cursor-pointer
-            select-none
-            ${snapshot.isDragging ? "shadow-md rotate-1 opacity-90 border-violet-300" : ""}
-          `}
-        >
-          <span className="flex-1 leading-snug text-neutral-700 break-words min-w-0">
-            {data.title}
-          </span>
-          {data.description && (
-            <AlignLeft className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-neutral-300 group-hover:text-neutral-400 transition-colors" />
-          )}
-        </div>
-      )}
+      {(provided, snapshot) => {
+        const combinedRef = (node: HTMLDivElement | null) => {
+          provided.innerRef(node);
+          cardRef.current = node;
+        };
+
+        return (
+          <div
+            {...provided.draggableProps}
+            {...provided.dragHandleProps}
+            ref={combinedRef}
+            role="button"
+            onClick={() => onOpen()}
+            onContextMenu={handleContextMenu}
+            className={cn(
+              "group flex items-start gap-x-2 border border-transparent hover:border-violet-200 py-2.5 px-3 text-sm bg-white rounded-lg shadow-sm hover:shadow transition-all duration-150 !cursor-pointer select-none",
+              snapshot.isDragging && "shadow-md rotate-1 opacity-90 border-violet-300",
+              showMenu && "relative z-[100] ring-2 ring-violet-500 shadow-xl"
+            )}
+          >
+            <div className="flex-1 min-w-0 space-y-2">
+              <span className="block leading-snug text-neutral-700 break-words">
+                {data.title}
+              </span>
+              {data.dueDate && (
+                <DueDateBadge
+                  dueDate={data.dueDate}
+                  isCompleted={data.isCompleted}
+                />
+              )}
+            </div>
+            {data.description && (
+              <Hint description="Thẻ đã có mô tả" side="bottom">
+                <AlignLeft className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-neutral-300 group-hover:text-neutral-400 transition-colors" />
+              </Hint>
+            )}
+
+            {showMenu && (
+              <>
+                {/* Backdrop overlay */}
+                <div
+                  className="fixed inset-0 bg-black/50 z-[99] cursor-default"
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    setShowMenu(false);
+                  }}
+                  onContextMenu={(e) => {
+                    e.preventDefault();
+                    e.stopPropagation();
+                    setShowMenu(false);
+                  }}
+                />
+                {/* Context Menu */}
+                <div
+                  className={cn(
+                    "absolute top-0 z-[100] w-52 bg-white rounded-xl shadow-2xl border border-neutral-200 p-1.5 flex flex-col gap-y-1",
+                    menuAlign === "right" ? "left-[calc(100%+8px)]" : "right-[calc(100%+8px)]"
+                  )}
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <button
+                    onClick={(e) => onOpen(e)}
+                    className="w-full flex items-center gap-x-2.5 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <ExternalLink className="h-4 w-4 text-neutral-400" />
+                    Mở thẻ
+                  </button>
+                  <button
+                    onClick={onCopy}
+                    disabled={isLoadingCopy || isLoadingDelete}
+                    className="w-full flex items-center gap-x-2.5 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-50 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <Copy className="h-4 w-4 text-neutral-400" />
+                    {isLoadingCopy ? "Đang sao chép…" : "Sao chép thẻ"}
+                  </button>
+                  <button
+                    onClick={onDelete}
+                    disabled={isLoadingCopy || isLoadingDelete}
+                    className="w-full flex items-center gap-x-2.5 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {isLoadingDelete ? "Đang xóa…" : "Xóa thẻ"}
+                  </button>
+                </div>
+              </>
+            )}
+          </div>
+        );
+      }}
     </Draggable>
   );
 };

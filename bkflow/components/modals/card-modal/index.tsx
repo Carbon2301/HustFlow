@@ -9,8 +9,8 @@ import { useCardModal } from "@/hooks/use-card-modal";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 import { Header } from "./header";
+import { DueDate } from "./due-date";
 import { Description } from "./description";
-import { Actions } from "./actions";
 import { Activity } from "./activity";
 
 export const CardModal = () => {
@@ -49,12 +49,12 @@ export const CardModal = () => {
               : <Header data={cardData} />
             }
             {!cardData
-              ? <Description.Skeleton />
-              : <Description data={cardData} />
+              ? <DueDate.Skeleton />
+              : <DueDate data={cardData} />
             }
             {!cardData
-              ? <Actions.Skeleton />
-              : <Actions data={cardData} />
+              ? <Description.Skeleton />
+              : <Description data={cardData} />
             }
           </div>
           <div className="col-span-1 md:col-span-5 pl-0 md:pl-2">

@@ -103,7 +103,7 @@ export const CardForm = forwardRef<HTMLTextAreaElement, CardFormProps>(({
     <div className="px-2 pt-1">
       <Button
         onClick={enableEditing}
-        className="h-8 px-2 w-full justify-start text-neutral-500 hover:text-neutral-700 text-sm hover:bg-neutral-200/50 rounded-lg"
+        className="h-8 px-2 w-full justify-start text-neutral-500 hover:text-neutral-700 text-sm hover:bg-neutral-200/50 rounded-lg !cursor-pointer"
         size="sm"
         variant="ghost"
       >

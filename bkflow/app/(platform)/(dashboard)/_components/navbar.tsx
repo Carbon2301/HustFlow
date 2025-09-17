@@ -6,10 +6,13 @@ import { OrganizationSwitcher, UserButton } from "@clerk/nextjs";
 import { Plus } from "lucide-react";
 import { MobileSidebar } from "./mobile-sidebar";
 import { FormPopover } from "@/components/form/form-popover";
+import { NotificationsPopover } from "@/components/notifications-popover";
+import { NotificationToasts } from "@/components/notifications/notification-toasts";
 
 export const Navbar = () => {
     return (
         <nav className="fixed z-50 top-0 px-4 w-full h-14 border-b border-neutral-200/80 bg-white/95 backdrop-blur-sm flex items-center gap-x-4">
+            <NotificationToasts />
             <MobileSidebar />
             <div className="flex items-center gap-x-4">
                 <div className="hidden md:flex">
@@ -35,6 +38,7 @@ export const Navbar = () => {
                 </FormPopover>
             </div>
             <div className="ml-auto flex items-center gap-x-3">
+                <NotificationsPopover />
                 <OrganizationSwitcher
                     hidePersonal
                     afterCreateOrganizationUrl="/organization/:id"

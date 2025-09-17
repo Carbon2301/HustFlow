@@ -16,6 +16,10 @@ const translateEntityType = (type: string) => {
 export const generateLogMessage = (log: AuditLog) => {
   const { action, entityTitle, entityType } = log;
 
+  if (entityTitle.startsWith("detail:")) {
+    return entityTitle.substring(7);
+  }
+
   switch (action) {
     case ACTION.CREATE:
       return `đã tạo ${translateEntityType(entityType)} "${entityTitle}"`;

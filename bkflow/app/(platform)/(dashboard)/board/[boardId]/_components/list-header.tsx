@@ -99,7 +99,7 @@ export const ListHeader = ({
       ) : (
         <div
           onClick={enableEditing}
-          className="flex-1 text-sm px-2 py-1 h-7 font-semibold text-neutral-700 hover:bg-neutral-200/60 rounded-md transition-colors cursor-pointer truncate"
+          className="flex-1 text-sm px-2 py-1 h-7 font-semibold text-neutral-700 hover:bg-neutral-200/60 rounded-md transition-colors !cursor-pointer truncate"
           title={title}
         >
           {title}

@@ -43,16 +43,17 @@ export const ListItem = ({
           className="shrink-0 h-full w-[272px] select-none"
         >
           <div
-            {...provided.dragHandleProps}
             className={cn(
               "w-full rounded-xl bg-[#f1f2f4] shadow-sm pb-2 flex flex-col",
               snapshot.isDragging && "shadow-xl opacity-95 rotate-1"
             )}
           >
-            <ListHeader
-              onAddCard={enableEditing}
-              data={data}
-            />
+            <div {...provided.dragHandleProps}>
+              <ListHeader
+                onAddCard={enableEditing}
+                data={data}
+              />
+            </div>
             <Droppable droppableId={data.id} type="card">
               {(provided, snapshot) => (
                 <ol

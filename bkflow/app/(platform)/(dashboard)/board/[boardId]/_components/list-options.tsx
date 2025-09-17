@@ -67,7 +67,7 @@ export const ListOptions = ({
     <Popover>
       <PopoverTrigger asChild>
         <Button
-          className="h-7 w-7 p-0 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-200/60 rounded-md"
+          className="h-7 w-7 p-0 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-200/60 rounded-md !cursor-pointer"
           variant="ghost"
         >
           <MoreHorizontal className="h-3.5 w-3.5" />

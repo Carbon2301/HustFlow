@@ -12,5 +12,8 @@ export const UpdateCard = z.object({
       message: "Tiêu đề quá ngắn (tối thiểu 3 ký tự)",
     })
   ),
+  dueDate: z.optional(z.union([z.date(), z.null()])),
+  isCompleted: z.optional(z.boolean()),
+  reminder: z.optional(z.union([z.string(), z.null()])),
   id: z.string(),
 });
