@@ -1,17 +1,18 @@
 "use client";
 
 import { toast } from "sonner";
-import { List } from "@prisma/client";
 import { useEventListener } from "usehooks-ts";
 import { useState, useRef } from "react";
 
 import { useAction } from "@/hooks/use-action";
 import { updateList } from "@/actions/update-list";
 import { FormInput } from "@/components/form/form-input";
+import { Hint } from "@/components/hint";
+import { ListWithCards } from "@/types";
 import { ListOptions } from "./list-options";
 
 interface ListHeaderProps {
-  data: List;
+  data: ListWithCards;
   onAddCard: () => void;
 };
 
@@ -97,18 +98,27 @@ export const ListHeader = ({
           <button type="submit" hidden />
         </form>
       ) : (
-        <div
-          onClick={enableEditing}
-          className="flex-1 text-sm px-2 py-1 h-7 font-semibold text-neutral-700 hover:bg-neutral-200/60 rounded-md transition-colors !cursor-pointer truncate"
-          title={title}
-        >
-          {title}
+        <div className="flex-1 min-w-0">
+          <button
+            type="button"
+            onClick={enableEditing}
+            className="flex h-7 w-fit max-w-full items-center rounded-md px-2 py-1 text-left text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-200/60"
+          >
+            <span className="truncate">{title}</span>
+          </button>
         </div>
       )}
-      <ListOptions
-        onAddCard={onAddCard}
-        data={data}
-      />
+      <div className="flex items-center gap-x-1">
+        <Hint description={`${data.cards.length} thẻ`} side="top" sideOffset={6}>
+          <span className="inline-flex h-7 min-w-7 cursor-default items-center justify-center rounded-md bg-white/80 px-2 text-xs font-semibold text-neutral-500 shadow-sm border border-neutral-200">
+            {data.cards.length}
+          </span>
+        </Hint>
+        <ListOptions
+          onAddCard={onAddCard}
+          data={data}
+        />
+      </div>
     </div>
   );
 };

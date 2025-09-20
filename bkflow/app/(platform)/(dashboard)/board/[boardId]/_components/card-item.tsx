@@ -28,7 +28,7 @@ export const CardItem = ({
   const params = useParams();
   
   const [showMenu, setShowMenu] = useState(false);
-  const [menuAlign, setMenuAlign] = useState<"left" | "right">("right");
+  const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const cardRef = useRef<HTMLDivElement>(null);
 
   const handleContextMenu = (e: React.MouseEvent) => {
@@ -37,7 +37,16 @@ export const CardItem = ({
     const rect = cardRef.current?.getBoundingClientRect();
 
     if (rect) {
-      setMenuAlign(window.innerWidth - rect.right < 240 ? "left" : "right");
+      const menuWidth = 208;
+      const gap = 8;
+      const hasSpaceRight = window.innerWidth - rect.right >= menuWidth + gap;
+
+      setMenuPosition({
+        top: Math.max(8, rect.top),
+        left: hasSpaceRight
+          ? rect.right + gap
+          : Math.max(8, rect.left - menuWidth - gap),
+      });
     }
 
     setShowMenu(true);
@@ -139,10 +148,11 @@ export const CardItem = ({
                 />
                 {/* Context Menu */}
                 <div
-                  className={cn(
-                    "absolute top-0 z-[100] w-52 bg-white rounded-xl shadow-2xl border border-neutral-200 p-1.5 flex flex-col gap-y-1",
-                    menuAlign === "right" ? "left-[calc(100%+8px)]" : "right-[calc(100%+8px)]"
-                  )}
+                  className="fixed z-[100] w-52 bg-white rounded-xl shadow-2xl border border-neutral-200 p-1.5 flex flex-col gap-y-1"
+                  style={{
+                    top: menuPosition.top,
+                    left: menuPosition.left,
+                  }}
                   onClick={(e) => e.stopPropagation()}
                 >
                   <button

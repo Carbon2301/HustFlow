@@ -62,6 +62,8 @@ export const ListItem = ({
                   className={cn(
                     "mx-2 px-0 py-0.5 flex flex-col gap-y-1.5 flex-1",
                     data.cards.length > 0 ? "mt-2" : "mt-0",
+                    data.cards.length > 6 &&
+                      "max-h-[304px] overflow-y-auto pr-1 scrollbar-thin scrollbar-thumb-neutral-300 scrollbar-track-transparent",
                     snapshot.isDraggingOver && "bg-violet-50/50 rounded-lg"
                   )}
                 >
