@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { notFound, redirect } from "next/navigation";
 
 import { db } from "@/lib/db";
+import { getOrganizationMembers } from "@/lib/clerk-org-members";
 
 import { BoardNavbar } from "./_components/board-navbar";
 
@@ -50,18 +51,30 @@ const BoardIdLayout = async ({
       id: boardId,
       orgId,
     },
+    include: {
+      members: {
+        orderBy: {
+          createdAt: "asc",
+        },
+      },
+    },
   });
 
   if (!board) {
     notFound();
   }
 
+  const organizationMembers = await getOrganizationMembers(orgId);
+
   return (
     <div
       className="relative min-h-screen bg-no-repeat bg-cover bg-center"
       style={{ backgroundImage: `url(${board.imageFullUrl})` }}
     >
-      <BoardNavbar data={board} />
+      <BoardNavbar
+        data={board}
+        organizationMembers={organizationMembers}
+      />
       <div className="absolute inset-0 bg-black/10" />
       <main className="relative pt-28 min-h-screen">
         {children}

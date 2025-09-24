@@ -1,5 +1,21 @@
-import { Card, List } from "@prisma/client";
+import { BoardMember, Card, List, Prisma } from "@prisma/client";
 
-export type ListWithCards = List & { cards: Card[] };
+export type CardWithAssignees = Card & {
+  assignees: Prisma.CardAssigneeGetPayload<{
+    include: {
+      boardMember: true;
+    };
+  }>[];
+};
 
-export type CardWithList = Card & { list: List };
+export type ListWithCards = List & { cards: CardWithAssignees[] };
+
+export type CardWithList = Card & {
+  list: List;
+  assignees: Prisma.CardAssigneeGetPayload<{
+    include: {
+      boardMember: true;
+    };
+  }>[];
+  boardMembers: BoardMember[];
+};

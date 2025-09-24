@@ -5,10 +5,11 @@ import { OrgControl } from "./_components/org-control";
 export async function generateMetadata({
   params,
 }: {
-  params: { organizationId: string };
+  params: Promise<{ organizationId: string }>;
 }) {
   const { orgId } = await auth();
-  const organizationId = params.organizationId || orgId;
+  const resolvedParams = await params;
+  const organizationId = resolvedParams.organizationId || orgId;
 
   if (!organizationId) {
     return { title: "Tổ chức" };

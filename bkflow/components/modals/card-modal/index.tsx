@@ -10,6 +10,7 @@ import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/compone
 
 import { Header } from "./header";
 import { DueDate } from "./due-date";
+import { Members } from "./members";
 import { Description } from "./description";
 import { Activity } from "./activity";
 
@@ -51,6 +52,10 @@ export const CardModal = () => {
             {!cardData
               ? <DueDate.Skeleton />
               : <DueDate data={cardData} />
+            }
+            {!cardData
+              ? <Members.Skeleton />
+              : <Members data={cardData} />
             }
             {!cardData
               ? <Description.Skeleton />

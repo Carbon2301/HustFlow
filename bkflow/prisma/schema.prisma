@@ -24,6 +24,7 @@ model Board {
   imageLinkHTML String @db.Text
 
   lists         List[]
+  members       BoardMember[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -57,11 +58,47 @@ model Card {
 
   listId      String
   list        List  @relation(fields: [listId], references: [id], onDelete: Cascade)
+  assignees   CardAssignee[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([listId])
+}
+
+model BoardMember {
+  id        String @id @default(uuid())
+  boardId   String
+  board     Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+
+  userId    String
+  userName  String @db.Text
+  userImage String @db.Text
+  userEmail String? @db.Text
+
+  assignees CardAssignee[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([boardId, userId])
+  @@index([boardId])
+  @@index([userId])
+}
+
+model CardAssignee {
+  id            String      @id @default(uuid())
+  cardId        String
+  card          Card        @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  boardMemberId String
+  boardMember   BoardMember @relation(fields: [boardMemberId], references: [id], onDelete: Cascade)
+
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  @@unique([cardId, boardMemberId])
+  @@index([cardId])
+  @@index([boardMemberId])
 }
 
 enum ACTION {

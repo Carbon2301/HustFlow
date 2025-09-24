@@ -26,15 +26,44 @@ export async function GET(
         },
       },
       include: {
+        assignees: {
+          include: {
+            boardMember: true,
+          },
+          orderBy: {
+            createdAt: "asc",
+          },
+        },
         list: {
           select: {
             title: true,
+            board: {
+              select: {
+                members: {
+                  orderBy: {
+                    createdAt: "asc",
+                  },
+                },
+              },
+            },
           },
         },
       },
     });
 
-    return NextResponse.json(card);
+    if (!card) {
+      return new NextResponse("Not Found", { status: 404 });
+    }
+
+    const { list, ...cardData } = card;
+
+    return NextResponse.json({
+      ...cardData,
+      list: {
+        title: list.title,
+      },
+      boardMembers: list.board.members,
+    });
   } catch {
     return new NextResponse("Internal Error", { status: 500 });
   }

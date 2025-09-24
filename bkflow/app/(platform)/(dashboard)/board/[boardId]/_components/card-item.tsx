@@ -3,22 +3,35 @@
 import { useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
-import { Card } from "@prisma/client";
 import { Draggable } from "@hello-pangea/dnd";
 import { AlignLeft, ExternalLink, Copy, Trash2 } from "lucide-react";
 
 import { useCardModal } from "@/hooks/use-card-modal";
 import { DueDateBadge } from "@/components/due-date-badge";
 import { Hint } from "@/components/hint";
+import { CardWithAssignees } from "@/types";
+import {
+  Avatar,
+  AvatarFallback,
+  AvatarGroup,
+  AvatarImage,
+} from "@/components/ui/avatar";
 import { useAction } from "@/hooks/use-action";
 import { copyCard } from "@/actions/copy-card";
 import { deleteCard } from "@/actions/delete-card";
 import { cn } from "@/lib/utils";
 
 interface CardItemProps {
-  data: Card;
+  data: CardWithAssignees;
   index: number;
 }
+
+const getInitials = (name: string) => {
+  const words = name.trim().split(/\s+/).filter(Boolean);
+  const initials = words.slice(0, 2).map((word) => word[0]).join("");
+
+  return initials.toUpperCase() || "U";
+};
 
 export const CardItem = ({
   data,
@@ -92,6 +105,10 @@ export const CardItem = ({
     executeDeleteCard({ id: data.id, boardId });
   };
 
+  const visibleAssignees = data.assignees.slice(0, 3);
+  const hiddenAssigneesCount = Math.max(data.assignees.length - visibleAssignees.length, 0);
+  const hasFooter = Boolean(data.dueDate) || data.assignees.length > 0;
+
   return (
     <Draggable draggableId={data.id} index={index}>
       {(provided, snapshot) => {
@@ -118,11 +135,44 @@ export const CardItem = ({
               <span className="block leading-snug text-neutral-700 break-words">
                 {data.title}
               </span>
-              {data.dueDate && (
-                <DueDateBadge
-                  dueDate={data.dueDate}
-                  isCompleted={data.isCompleted}
-                />
+              {hasFooter && (
+                <div className="flex min-h-7 items-center justify-between gap-x-2">
+                  <div className="min-w-0">
+                    {data.dueDate && (
+                      <DueDateBadge
+                        dueDate={data.dueDate}
+                        isCompleted={data.isCompleted}
+                      />
+                    )}
+                  </div>
+                  {data.assignees.length > 0 && (
+                    <AvatarGroup className="-mr-1 ml-auto flex-shrink-0 -space-x-1.5 *:data-[slot=avatar]:ring-white">
+                      {visibleAssignees.map((assignee) => (
+                        <Hint
+                          key={assignee.id}
+                          description={assignee.boardMember.userName}
+                        >
+                          <Avatar size="sm" className="h-6 w-6 bg-white">
+                            <AvatarImage
+                              src={assignee.boardMember.userImage}
+                              alt={assignee.boardMember.userName}
+                            />
+                            <AvatarFallback className="text-[10px] font-semibold">
+                              {getInitials(assignee.boardMember.userName)}
+                            </AvatarFallback>
+                          </Avatar>
+                        </Hint>
+                      ))}
+                      {hiddenAssigneesCount > 0 && (
+                        <Hint description={`Còn ${hiddenAssigneesCount} người phụ trách khác`}>
+                          <div className="relative flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full bg-neutral-100 px-1.5 text-[10px] font-semibold text-neutral-600 ring-2 ring-white">
+                            +{hiddenAssigneesCount}
+                          </div>
+                        </Hint>
+                      )}
+                    </AvatarGroup>
+                  )}
+                </div>
               )}
             </div>
             {data.description && (

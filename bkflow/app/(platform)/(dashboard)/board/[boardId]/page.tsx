@@ -30,6 +30,16 @@ const BoardIdPage = async ({
     },
     include: {
       cards: {
+        include: {
+          assignees: {
+            include: {
+              boardMember: true,
+            },
+            orderBy: {
+              createdAt: "asc",
+            },
+          },
+        },
         orderBy: {
           order: "asc",
         },
