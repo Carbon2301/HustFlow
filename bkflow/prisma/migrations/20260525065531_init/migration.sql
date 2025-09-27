@@ -46,6 +46,38 @@ CREATE TABLE `Card` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
+CREATE TABLE `CardComment` (
+    `id` VARCHAR(191) NOT NULL,
+    `cardId` VARCHAR(191) NOT NULL,
+    `userId` VARCHAR(191) NOT NULL,
+    `userName` TEXT NOT NULL,
+    `userImage` TEXT NOT NULL,
+    `content` TEXT NOT NULL,
+    `parentId` VARCHAR(191) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    INDEX `CardComment_cardId_idx`(`cardId`),
+    INDEX `CardComment_parentId_idx`(`parentId`),
+    INDEX `CardComment_userId_idx`(`userId`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
+CREATE TABLE `CardCommentReaction` (
+    `id` VARCHAR(191) NOT NULL,
+    `commentId` VARCHAR(191) NOT NULL,
+    `userId` VARCHAR(191) NOT NULL,
+    `emoji` VARCHAR(191) NOT NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+
+    INDEX `CardCommentReaction_commentId_idx`(`commentId`),
+    INDEX `CardCommentReaction_userId_idx`(`userId`),
+    UNIQUE INDEX `CardCommentReaction_commentId_userId_emoji_key`(`commentId`, `userId`, `emoji`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `BoardMember` (
     `id` VARCHAR(191) NOT NULL,
     `boardId` VARCHAR(191) NOT NULL,
@@ -125,6 +157,15 @@ ALTER TABLE `List` ADD CONSTRAINT `List_boardId_fkey` FOREIGN KEY (`boardId`) RE
 
 -- AddForeignKey
 ALTER TABLE `Card` ADD CONSTRAINT `Card_listId_fkey` FOREIGN KEY (`listId`) REFERENCES `List`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `CardComment` ADD CONSTRAINT `CardComment_cardId_fkey` FOREIGN KEY (`cardId`) REFERENCES `Card`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `CardComment` ADD CONSTRAINT `CardComment_parentId_fkey` FOREIGN KEY (`parentId`) REFERENCES `CardComment`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE `CardCommentReaction` ADD CONSTRAINT `CardCommentReaction_commentId_fkey` FOREIGN KEY (`commentId`) REFERENCES `CardComment`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;
 
 -- AddForeignKey
 ALTER TABLE `BoardMember` ADD CONSTRAINT `BoardMember_boardId_fkey` FOREIGN KEY (`boardId`) REFERENCES `Board`(`id`) ON DELETE CASCADE ON UPDATE CASCADE;

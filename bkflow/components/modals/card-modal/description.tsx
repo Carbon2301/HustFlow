@@ -94,7 +94,7 @@ export const Description = ({
           >
             <FormTextarea
               id="description"
-              className="w-full text-base resize-none rounded-xl border-neutral-200 focus:border-violet-400 focus:ring-1 focus:ring-violet-200 shadow-sm min-h-[110px] px-3.5 py-2.5"
+              className="w-full text-base md:text-base leading-relaxed resize-none rounded-xl border-neutral-200 focus:border-violet-400 focus:ring-1 focus:ring-violet-200 shadow-sm min-h-[110px] px-3.5 py-2.5"
               placeholder="Thêm mô tả chi tiết hơn…"
               defaultValue={data.description || undefined}
               errors={fieldErrors}
@@ -120,7 +120,7 @@ export const Description = ({
             onClick={enableEditing}
             role="button"
             className={`
-              min-h-[96px] text-base rounded-xl px-4 py-3 cursor-pointer
+              min-h-[96px] text-base md:text-base leading-relaxed rounded-xl px-4 py-3 cursor-pointer
               transition-colors duration-150
               ${data.description
                 ? "text-neutral-700 bg-neutral-50 border border-neutral-200 hover:bg-neutral-100"

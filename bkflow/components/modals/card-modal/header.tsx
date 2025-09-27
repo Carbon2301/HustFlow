@@ -75,7 +75,7 @@ export const Header = ({
             onBlur={onBlur}
             id="title"
             defaultValue={title}
-            className="font-bold text-xl px-2 text-neutral-800 bg-transparent border-transparent relative -left-2 w-[calc(100%+0.5rem)] focus-visible:bg-white focus-visible:border-neutral-300 focus-visible:ring-1 focus-visible:ring-violet-200 rounded-lg mb-0.5 truncate transition h-9 py-1"
+            className="font-bold text-2xl md:text-2xl px-2 text-neutral-800 bg-transparent border-transparent relative -left-2 w-[calc(100%+0.5rem)] focus-visible:bg-white focus-visible:border-neutral-300 focus-visible:ring-1 focus-visible:ring-violet-200 rounded-lg mb-0.5 truncate transition h-10 py-1.5"
           />
         </form>
         <p className="text-sm text-neutral-400 pl-0.5">

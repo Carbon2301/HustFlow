@@ -19,3 +19,14 @@ export type CardWithList = Card & {
   }>[];
   boardMembers: BoardMember[];
 };
+
+export type CardCommentWithReplies = Prisma.CardCommentGetPayload<{
+  include: {
+    reactions: true;
+    replies: {
+      include: {
+        reactions: true;
+      };
+    };
+  };
+}>;

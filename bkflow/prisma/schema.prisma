@@ -59,11 +59,51 @@ model Card {
   listId      String
   list        List  @relation(fields: [listId], references: [id], onDelete: Cascade)
   assignees   CardAssignee[]
+  comments    CardComment[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
 
   @@index([listId])
+}
+
+model CardComment {
+  id        String @id @default(uuid())
+  cardId    String
+  card      Card   @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  userId    String
+  userName  String @db.Text
+  userImage String @db.Text
+  content   String @db.Text
+
+  parentId  String?
+  parent    CardComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies   CardComment[] @relation("CommentReplies")
+
+  reactions CardCommentReaction[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cardId])
+  @@index([parentId])
+  @@index([userId])
+}
+
+model CardCommentReaction {
+  id        String      @id @default(uuid())
+  commentId String
+  comment   CardComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
+
+  userId    String
+  emoji     String
+
+  createdAt DateTime @default(now())
+
+  @@unique([commentId, userId, emoji])
+  @@index([commentId])
+  @@index([userId])
 }
 
 model BoardMember {

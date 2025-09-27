@@ -93,7 +93,7 @@ export const ListHeader = ({
             id="title"
             placeholder="Nhập tên danh sách…"
             defaultValue={title}
-            className="text-sm px-2 py-1 h-7 font-semibold border-transparent hover:border-input focus:border-violet-400 focus:ring-1 focus:ring-violet-200 transition rounded-md bg-transparent focus:bg-white truncate"
+            className="text-base px-2 py-1 h-8 font-bold border-transparent hover:border-input focus:border-violet-400 focus:ring-1 focus:ring-violet-200 transition rounded-md bg-transparent focus:bg-white truncate"
           />
           <button type="submit" hidden />
         </form>
@@ -102,7 +102,7 @@ export const ListHeader = ({
           <button
             type="button"
             onClick={enableEditing}
-            className="flex h-7 w-fit max-w-full items-center rounded-md px-2 py-1 text-left text-sm font-semibold text-neutral-700 transition-colors hover:bg-neutral-200/60"
+            className="flex h-8 w-fit max-w-full items-center rounded-md px-2 py-1 text-left text-base font-bold text-neutral-800 transition-colors hover:bg-neutral-200/60"
           >
             <span className="truncate">{title}</span>
           </button>

@@ -26,26 +26,15 @@ export async function GET(
         },
       },
       include: {
-        assignees: {
-          include: {
-            boardMember: true,
-          },
-          orderBy: {
-            createdAt: "asc",
-          },
-        },
         list: {
           select: {
             title: true,
-            board: {
-              select: {
-                members: {
-                  orderBy: {
-                    createdAt: "asc",
-                  },
-                },
-              },
-            },
+            boardId: true,
+          },
+        },
+        assignees: {
+          include: {
+            boardMember: true,
           },
         },
       },
@@ -55,16 +44,18 @@ export async function GET(
       return new NextResponse("Not Found", { status: 404 });
     }
 
-    const { list, ...cardData } = card;
+    const boardMembers = await db.boardMember.findMany({
+      where: {
+        boardId: card.list.boardId,
+      },
+    });
 
     return NextResponse.json({
-      ...cardData,
-      list: {
-        title: list.title,
-      },
-      boardMembers: list.board.members,
+      ...card,
+      boardMembers,
     });
-  } catch {
+  } catch (error) {
+    console.error("[CARD_GET_ERROR]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }
 }

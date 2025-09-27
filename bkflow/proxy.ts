@@ -10,7 +10,7 @@ const isPublicRoute = createRouteMatcher([
 
 const isSelectOrgRoute = createRouteMatcher(["/select-org(.*)"]);
 
-export default clerkMiddleware(async (auth, req) => {
+export const proxy = clerkMiddleware(async (auth, req) => {
   const { userId, orgId } = await auth();
 
   if (!userId && !isPublicRoute(req)) {
@@ -27,6 +27,8 @@ export default clerkMiddleware(async (auth, req) => {
     return NextResponse.redirect(new URL("/select-org", req.url));
   }
 });
+
+export default proxy;
 
 export const config = {
   matcher: [

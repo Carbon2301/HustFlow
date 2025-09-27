@@ -126,13 +126,16 @@ export const CardItem = ({
             onClick={() => onOpen()}
             onContextMenu={handleContextMenu}
             className={cn(
-              "group flex items-start gap-x-2 border border-transparent hover:border-violet-200 py-2.5 px-3 text-sm bg-white rounded-lg shadow-sm hover:shadow transition-all duration-150 !cursor-pointer select-none",
+              "group relative flex flex-col justify-between border border-transparent hover:border-violet-200 py-2.5 px-3 text-sm bg-white rounded-lg shadow-sm hover:shadow transition-all duration-150 !cursor-pointer select-none",
               snapshot.isDragging && "shadow-md rotate-1 opacity-90 border-violet-300",
               showMenu && "relative z-[100] ring-2 ring-violet-500 shadow-xl"
             )}
           >
-            <div className="flex-1 min-w-0 space-y-2">
-              <span className="block leading-snug text-neutral-700 break-words">
+            <div className="w-full space-y-2">
+              <span className={cn(
+                "block text-[15px] font-semibold leading-snug text-neutral-800 break-words",
+                data.description && "pr-5"
+              )}>
                 {data.title}
               </span>
               {hasFooter && (
@@ -176,9 +179,11 @@ export const CardItem = ({
               )}
             </div>
             {data.description && (
-              <Hint description="Thẻ đã có mô tả" side="bottom">
-                <AlignLeft className="h-3.5 w-3.5 mt-0.5 flex-shrink-0 text-neutral-300 group-hover:text-neutral-400 transition-colors" />
-              </Hint>
+              <div className="absolute top-3 right-3 text-neutral-300 group-hover:text-neutral-400 transition-colors">
+                <Hint description="Thẻ đã có mô tả" side="bottom">
+                  <AlignLeft className="h-3.5 w-3.5" />
+                </Hint>
+              </div>
             )}
 
             {showMenu && (
