@@ -1,110 +1,98 @@
 "use client";
 
-import { useCallback, useEffect, useMemo, useState } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useCallback, useMemo } from "react";
+import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 
 import { fetcher } from "@/lib/fetcher";
 import { NotificationItem } from "@/components/notifications/types";
 
-const READ_STORAGE_KEY = "read-notifications";
-const READ_IDS_CHANGED_EVENT = "bkflow:read-notifications-changed";
+const NOTIFICATIONS_QUERY_KEY = ["notifications"];
 
-const readStoredIds = () => {
-  if (typeof window === "undefined") {
-    return [];
+const patchNotification = async (id: string, read: boolean) => {
+  const response = await fetch(`/api/notifications/${id}`, {
+    method: "PATCH",
+    headers: {
+      "Content-Type": "application/json",
+    },
+    body: JSON.stringify({ read }),
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to update notification");
   }
 
-  try {
-    const stored = window.localStorage.getItem(READ_STORAGE_KEY);
-    return stored ? JSON.parse(stored) as string[] : [];
-  } catch {
-    return [];
-  }
+  return response.json();
 };
 
-const writeStoredIds = (ids: string[]) => {
-  if (typeof window === "undefined") {
-    return;
+const patchAllNotificationsRead = async () => {
+  const response = await fetch("/api/notifications/read-all", {
+    method: "PATCH",
+  });
+
+  if (!response.ok) {
+    throw new Error("Failed to update notifications");
   }
 
-  window.localStorage.setItem(READ_STORAGE_KEY, JSON.stringify(ids));
-  window.setTimeout(() => {
-    window.dispatchEvent(new Event(READ_IDS_CHANGED_EVENT));
-  }, 0);
+  return response.json();
 };
 
 export const useNotifications = () => {
-  const [readIds, setReadIds] = useState<string[]>([]);
-  const [isStorageReady, setIsStorageReady] = useState(false);
-
-  useEffect(() => {
-    const hydrateTimer = window.setTimeout(() => {
-      setReadIds(readStoredIds());
-      setIsStorageReady(true);
-    }, 0);
-
-    const syncReadIds = () => {
-      setReadIds(readStoredIds());
-    };
-
-    window.addEventListener("storage", syncReadIds);
-    window.addEventListener(READ_IDS_CHANGED_EVENT, syncReadIds);
-
-    return () => {
-      window.clearTimeout(hydrateTimer);
-      window.removeEventListener("storage", syncReadIds);
-      window.removeEventListener(READ_IDS_CHANGED_EVENT, syncReadIds);
-    };
-  }, []);
+  const queryClient = useQueryClient();
 
   const { data: notifications = [], isLoading } = useQuery<NotificationItem[]>({
-    queryKey: ["notifications"],
+    queryKey: NOTIFICATIONS_QUERY_KEY,
     queryFn: () => fetcher("/api/notifications"),
     refetchInterval: 30000,
   });
 
-  const readIdSet = useMemo(() => new Set(readIds), [readIds]);
+  const invalidateNotifications = useCallback(() => {
+    queryClient.invalidateQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
+  }, [queryClient]);
+
+  const { mutate: markNotification } = useMutation({
+    mutationFn: ({ id, read }: { id: string; read: boolean }) =>
+      patchNotification(id, read),
+    onSuccess: invalidateNotifications,
+  });
+
+  const { mutate: markAllNotifications } = useMutation({
+    mutationFn: patchAllNotificationsRead,
+    onSuccess: invalidateNotifications,
+  });
 
   const unreadNotifications = useMemo(
-    () => notifications.filter((notification) => !readIdSet.has(notification.id)),
-    [notifications, readIdSet],
+    () => notifications.filter((notification) => !notification.readAt),
+    [notifications],
   );
 
   const hasUnread = unreadNotifications.length > 0;
 
-  const setStoredReadIds = useCallback((updater: (ids: string[]) => string[]) => {
-    setReadIds((currentIds) => {
-      const nextIds = Array.from(new Set(updater(currentIds)));
-      writeStoredIds(nextIds);
-      return nextIds;
-    });
-  }, []);
-
   const markAsRead = useCallback((id: string) => {
-    setStoredReadIds((currentIds) => (
-      currentIds.includes(id) ? currentIds : [...currentIds, id]
-    ));
-  }, [setStoredReadIds]);
+    markNotification({ id, read: true });
+  }, [markNotification]);
 
   const markAsUnread = useCallback((id: string) => {
-    setStoredReadIds((currentIds) => currentIds.filter((readId) => readId !== id));
-  }, [setStoredReadIds]);
+    markNotification({ id, read: false });
+  }, [markNotification]);
 
   const markAllAsRead = useCallback(() => {
-    setStoredReadIds((currentIds) => [
-      ...currentIds,
-      ...notifications.map((notification) => notification.id),
-    ]);
-  }, [notifications, setStoredReadIds]);
+    markAllNotifications();
+  }, [markAllNotifications]);
 
-  const isRead = useCallback((id: string) => readIdSet.has(id), [readIdSet]);
+  const isRead = useCallback(
+    (id: string) =>
+      Boolean(notifications.find((notification) => notification.id === id)?.readAt),
+    [notifications],
+  );
 
   return {
     notifications,
     unreadNotifications,
-    readIds,
+    readIds: notifications
+      .filter((notification) => notification.readAt)
+      .map((notification) => notification.id),
     isLoading,
-    isStorageReady,
+    isStorageReady: true,
     hasUnread,
     isRead,
     markAsRead,

@@ -11,6 +11,7 @@ import { UpdateCard } from "./schema";
 import { InputType, ReturnType } from "./types";
 import { createAuditLog } from "@/lib/create-audit-log";
 import { ACTION, ENTITY_TYPE } from "@prisma/client";
+import { deleteCardReminderNotifications } from "@/lib/reminder-notifications";
 
 const formatFriendlyDate = (dueDate: Date | string) => {
   const date = new Date(dueDate);
@@ -87,6 +88,14 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       },
       data: updateData,
     });
+
+    if (
+      reminderConfigChanged ||
+      dueDate === null ||
+      isCompleted === true
+    ) {
+      await deleteCardReminderNotifications(card.id);
+    }
 
     let auditLogMessage = card.title;
 

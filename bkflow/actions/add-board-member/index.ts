@@ -1,10 +1,11 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
-import { ACTION, ENTITY_TYPE } from "@prisma/client";
+import { auth, currentUser } from "@clerk/nextjs/server";
+import { ACTION, ENTITY_TYPE, NOTIFICATION_TYPE } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 import { createAuditLog } from "@/lib/create-audit-log";
+import { createNotification } from "@/lib/create-notification";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { getOrganizationMember } from "@/lib/clerk-org-members";
@@ -14,8 +15,9 @@ import { InputType, ReturnType } from "./types";
 
 const handler = async (data: InputType): Promise<ReturnType> => {
   const { userId, orgId } = await auth();
+  const user = await currentUser();
 
-  if (!userId || !orgId) {
+  if (!userId || !orgId || !user) {
     return { error: "Không có quyền truy cập." };
   }
 
@@ -72,6 +74,21 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityTitle: `detail:đã thêm ${boardMember.userName} vào bảng "${board.title}"`,
       entityType: ENTITY_TYPE.BOARD,
       action: ACTION.UPDATE,
+    });
+
+    await createNotification({
+      orgId,
+      recipientUserId: boardMember.userId,
+      actor: {
+        userId,
+        name: user.fullName || user.username || user.primaryEmailAddress?.emailAddress || "Thành viên",
+        image: user.imageUrl,
+      },
+      type: NOTIFICATION_TYPE.BOARD_INVITE,
+      title: "Bạn được mời vào bảng",
+      message: `Bạn đã được thêm vào bảng "${board.title}".`,
+      boardId: board.id,
+      boardTitle: board.title,
     });
   } catch {
     return { error: "Thêm thành viên vào bảng thất bại." };

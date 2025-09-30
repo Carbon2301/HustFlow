@@ -106,6 +106,50 @@ model CardCommentReaction {
   @@index([userId])
 }
 
+enum NOTIFICATION_TYPE {
+  CARD_ASSIGNED
+  BOARD_INVITE
+  COMMENT_REPLY
+  COMMENT_MENTION
+  CARD_REMINDER
+}
+
+model Notification {
+  id              String            @id @default(uuid())
+  orgId           String
+  recipientUserId String
+
+  actorUserId     String?
+  actorName       String?           @db.Text
+  actorImage      String?           @db.Text
+
+  type            NOTIFICATION_TYPE
+  title           String
+  message         String            @db.Text
+
+  boardId         String?
+  boardTitle      String?           @db.Text
+  cardId          String?
+  cardTitle       String?           @db.Text
+  listTitle       String?           @db.Text
+  commentId       String?
+  dueDate         DateTime?
+  triggerTime     DateTime?
+  reminderLabel   String?
+  dedupeKey       String?           @unique
+
+  readAt          DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  @@index([recipientUserId, orgId, readAt, createdAt])
+  @@index([orgId])
+  @@index([boardId])
+  @@index([cardId])
+  @@index([commentId])
+  @@index([type])
+}
+
 model BoardMember {
   id        String @id @default(uuid())
   boardId   String

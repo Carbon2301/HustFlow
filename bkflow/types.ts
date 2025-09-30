@@ -6,6 +6,9 @@ export type CardWithAssignees = Card & {
       boardMember: true;
     };
   }>[];
+  _count?: {
+    comments: number;
+  };
 };
 
 export type ListWithCards = List & { cards: CardWithAssignees[] };

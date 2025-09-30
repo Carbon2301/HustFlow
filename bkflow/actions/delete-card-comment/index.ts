@@ -40,6 +40,14 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       return { error: "Không tìm thấy bình luận." };
     }
 
+    // Xóa các thông báo chưa đọc liên quan đến bình luận này
+    await db.notification.deleteMany({
+      where: {
+        commentId: existingComment.id,
+        readAt: null,
+      },
+    });
+
     comment = await db.cardComment.delete({
       where: {
         id: existingComment.id,

@@ -1,17 +1,21 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import {
   Bell,
+  CheckCheck,
   ChevronLeft,
   ChevronRight,
-  Clock,
-  LayoutList,
-  LayoutDashboard,
   Circle,
+  Clock,
+  LayoutDashboard,
+  LayoutList,
+  MessageSquareReply,
+  KanbanSquare,
+  UserPlus,
+  Users,
 } from "lucide-react";
-import { Hint } from "@/components/hint";
-import Image from "next/image";
 import { format, formatDistanceToNow, isPast } from "date-fns";
 import { vi } from "date-fns/locale";
 
@@ -21,12 +25,62 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { Hint } from "@/components/hint";
+import { cn, formatNotificationText } from "@/lib/utils";
 import { useCardModal } from "@/hooks/use-card-modal";
 import { useNotifications } from "@/hooks/use-notifications";
 import { NotificationItem } from "@/components/notifications/types";
 
+const getNotificationIcon = (type: NotificationItem["type"]) => {
+  switch (type) {
+    case "CARD_ASSIGNED":
+      return Users;
+    case "BOARD_INVITE":
+      return UserPlus;
+    case "COMMENT_REPLY":
+    case "COMMENT_MENTION":
+      return MessageSquareReply;
+    case "CARD_REMINDER":
+      return Clock;
+    default:
+      return Bell;
+  }
+};
+
+const formatDueDate = (dateStr: string | null) => {
+  if (!dateStr) {
+    return "";
+  }
+
+  try {
+    return format(new Date(dateStr), "dd/MM/yyyy 'lúc' HH:mm", {
+      locale: vi,
+    });
+  } catch {
+    return "";
+  }
+};
+
+const formatReminderStatus = (dueDateStr: string | null) => {
+  if (!dueDateStr) {
+    return { text: "", overdue: false };
+  }
+
+  try {
+    const due = new Date(dueDateStr);
+    const overdue = isPast(due);
+    const relative = formatDistanceToNow(due, { locale: vi });
+    if (overdue) {
+      return { text: `Quá hạn ${relative} trước`, overdue: true };
+    }
+    return { text: `Còn ${relative} nữa đến hạn`, overdue: false };
+  } catch {
+    return { text: "", overdue: false };
+  }
+};
+
 export const NotificationsPopover = () => {
+  const router = useRouter();
   const cardModal = useCardModal();
   const [open, setOpen] = useState(false);
   const [onlyUnread, setOnlyUnread] = useState(true);
@@ -43,72 +97,62 @@ export const NotificationsPopover = () => {
   } = useNotifications();
 
   const filteredNotifications = onlyUnread
-    ? notifications.filter((n) => !isRead(n.id))
+    ? notifications.filter((notification) => !notification.readAt)
     : notifications;
 
   const totalPages = Math.ceil(filteredNotifications.length / itemsPerPage);
-
   const paginatedNotifications = filteredNotifications.slice(
     (currentPage - 1) * itemsPerPage,
-    currentPage * itemsPerPage
+    currentPage * itemsPerPage,
   );
 
-  const toggleReadStatus = (e: React.MouseEvent, id: string, isRead: boolean) => {
-    e.stopPropagation();
-    if (isRead) {
+  const toggleReadStatus = (
+    event: React.MouseEvent,
+    id: string,
+    notificationIsRead: boolean,
+  ) => {
+    event.stopPropagation();
+    if (notificationIsRead) {
       markAsUnread(id);
-    } else {
-      markAsRead(id);
+      return;
     }
+
+    markAsRead(id);
   };
 
-  const handleClickNotification = (notif: NotificationItem, isRead: boolean) => {
-    // Only mark as read when clicking an unread notification
-    if (!isRead) {
-      markAsRead(notif.id);
+  const handleClickNotification = (
+    notification: NotificationItem,
+    notificationIsRead: boolean,
+  ) => {
+    if (!notificationIsRead) {
+      markAsRead(notification.id);
     }
+
     setOpen(false);
-    cardModal.onOpen(notif.cardId);
-  };
 
-  const formatDueDate = (dateStr: string) => {
-    try {
-      return format(new Date(dateStr), "dd/MM/yyyy 'lúc' HH:mm", {
-        locale: vi,
-      });
-    } catch {
-      return "";
+    if (notification.cardId) {
+      cardModal.onOpen(notification.cardId);
+      return;
+    }
+
+    if (notification.boardId) {
+      router.push(`/board/${notification.boardId}`);
     }
   };
 
-  /** Dynamic reminder text based on current time vs dueDate */
-  const formatReminderStatus = (dueDateStr: string) => {
-    try {
-      const due = new Date(dueDateStr);
-      const overdue = isPast(due);
-      const relative = formatDistanceToNow(due, { locale: vi });
-      if (overdue) {
-        return { text: `Đến hạn ${relative} trước`, overdue: true };
-      }
-      return { text: `Còn ${relative} nữa đến hạn`, overdue: false };
-    } catch {
-      return { text: "", overdue: false };
-    }
-  };
-
-  /** Smart pagination numbers */
   const getPageNumbers = () => {
     if (totalPages <= 7) {
-      return Array.from({ length: totalPages }, (_, i) => i + 1);
+      return Array.from({ length: totalPages }, (_, index) => index + 1);
     }
+
     const pages: (number | "...")[] = [1];
     if (currentPage > 3) pages.push("...");
     for (
-      let p = Math.max(2, currentPage - 1);
-      p <= Math.min(totalPages - 1, currentPage + 1);
-      p++
+      let page = Math.max(2, currentPage - 1);
+      page <= Math.min(totalPages - 1, currentPage + 1);
+      page++
     ) {
-      pages.push(p);
+      pages.push(page);
     }
     if (currentPage < totalPages - 2) pages.push("...");
     pages.push(totalPages);
@@ -121,13 +165,13 @@ export const NotificationsPopover = () => {
         <Button
           variant="ghost"
           size="icon"
-          className="h-8 w-8 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-100 rounded-lg !cursor-pointer transition-colors relative"
+          className="relative h-8 w-8 rounded-lg text-neutral-500 transition-colors hover:bg-neutral-100 hover:text-neutral-700"
         >
           <Bell className="h-4.5 w-4.5" />
           {hasUnread && (
-            <span className="absolute top-1.5 right-1.5 flex h-2 w-2">
-              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-blue-400 opacity-75" />
-              <span className="relative inline-flex rounded-full h-2 w-2 bg-blue-600" />
+            <span className="absolute right-1.5 top-1.5 flex h-2 w-2">
+              <span className="absolute inline-flex h-full w-full animate-ping rounded-full bg-blue-400 opacity-75" />
+              <span className="relative inline-flex h-2 w-2 rounded-full bg-blue-600" />
             </span>
           )}
         </Button>
@@ -136,22 +180,25 @@ export const NotificationsPopover = () => {
       <PopoverContent
         align="end"
         sideOffset={10}
-        className="w-[420px] p-0 rounded-2xl border border-neutral-200 shadow-2xl flex flex-col overflow-hidden bg-white"
+        className="flex w-[420px] flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white p-0 shadow-2xl"
       >
-        {/* Header */}
-        <div className="flex items-center justify-between px-5 py-4 border-b border-neutral-100 bg-neutral-50/50">
-          <h3 className="font-semibold text-lg text-neutral-800">Thông báo</h3>
+        <div className="flex items-center justify-between border-b border-neutral-100 bg-neutral-50/50 px-5 py-4">
+          <h3 className="text-lg font-semibold text-neutral-800">
+            Thông báo
+          </h3>
           <div className="flex items-center gap-x-4">
             {hasUnread && (
               <button
+                type="button"
                 onClick={markAllAsRead}
-                className="text-xs text-violet-600 hover:text-violet-700 hover:underline font-semibold cursor-pointer outline-hidden"
+                className="flex items-center gap-x-1 text-xs font-semibold text-violet-600 outline-hidden hover:text-violet-700 hover:underline"
               >
+                <CheckCheck className="h-3.5 w-3.5" />
                 Đọc tất cả
               </button>
             )}
-            <label className="flex items-center gap-x-2.5 text-xs font-medium text-neutral-500 cursor-pointer select-none">
-              Chỉ hiển thị chưa đọc
+            <label className="flex cursor-pointer select-none items-center gap-x-2.5 text-xs font-medium text-neutral-500">
+              Chưa đọc
               <button
                 type="button"
                 onClick={() => {
@@ -159,14 +206,14 @@ export const NotificationsPopover = () => {
                   setCurrentPage(1);
                 }}
                 className={cn(
-                  "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent transition-colors duration-200 ease-in-out outline-hidden",
-                  onlyUnread ? "bg-emerald-600" : "bg-neutral-200"
+                  "relative inline-flex h-5 w-9 shrink-0 cursor-pointer rounded-full border-2 border-transparent outline-hidden transition-colors duration-200 ease-in-out",
+                  onlyUnread ? "bg-emerald-600" : "bg-neutral-200",
                 )}
               >
                 <span
                   className={cn(
-                    "pointer-events-none inline-block h-4 w-4 transform rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out",
-                    onlyUnread ? "translate-x-4" : "translate-x-0"
+                    "pointer-events-none inline-block h-4 w-4 rounded-full bg-white shadow-md ring-0 transition duration-200 ease-in-out",
+                    onlyUnread ? "translate-x-4" : "translate-x-0",
                   )}
                 />
               </button>
@@ -174,91 +221,160 @@ export const NotificationsPopover = () => {
           </div>
         </div>
 
-        {/* Content */}
-        <div className="flex-1 min-h-[300px] flex flex-col justify-between p-4">
+        <div className="flex min-h-[300px] flex-1 flex-col justify-between p-4">
           {isLoading ? (
-            <div className="flex flex-col gap-y-3 my-auto">
-              {[1, 2, 3].map((i) => (
+            <div className="my-auto flex flex-col gap-y-3">
+              {[1, 2, 3].map((index) => (
                 <div
-                  key={i}
-                  className="h-[88px] bg-neutral-100 rounded-xl animate-pulse"
+                  key={index}
+                  className="h-[88px] animate-pulse rounded-xl bg-neutral-100"
                 />
               ))}
             </div>
           ) : filteredNotifications.length === 0 ? (
-            /* Empty State */
-            <div className="flex flex-col items-center justify-center py-6 text-center my-auto">
-              <div className="relative w-36 h-36 mb-4 flex items-center justify-center">
-                <Image
-                  src="/husky-sleeping.png"
-                  alt="Không có thông báo chưa đọc"
-                  fill
-                  className="object-contain rounded-full"
-                  sizes="144px"
-                  priority
-                />
+            <div className="my-auto flex flex-col items-center justify-center py-8 text-center">
+              <div className="mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-neutral-100 text-neutral-400">
+                <Bell className="h-7 w-7" />
               </div>
-              <p className="font-semibold text-[17px] text-neutral-800">
-                {onlyUnread
-                  ? "Không có Thông báo chưa đọc"
-                  : "Không có Thông báo nào"}
+              <p className="text-[15px] font-semibold text-neutral-800">
+                {onlyUnread ? "Không có thông báo chưa đọc" : "Không có thông báo"}
               </p>
             </div>
           ) : (
-            /* Notifications List */
             <div className="flex flex-col gap-y-3">
               <ul className="space-y-2.5">
-                {paginatedNotifications.map((notif) => {
-                  const notificationIsRead = isRead(notif.id);
+                {paginatedNotifications.map((notification) => {
+                  const notificationIsRead = isRead(notification.id);
+                  const Icon = getNotificationIcon(notification.type);
+                  const formatted = formatNotificationText(notification.title, notification.message);
+                  const isReminder = notification.type === "CARD_REMINDER";
                   const { text: reminderText, overdue } = formatReminderStatus(
-                    notif.dueDate
+                    notification.dueDate,
                   );
 
                   return (
                     <li
-                      key={notif.id}
-                      onClick={() => handleClickNotification(notif, notificationIsRead)}
+                      key={notification.id}
+                      onClick={() =>
+                        handleClickNotification(notification, notificationIsRead)
+                      }
                       className={cn(
-                        "rounded-xl p-3 transition-all duration-150 relative cursor-pointer border group/notif",
+                        "group/notif relative cursor-pointer rounded-xl border p-3 transition-all duration-150",
                         !notificationIsRead
-                          ? "bg-blue-50/50 border-blue-100 shadow-sm hover:bg-blue-50"
-                          : "bg-white hover:bg-neutral-50 border-neutral-100"
+                          ? "border-blue-100 bg-blue-50/50 shadow-sm hover:bg-blue-50"
+                          : "border-neutral-100 bg-white hover:bg-neutral-50",
                       )}
                     >
-                      {/* Card title row */}
-                      <div className="flex items-start justify-between gap-x-2 mb-2">
-                        <div className="flex items-center gap-x-2 min-w-0">
+                      <div className="flex items-start justify-between gap-x-2">
+                        <div className="flex min-w-0 items-start gap-x-2">
                           <span
                             className={cn(
-                              "inline-flex items-center justify-center h-7 w-7 rounded-lg flex-shrink-0",
+                              "inline-flex h-8 w-8 flex-shrink-0 items-center justify-center rounded-lg",
                               !notificationIsRead
                                 ? "bg-blue-100 text-blue-600"
-                                : "bg-neutral-100 text-neutral-500"
+                                : "bg-neutral-100 text-neutral-500",
                             )}
                           >
-                            <Bell className="h-3.5 w-3.5" />
+                            <Icon className="h-4 w-4" />
                           </span>
-                          <span className="font-semibold text-[14px] text-neutral-900 truncate">
-                            {notif.cardTitle}
-                          </span>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-semibold text-neutral-900">
+                              {formatted.title}
+                            </p>
+                            {!isReminder ? (
+                              <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-neutral-600">
+                                {formatted.message}
+                              </p>
+                            ) : (
+                              <div className="mt-1 space-y-1.5">
+                                <div className="flex items-center gap-x-1.5 text-[12px] text-neutral-500">
+                                  <Clock className="h-3 w-3 flex-shrink-0 text-rose-400" />
+                                  <span>
+                                    Hết hạn:{" "}
+                                    <span className="font-medium text-rose-500">
+                                      {formatDueDate(notification.dueDate)}
+                                    </span>
+                                  </span>
+                                </div>
+
+                                <div className="flex flex-wrap items-center gap-x-1.5 text-[12px] text-neutral-500">
+                                  {notification.boardTitle && (
+                                    <>
+                                      <LayoutDashboard className="h-3 w-3 flex-shrink-0 text-violet-400" />
+                                      <span className="truncate font-medium text-violet-600">
+                                        {notification.boardTitle}
+                                      </span>
+                                    </>
+                                  )}
+                                  {notification.listTitle && (
+                                    <>
+                                      <span className="text-neutral-300">/</span>
+                                      <LayoutList className="h-3 w-3 flex-shrink-0 text-neutral-400" />
+                                      <span className="truncate font-medium text-neutral-700">
+                                        {notification.listTitle}
+                                      </span>
+                                    </>
+                                  )}
+                                  {notification.cardTitle && (
+                                    <>
+                                      <span className="text-neutral-300">/</span>
+                                      <KanbanSquare className="h-3 w-3 flex-shrink-0 text-neutral-400" />
+                                      <span className="truncate">{notification.cardTitle}</span>
+                                    </>
+                                  )}
+                                </div>
+
+                                {reminderText && (
+                                  <div
+                                    className={cn(
+                                      "inline-flex items-center gap-x-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium",
+                                      overdue
+                                        ? "border-red-100 bg-red-50 text-red-600"
+                                        : "border-amber-100 bg-amber-50 text-amber-600",
+                                    )}
+                                  >
+                                    <Clock className="h-2.5 w-2.5" />
+                                    {reminderText}
+                                  </div>
+                                )}
+                              </div>
+                            )}
+                          </div>
                         </div>
-                        <div className="flex items-center gap-x-2 flex-shrink-0">
-                          <span className="text-[11px] text-neutral-400 whitespace-nowrap">
-                            {formatDistanceToNow(new Date(notif.triggerTime), {
-                              addSuffix: true,
-                              locale: vi,
-                            })}
+                        <div className="flex flex-shrink-0 items-center gap-x-2">
+                          <span className="whitespace-nowrap text-[11px] text-neutral-400">
+                            {formatDistanceToNow(
+                              new Date(notification.triggerTime || notification.createdAt),
+                              {
+                                addSuffix: true,
+                                locale: vi,
+                              },
+                            )}
                           </span>
-                          {/* Toggle read/unread dot button */}
                           <Hint
-                            description={notificationIsRead ? "Đánh dấu là chưa đọc" : "Đánh dấu là đã đọc"}
+                            description={
+                              notificationIsRead
+                                ? "Đánh dấu là chưa đọc"
+                                : "Đánh dấu là đã đọc"
+                            }
                             side="left"
                             sideOffset={6}
                           >
                             <button
-                              onClick={(e) => toggleReadStatus(e, notif.id, notificationIsRead)}
-                              className="flex-shrink-0 flex items-center justify-center w-5 h-5 rounded-full hover:bg-neutral-200/80 transition-colors cursor-pointer"
-                              aria-label={notificationIsRead ? "Đánh dấu là chưa đọc" : "Đánh dấu là đã đọc"}
+                              type="button"
+                              onClick={(event) =>
+                                toggleReadStatus(
+                                  event,
+                                  notification.id,
+                                  notificationIsRead,
+                                )
+                              }
+                              className="flex h-5 w-5 flex-shrink-0 items-center justify-center rounded-full transition-colors hover:bg-neutral-200/80"
+                              aria-label={
+                                notificationIsRead
+                                  ? "Đánh dấu là chưa đọc"
+                                  : "Đánh dấu là đã đọc"
+                              }
                             >
                               {!notificationIsRead ? (
                                 <span className="h-2.5 w-2.5 rounded-full bg-blue-600" />
@@ -270,53 +386,43 @@ export const NotificationsPopover = () => {
                         </div>
                       </div>
 
-                      {/* Details */}
-                      <div className="pl-9 space-y-1.5">
-                        {/* Due date */}
-                        <div className="flex items-center gap-x-1.5 text-[12px] text-neutral-500">
-                          <Clock className="h-3 w-3 flex-shrink-0 text-rose-400" />
-                          <span>
-                            Hết hạn:{" "}
-                            <span className="font-medium text-rose-500">
-                              {formatDueDate(notif.dueDate)}
-                            </span>
-                          </span>
-                        </div>
-
-                        {/* Board & List */}
-                        <div className="flex items-center gap-x-1.5 text-[12px] text-neutral-500">
-                          <LayoutDashboard className="h-3 w-3 flex-shrink-0 text-violet-400" />
-                          <span className="font-medium text-violet-600">
-                            {notif.boardTitle}
-                          </span>
-                          <span className="text-neutral-300">›</span>
-                          <LayoutList className="h-3 w-3 flex-shrink-0 text-neutral-400" />
-                          <span>{notif.listTitle}</span>
-                        </div>
-
-                        {/* Dynamic reminder status */}
-                        <div
-                          className={cn(
-                            "inline-flex items-center gap-x-1.5 text-[11px] font-medium rounded-full px-2 py-0.5 border",
-                            overdue
-                              ? "bg-red-50 text-red-600 border-red-100"
-                              : "bg-amber-50 text-amber-600 border-amber-100"
+                      {!isReminder && (notification.boardTitle || notification.cardTitle) && (
+                        <div className="mt-2 flex flex-wrap items-center gap-x-1.5 pl-10 text-[12px] text-neutral-500">
+                          {notification.boardTitle && (
+                            <>
+                              <LayoutDashboard className="h-3 w-3 flex-shrink-0 text-violet-400" />
+                              <span className="truncate font-medium text-violet-600">
+                                {notification.boardTitle}
+                              </span>
+                            </>
                           )}
-                        >
-                          <Clock className="h-2.5 w-2.5" />
-                          {reminderText}
+                          {notification.listTitle && (
+                            <>
+                              <span className="text-neutral-300">/</span>
+                              <LayoutList className="h-3 w-3 flex-shrink-0 text-neutral-400" />
+                              <span className="truncate font-medium text-neutral-700">
+                                {notification.listTitle}
+                              </span>
+                            </>
+                          )}
+                          {notification.cardTitle && (
+                            <>
+                              <span className="text-neutral-300">/</span>
+                              <KanbanSquare className="h-3 w-3 flex-shrink-0 text-neutral-400" />
+                              <span className="truncate">{notification.cardTitle}</span>
+                            </>
+                          )}
                         </div>
-                      </div>
+                      )}
                     </li>
                   );
                 })}
               </ul>
 
-              {/* Pagination */}
               {totalPages > 1 && (
-                <div className="flex items-center justify-center gap-x-1 pt-3 border-t border-neutral-100 mt-1">
+                <div className="mt-1 flex items-center justify-center gap-x-1 border-t border-neutral-100 pt-3">
                   <Button
-                    onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                    onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
                     disabled={currentPage === 1}
                     variant="ghost"
                     size="icon"
@@ -324,34 +430,34 @@ export const NotificationsPopover = () => {
                   >
                     <ChevronLeft className="h-4 w-4" />
                   </Button>
-                  {getPageNumbers().map((p, idx) =>
-                    p === "..." ? (
+                  {getPageNumbers().map((page, index) =>
+                    page === "..." ? (
                       <span
-                        key={`ellipsis-${idx}`}
-                        className="h-7 w-7 flex items-center justify-center text-xs text-neutral-400"
+                        key={`ellipsis-${index}`}
+                        className="flex h-7 w-7 items-center justify-center text-xs text-neutral-400"
                       >
                         ...
                       </span>
                     ) : (
                       <Button
-                        key={p}
-                        onClick={() => setCurrentPage(p as number)}
+                        key={page}
+                        onClick={() => setCurrentPage(page as number)}
                         variant="ghost"
                         size="sm"
                         className={cn(
-                          "h-7 w-7 text-xs font-semibold rounded-lg",
-                          p === currentPage
-                            ? "bg-violet-600 text-white hover:bg-violet-700 shadow-sm"
-                            : "text-neutral-600 hover:bg-neutral-100"
+                          "h-7 w-7 rounded-lg text-xs font-semibold",
+                          page === currentPage
+                            ? "bg-violet-600 text-white shadow-sm hover:bg-violet-700"
+                            : "text-neutral-600 hover:bg-neutral-100",
                         )}
                       >
-                        {p}
+                        {page}
                       </Button>
-                    )
+                    ),
                   )}
                   <Button
                     onClick={() =>
-                      setCurrentPage((p) => Math.min(totalPages, p + 1))
+                      setCurrentPage((page) => Math.min(totalPages, page + 1))
                     }
                     disabled={currentPage === totalPages}
                     variant="ghost"

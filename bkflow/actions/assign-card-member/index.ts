@@ -1,10 +1,11 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
-import { ACTION, ENTITY_TYPE } from "@prisma/client";
+import { auth, currentUser } from "@clerk/nextjs/server";
+import { ACTION, ENTITY_TYPE, NOTIFICATION_TYPE } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 import { createAuditLog } from "@/lib/create-audit-log";
+import { createNotification } from "@/lib/create-notification";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { getOrganizationMember } from "@/lib/clerk-org-members";
@@ -14,8 +15,9 @@ import { InputType, ReturnType } from "./types";
 
 const handler = async (data: InputType): Promise<ReturnType> => {
   const { userId, orgId } = await auth();
+  const user = await currentUser();
 
-  if (!userId || !orgId) {
+  if (!userId || !orgId || !user) {
     return { error: "Không có quyền truy cập." };
   }
 
@@ -38,7 +40,14 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         title: true,
         list: {
           select: {
+            title: true,
             boardId: true,
+            board: {
+              select: {
+                id: true,
+                title: true,
+              },
+            },
           },
         },
       },
@@ -99,6 +108,24 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityTitle: `detail:đã giao ${boardMember.userName} cho thẻ "${card.title}"`,
       entityType: ENTITY_TYPE.CARD,
       action: ACTION.UPDATE,
+    });
+
+    await createNotification({
+      orgId,
+      recipientUserId: boardMember.userId,
+      actor: {
+        userId,
+        name: user.fullName || user.username || user.primaryEmailAddress?.emailAddress || "Thành viên",
+        image: user.imageUrl,
+      },
+      type: NOTIFICATION_TYPE.CARD_ASSIGNED,
+      title: "Bạn được giao một thẻ",
+      message: `Bạn đã được giao thẻ "${card.title}".`,
+      boardId: card.list.board.id,
+      boardTitle: card.list.board.title,
+      cardId: card.id,
+      cardTitle: card.title,
+      listTitle: card.list.title,
     });
   } catch {
     return { error: "Giao thành viên cho thẻ thất bại." };

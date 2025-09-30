@@ -3,9 +3,10 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
-import { Bell, Clock, X } from "lucide-react";
+import { Bell, Clock, X, LayoutDashboard, LayoutList, KanbanSquare } from "lucide-react";
+import { useRouter } from "next/navigation";
 
-import { cn } from "@/lib/utils";
+import { cn, formatNotificationText } from "@/lib/utils";
 import { useCardModal } from "@/hooks/use-card-modal";
 import { useNotifications } from "@/hooks/use-notifications";
 import { NotificationItem } from "@/components/notifications/types";
@@ -39,7 +40,11 @@ const writeShownIds = (ids: string[]) => {
   window.localStorage.setItem(SHOWN_STORAGE_KEY, JSON.stringify(ids));
 };
 
-const formatNotificationTime = (date: string) => {
+const formatNotificationTime = (date: string | null) => {
+  if (!date) {
+    return "";
+  }
+
   try {
     return format(new Date(date), "HH:mm", { locale: vi });
   } catch {
@@ -48,6 +53,7 @@ const formatNotificationTime = (date: string) => {
 };
 
 export const NotificationToasts = () => {
+  const router = useRouter();
   const cardModal = useCardModal();
   const {
     unreadNotifications,
@@ -96,15 +102,13 @@ export const NotificationToasts = () => {
 
     setToasts((currentToasts) =>
       currentToasts.map((toast) =>
-        toast.item.id === id
-          ? { ...toast, state: "exiting" }
-          : toast
-      )
+        toast.item.id === id ? { ...toast, state: "exiting" } : toast,
+      ),
     );
 
     const removeTimer = setTimeout(() => {
       setToasts((currentToasts) =>
-        currentToasts.filter((toast) => toast.item.id !== id)
+        currentToasts.filter((toast) => toast.item.id !== id),
       );
       removeTimersRef.current.delete(id);
     }, EXIT_ANIMATION_MS);
@@ -116,10 +120,8 @@ export const NotificationToasts = () => {
     const enterTimer = setTimeout(() => {
       setToasts((currentToasts) =>
         currentToasts.map((toast) =>
-          toast.item.id === id
-            ? { ...toast, state: "visible" }
-            : toast
-        )
+          toast.item.id === id ? { ...toast, state: "visible" } : toast,
+        ),
       );
     }, 20);
 
@@ -184,7 +186,7 @@ export const NotificationToasts = () => {
           }
 
           return shouldKeep;
-        })
+        }),
       );
     }, 0);
 
@@ -205,10 +207,18 @@ export const NotificationToasts = () => {
 
   const visibleToasts = useMemo(() => toasts.slice(0, MAX_VISIBLE_TOASTS), [toasts]);
 
-  const openCard = (notification: NotificationItem) => {
+  const openNotification = (notification: NotificationItem) => {
     markAsRead(notification.id);
     dismissToast(notification.id);
-    cardModal.onOpen(notification.cardId);
+
+    if (notification.cardId) {
+      cardModal.onOpen(notification.cardId);
+      return;
+    }
+
+    if (notification.boardId) {
+      router.push(`/board/${notification.boardId}`);
+    }
   };
 
   if (visibleToasts.length === 0) {
@@ -216,62 +226,93 @@ export const NotificationToasts = () => {
   }
 
   return (
-    <div className="fixed right-4 top-16 z-[60] flex w-[calc(100vw-2rem)] max-w-sm flex-col gap-3 pointer-events-none">
-      {visibleToasts.map((toast) => (
-        <div
-          key={toast.item.id}
-          role="button"
-          tabIndex={0}
-          onClick={() => openCard(toast.item)}
-          onKeyDown={(event) => {
-            if (event.key === "Enter" || event.key === " ") {
-              event.preventDefault();
-              openCard(toast.item);
-            }
-          }}
-          className={cn(
-            "pointer-events-auto group overflow-hidden rounded-xl border border-violet-100 bg-white/95 p-4 shadow-2xl shadow-slate-900/12 backdrop-blur-sm outline-none transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-violet-950/15 focus-visible:ring-2 focus-visible:ring-violet-300",
-            toast.state === "visible"
-              ? "translate-x-0 opacity-100"
-              : "translate-x-4 opacity-0",
-          )}
-        >
-          <div className="flex items-start gap-x-3">
-            <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
-              <Bell className="h-4.5 w-4.5" />
-            </div>
-            <div className="min-w-0 flex-1">
-              <div className="flex items-start justify-between gap-x-3">
-                <p className="text-sm font-bold text-slate-900">Sắp đến hạn</p>
-                <button
-                  type="button"
-                  onClick={(event) => {
-                    event.stopPropagation();
-                    dismissToast(toast.item.id);
-                  }}
-                  className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
-                  aria-label="Đóng thông báo"
-                >
-                  <X className="h-4 w-4" />
-                </button>
+    <div className="pointer-events-none fixed right-4 top-16 z-[60] flex w-[calc(100vw-2rem)] max-w-sm flex-col gap-3">
+      {visibleToasts.map((toast) => {
+        const formatted = formatNotificationText(toast.item.title, toast.item.message);
+        const isReminder = toast.item.type === "CARD_REMINDER";
+        return (
+          <div
+            key={toast.item.id}
+            role="button"
+            tabIndex={0}
+            onClick={() => openNotification(toast.item)}
+            onKeyDown={(event) => {
+              if (event.key === "Enter" || event.key === " ") {
+                event.preventDefault();
+                openNotification(toast.item);
+              }
+            }}
+            className={cn(
+              "pointer-events-auto group overflow-hidden rounded-xl border border-violet-100 bg-white/95 p-4 shadow-2xl shadow-slate-900/12 outline-none backdrop-blur-sm transition-all duration-200 ease-out hover:-translate-y-0.5 hover:border-violet-200 hover:shadow-violet-950/15 focus-visible:ring-2 focus-visible:ring-violet-300",
+              toast.state === "visible"
+                ? "translate-x-0 opacity-100"
+                : "translate-x-4 opacity-0",
+            )}
+          >
+            <div className="flex items-start gap-x-3">
+              <div className="mt-0.5 flex h-9 w-9 shrink-0 items-center justify-center rounded-xl bg-violet-50 text-violet-600">
+                <Bell className="h-4.5 w-4.5" />
               </div>
-              <p className="mt-1 text-sm leading-snug text-slate-600">
-                Task{" "}
-                <span className="font-semibold text-slate-900">
-                  &quot;{toast.item.cardTitle}&quot;
-                </span>{" "}
-                sẽ hết hạn lúc {formatNotificationTime(toast.item.dueDate)}
-              </p>
-              <div className="mt-2 flex items-center gap-x-1.5 text-xs font-medium text-violet-600">
-                <Clock className="h-3.5 w-3.5" />
-                <span className="truncate">
-                  {toast.item.boardTitle} / {toast.item.listTitle}
-                </span>
-              </div>
+              <div className="min-w-0 flex-1">
+                <div className="flex items-start justify-between gap-x-3">
+                  <p className="truncate text-sm font-bold text-slate-900">
+                    {isReminder ? "Thẻ sắp đến hạn" : formatted.title}
+                  </p>
+                  <button
+                    type="button"
+                    onClick={(event) => {
+                      event.stopPropagation();
+                      dismissToast(toast.item.id);
+                    }}
+                    className="flex h-6 w-6 shrink-0 items-center justify-center rounded-lg text-slate-400 transition-colors hover:bg-slate-100 hover:text-slate-700"
+                    aria-label="Đóng thông báo"
+                  >
+                    <X className="h-4 w-4" />
+                  </button>
+                </div>
+                {isReminder ? (
+                  <p className="mt-1 text-sm leading-snug text-slate-600">
+                    Thẻ{" "}
+                    <span className="font-semibold text-slate-900">
+                      &quot;{toast.item.cardTitle}&quot;
+                    </span>{" "}
+                    sẽ hết hạn lúc {formatNotificationTime(toast.item.dueDate)}
+                  </p>
+                ) : (
+                  <p className="mt-1 line-clamp-2 text-sm leading-snug text-slate-600">
+                    {formatted.message}
+                  </p>
+                )}
+              {(toast.item.boardTitle || toast.item.cardTitle) && (
+                <div className="mt-2 flex flex-wrap items-center gap-x-1.5 text-xs font-medium text-violet-600">
+                  {isReminder && <Clock className="h-3.5 w-3.5 flex-shrink-0" />}
+                  {toast.item.boardTitle && (
+                    <>
+                      <LayoutDashboard className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span className="truncate">{toast.item.boardTitle}</span>
+                    </>
+                  )}
+                  {toast.item.listTitle && (
+                    <>
+                      <span className="text-violet-300">/</span>
+                      <LayoutList className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span className="truncate">{toast.item.listTitle}</span>
+                    </>
+                  )}
+                  {toast.item.cardTitle && (
+                    <>
+                      <span className="text-violet-300">/</span>
+                      <KanbanSquare className="h-3.5 w-3.5 flex-shrink-0" />
+                      <span className="truncate">{toast.item.cardTitle}</span>
+                    </>
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </div>
-      ))}
+        );
+      })}
     </div>
   );
 };

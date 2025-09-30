@@ -2,9 +2,8 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
-import { ensureDueReminderNotifications } from "@/lib/reminder-notifications";
 
-export async function GET() {
+export async function PATCH() {
   try {
     const { userId, orgId } = await auth();
 
@@ -12,22 +11,20 @@ export async function GET() {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    await ensureDueReminderNotifications({ userId, orgId });
-
-    const notifications = await db.notification.findMany({
+    await db.notification.updateMany({
       where: {
         orgId,
         recipientUserId: userId,
+        readAt: null,
       },
-      orderBy: {
-        createdAt: "desc",
+      data: {
+        readAt: new Date(),
       },
-      take: 50,
     });
 
-    return NextResponse.json(notifications);
+    return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("[NOTIFICATIONS_GET_ERROR]", error);
+    console.error("[NOTIFICATIONS_READ_ALL_ERROR]", error);
     return new NextResponse("Internal Error", { status: 500 });
   }
 }

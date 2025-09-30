@@ -71,7 +71,12 @@ export const CardModal = () => {
             }
             {!id
               ? <Comments.Skeleton />
-              : <Comments cardId={id} items={commentsData ?? []} />
+              : <Comments
+                  cardId={id}
+                  items={commentsData ?? []}
+                  boardMembers={cardData?.boardMembers}
+                  assignees={cardData?.assignees}
+                />
             }
           </div>
         </div>

@@ -78,6 +78,41 @@ CREATE TABLE `CardCommentReaction` (
 ) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
 
 -- CreateTable
+CREATE TABLE `Notification` (
+    `id` VARCHAR(191) NOT NULL,
+    `orgId` VARCHAR(191) NOT NULL,
+    `recipientUserId` VARCHAR(191) NOT NULL,
+    `actorUserId` VARCHAR(191) NULL,
+    `actorName` TEXT NULL,
+    `actorImage` TEXT NULL,
+    `type` ENUM('CARD_ASSIGNED', 'BOARD_INVITE', 'COMMENT_REPLY', 'COMMENT_MENTION', 'CARD_REMINDER') NOT NULL,
+    `title` VARCHAR(191) NOT NULL,
+    `message` TEXT NOT NULL,
+    `boardId` VARCHAR(191) NULL,
+    `boardTitle` TEXT NULL,
+    `cardId` VARCHAR(191) NULL,
+    `cardTitle` TEXT NULL,
+    `listTitle` TEXT NULL,
+    `commentId` VARCHAR(191) NULL,
+    `dueDate` DATETIME(3) NULL,
+    `triggerTime` DATETIME(3) NULL,
+    `reminderLabel` VARCHAR(191) NULL,
+    `dedupeKey` VARCHAR(191) NULL,
+    `readAt` DATETIME(3) NULL,
+    `createdAt` DATETIME(3) NOT NULL DEFAULT CURRENT_TIMESTAMP(3),
+    `updatedAt` DATETIME(3) NOT NULL,
+
+    UNIQUE INDEX `Notification_dedupeKey_key`(`dedupeKey`),
+    INDEX `Notification_recipientUserId_orgId_readAt_createdAt_idx`(`recipientUserId`, `orgId`, `readAt`, `createdAt`),
+    INDEX `Notification_orgId_idx`(`orgId`),
+    INDEX `Notification_boardId_idx`(`boardId`),
+    INDEX `Notification_cardId_idx`(`cardId`),
+    INDEX `Notification_commentId_idx`(`commentId`),
+    INDEX `Notification_type_idx`(`type`),
+    PRIMARY KEY (`id`)
+) DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci;
+
+-- CreateTable
 CREATE TABLE `BoardMember` (
     `id` VARCHAR(191) NOT NULL,
     `boardId` VARCHAR(191) NOT NULL,

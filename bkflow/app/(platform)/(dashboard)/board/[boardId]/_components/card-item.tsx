@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { Draggable } from "@hello-pangea/dnd";
-import { AlignLeft, ExternalLink, Copy, Trash2 } from "lucide-react";
+import { AlignLeft, ExternalLink, Copy, Trash2, MessageSquare } from "lucide-react";
 
 import { useCardModal } from "@/hooks/use-card-modal";
 import { DueDateBadge } from "@/components/due-date-badge";
@@ -107,7 +107,7 @@ export const CardItem = ({
 
   const visibleAssignees = data.assignees.slice(0, 3);
   const hiddenAssigneesCount = Math.max(data.assignees.length - visibleAssignees.length, 0);
-  const hasFooter = Boolean(data.dueDate) || data.assignees.length > 0;
+  const hasFooter = Boolean(data.dueDate) || data.assignees.length > 0 || Boolean(data._count && data._count.comments > 0);
 
   return (
     <Draggable draggableId={data.id} index={index}>
@@ -140,12 +140,20 @@ export const CardItem = ({
               </span>
               {hasFooter && (
                 <div className="flex min-h-7 items-center justify-between gap-x-2">
-                  <div className="min-w-0">
+                  <div className="flex items-center gap-x-2.5 min-w-0">
                     {data.dueDate && (
                       <DueDateBadge
                         dueDate={data.dueDate}
                         isCompleted={data.isCompleted}
                       />
+                    )}
+                    {data._count && data._count.comments > 0 && (
+                      <Hint description={`${data._count.comments} bình luận`} side="bottom">
+                        <div className="flex items-center gap-x-1 text-xs text-neutral-400 hover:text-neutral-600 transition-colors py-0.5 px-1.5 rounded bg-neutral-50 hover:bg-neutral-100/70 border border-neutral-100">
+                          <MessageSquare className="h-3.5 w-3.5 text-neutral-400 flex-shrink-0" />
+                          <span className="font-semibold text-neutral-500 leading-none">{data._count.comments}</span>
+                        </div>
+                      </Hint>
                     )}
                   </div>
                   {data.assignees.length > 0 && (
