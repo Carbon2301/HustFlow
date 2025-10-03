@@ -40,9 +40,9 @@ const BoardIdLayout = async ({
   params: Promise<{ boardId: string; }>;
 }) => {
   const { boardId } = await params;
-  const { orgId } = await auth();
+  const { orgId, userId } = await auth();
 
-  if (!orgId) {
+  if (!orgId || !userId) {
     redirect("/select-org");
   }
 
@@ -74,6 +74,7 @@ const BoardIdLayout = async ({
       <BoardNavbar
         data={board}
         organizationMembers={organizationMembers}
+        currentUserId={userId}
       />
       <div className="absolute inset-0 bg-black/10" />
       <main className="relative pt-28 min-h-screen">

@@ -5,7 +5,7 @@ import { useParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
-import { MessageSquare } from "lucide-react";
+import { MessageSquare, SmilePlus } from "lucide-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { BoardMember } from "@prisma/client";
@@ -19,6 +19,7 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { Popover, PopoverTrigger, PopoverContent, PopoverClose } from "@/components/ui/popover";
+import { Hint } from "@/components/hint";
 import { useAction } from "@/hooks/use-action";
 import { CardCommentWithReplies } from "@/types";
 import { cn } from "@/lib/utils";
@@ -27,7 +28,6 @@ interface CommentsProps {
   cardId: string;
   items: CardCommentWithReplies[];
   boardMembers?: BoardMember[];
-  assignees?: any[];
 }
 
 type CommentItem = CardCommentWithReplies | CardCommentWithReplies["replies"][number];
@@ -87,7 +87,6 @@ const CommentForm = ({
   onSubmit,
   onCancel,
   boardMembers = [],
-  assignees = [],
 }: {
   placeholder: string;
   initialValue?: string;
@@ -96,7 +95,6 @@ const CommentForm = ({
   onSubmit: (content: string) => void;
   onCancel?: () => void;
   boardMembers?: BoardMember[];
-  assignees?: any[];
 }) => {
   const [content, setContent] = useState(initialValue);
   const trimmedContent = content.trim();
@@ -334,7 +332,6 @@ export const Comments = ({
   cardId,
   items,
   boardMembers = [],
-  assignees = [],
 }: CommentsProps) => {
   const params = useParams();
   const { user } = useUser();
@@ -496,7 +493,6 @@ export const Comments = ({
               onSubmit={(content) => onUpdateComment(comment.id, content)}
               onCancel={() => setEditingCommentId(null)}
               boardMembers={boardMembers}
-              assignees={assignees}
             />
           ) : (
             <div className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm leading-relaxed text-neutral-700 shadow-xs whitespace-pre-wrap break-words">
@@ -505,29 +501,81 @@ export const Comments = ({
           )}
 
           <div className="flex flex-wrap items-center gap-x-2 gap-y-1 text-xs text-neutral-500">
-            <div className="flex items-center gap-x-1">
+            {/* Show active reaction badges & SmilePlus emoji picker */}
+            <div className="flex flex-wrap items-center gap-1.5">
               {REACTION_EMOJIS.map((emoji) => {
                 const count = reactionCounts.get(emoji) ?? 0;
+                if (count === 0) return null;
+
                 const reactedByCurrentUser = comment.reactions.some(
                   (reaction) => reaction.emoji === emoji && reaction.userId === user?.id,
                 );
 
+                const getReactingUserNames = (reactionUserId: string) => {
+                  if (reactionUserId === user?.id) {
+                    return "Bạn";
+                  }
+                  const member = boardMembers?.find((m) => m.userId === reactionUserId);
+                  return member ? member.userName : "Người dùng BKFlow";
+                };
+
+                const reactingUsers = comment.reactions
+                  .filter((r) => r.emoji === emoji)
+                  .map((r) => getReactingUserNames(r.userId));
+
+                const tooltipText = reactingUsers.join(", ");
+
                 return (
-                  <button
-                    key={emoji}
-                    type="button"
-                    disabled={isReacting}
-                    onClick={() => onToggleReaction(comment.id, emoji)}
-                    className={cn(
-                      "inline-flex h-6 items-center gap-x-1 rounded-full px-1.5 transition hover:bg-neutral-100 disabled:opacity-50",
-                      reactedByCurrentUser && "bg-violet-50 text-violet-700",
-                    )}
-                  >
-                    <span>{emoji}</span>
-                    {count > 0 && <span>{count}</span>}
-                  </button>
+                  <Hint key={emoji} description={tooltipText} side="top">
+                    <button
+                      type="button"
+                      disabled={isReacting}
+                      onClick={() => onToggleReaction(comment.id, emoji)}
+                      className={cn(
+                        "inline-flex h-6 items-center gap-x-1 rounded-full px-2 py-0.5 border border-neutral-200 bg-neutral-50/50 hover:bg-neutral-100 disabled:opacity-50 text-neutral-600 transition-colors select-none",
+                        reactedByCurrentUser && "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100/50",
+                      )}
+                    >
+                      <span className="text-[13px] leading-none">{emoji}</span>
+                      <span className="text-[11px] font-semibold leading-none">{count}</span>
+                    </button>
+                  </Hint>
                 );
               })}
+
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    className="flex h-6 w-6 items-center justify-center rounded-full border border-neutral-200 bg-neutral-50/50 hover:bg-neutral-100 text-neutral-400 hover:text-neutral-600 transition-colors cursor-pointer"
+                    aria-label="Thêm cảm xúc"
+                  >
+                    <SmilePlus className="h-3.5 w-3.5" />
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="p-1.5 w-auto bg-white border border-neutral-200 shadow-xl rounded-full flex flex-row gap-x-1.5 z-[70]" side="top" sideOffset={6}>
+                  {REACTION_EMOJIS.map((emoji) => {
+                    const reactedByCurrentUser = comment.reactions.some(
+                      (reaction) => reaction.emoji === emoji && reaction.userId === user?.id,
+                    );
+                    return (
+                      <PopoverClose key={emoji} asChild>
+                        <button
+                          type="button"
+                          disabled={isReacting}
+                          onClick={() => onToggleReaction(comment.id, emoji)}
+                          className={cn(
+                            "flex h-7 w-7 items-center justify-center rounded-full hover:bg-neutral-100 transition-colors text-base cursor-pointer",
+                            reactedByCurrentUser && "bg-violet-100 text-violet-700 hover:bg-violet-200"
+                          )}
+                        >
+                          {emoji}
+                        </button>
+                      </PopoverClose>
+                    );
+                  })}
+                </PopoverContent>
+              </Popover>
             </div>
 
             {!isReply && (
@@ -615,7 +663,6 @@ export const Comments = ({
               }}
               onCancel={() => setReplyingCommentId(null)}
               boardMembers={boardMembers}
-              assignees={assignees}
             />
           )}
         </div>
@@ -639,7 +686,6 @@ export const Comments = ({
           isLoading={isCreating}
           onSubmit={(content) => onCreateComment(content)}
           boardMembers={boardMembers}
-          assignees={assignees}
         />
 
         {items.length === 0 ? (

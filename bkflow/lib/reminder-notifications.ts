@@ -66,6 +66,13 @@ export const ensureDueReminderNotifications = async ({
         notIn: ["none"],
       },
       isCompleted: false,
+      assignees: {
+        some: {
+          boardMember: {
+            userId,
+          },
+        },
+      },
     },
     select: {
       id: true,

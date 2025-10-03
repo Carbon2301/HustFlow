@@ -15,9 +15,9 @@ const BoardIdPage = async ({
   params,
 }: BoardIdPageProps) => {
   const { boardId } = await params;
-  const { orgId } = await auth();
+  const { orgId, userId } = await auth();
 
-  if (!orgId) {
+  if (!orgId || !userId) {
     redirect("/select-org");
   }
   
@@ -55,11 +55,25 @@ const BoardIdPage = async ({
     },
   });
 
+  const boardMembers = await db.boardMember.findMany({
+    where: {
+      boardId,
+      board: {
+        orgId,
+      },
+    },
+    orderBy: {
+      createdAt: "asc",
+    },
+  });
+
   return (
     <div className="p-4 h-full overflow-x-auto">
       <ListContainer
         boardId={boardId}
         data={lists}
+        boardMembers={boardMembers}
+        currentUserId={userId}
       />
     </div>
   );

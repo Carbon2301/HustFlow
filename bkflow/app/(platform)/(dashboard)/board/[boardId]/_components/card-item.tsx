@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { Draggable } from "@hello-pangea/dnd";
-import { AlignLeft, ExternalLink, Copy, Trash2, MessageSquare } from "lucide-react";
+import { AlignLeft, ExternalLink, Copy, Trash2, MessageSquare, Check } from "lucide-react";
 
 import { useCardModal } from "@/hooks/use-card-modal";
 import { DueDateBadge } from "@/components/due-date-badge";
@@ -107,7 +107,7 @@ export const CardItem = ({
 
   const visibleAssignees = data.assignees.slice(0, 3);
   const hiddenAssigneesCount = Math.max(data.assignees.length - visibleAssignees.length, 0);
-  const hasFooter = Boolean(data.dueDate) || data.assignees.length > 0 || Boolean(data._count && data._count.comments > 0);
+  const hasFooter = Boolean(data.dueDate) || data.isCompleted || data.assignees.length > 0 || Boolean(data._count && data._count.comments > 0);
 
   return (
     <Draggable draggableId={data.id} index={index}>
@@ -146,6 +146,14 @@ export const CardItem = ({
                         dueDate={data.dueDate}
                         isCompleted={data.isCompleted}
                       />
+                    )}
+                    {!data.dueDate && data.isCompleted && (
+                      <Hint description="Thẻ đã hoàn thành" side="bottom">
+                        <span className="inline-flex h-7 items-center gap-x-1 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 px-2 py-0.5 text-xs font-semibold shadow-xs">
+                          <Check className="h-3 w-3.5 text-emerald-600 shrink-0" />
+                          Hoàn thành
+                        </span>
+                      </Hint>
                     )}
                     {data._count && data._count.comments > 0 && (
                       <Hint description={`${data._count.comments} bình luận`} side="bottom">

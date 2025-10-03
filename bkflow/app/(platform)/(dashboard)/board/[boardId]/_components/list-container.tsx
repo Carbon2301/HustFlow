@@ -1,11 +1,13 @@
 "use client";
 
 import { toast } from "sonner";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { DragDropContext, Droppable, type DropResult } from "@hello-pangea/dnd";
+import { BoardMember } from "@prisma/client";
 
-import { ListWithCards } from "@/types";
+import { CardWithAssignees, ListWithCards } from "@/types";
 import { useAction } from "@/hooks/use-action";
+import { emptyBoardFilters, useBoardFilters, BoardFilterState } from "@/hooks/use-board-filters";
 import { updateListOrder } from "@/actions/update-list-order";
 import { updateCardOrder } from "@/actions/update-card-order";
 
@@ -15,6 +17,8 @@ import { ListItem } from "./list-item";
 interface ListContainerProps {
   data: ListWithCards[];
   boardId: string;
+  boardMembers: BoardMember[];
+  currentUserId: string;
 };
 
 function reorder<T>(list: T[], startIndex: number, endIndex: number) {
@@ -25,11 +29,146 @@ function reorder<T>(list: T[], startIndex: number, endIndex: number) {
   return result;
 };
 
+const cardMatchesFilters = (
+  card: CardWithAssignees,
+  filters: BoardFilterState,
+  currentBoardMemberId: string | undefined,
+) => {
+  const {
+    selectedMemberIds,
+    myWorkEnabled,
+    noMembersEnabled,
+    completedEnabled,
+    notCompletedEnabled,
+    selectedDueDateFilters,
+  } = filters;
+
+  // 1. Member Filters
+  const hasMemberFilter = selectedMemberIds.length > 0 || myWorkEnabled || noMembersEnabled;
+  if (hasMemberFilter) {
+    let match = false;
+    if (noMembersEnabled && card.assignees.length === 0) {
+      match = true;
+    }
+    if (myWorkEnabled && currentBoardMemberId && card.assignees.some((a) => a.boardMemberId === currentBoardMemberId)) {
+      match = true;
+    }
+    if (selectedMemberIds.length > 0 && card.assignees.some((a) => selectedMemberIds.includes(a.boardMemberId))) {
+      match = true;
+    }
+    if (!match) return false;
+  }
+
+  // 2. Card Status Filters
+  const hasStatusFilter = completedEnabled || notCompletedEnabled;
+  if (hasStatusFilter) {
+    let match = false;
+    if (completedEnabled && card.isCompleted) {
+      match = true;
+    }
+    if (notCompletedEnabled && !card.isCompleted) {
+      match = true;
+    }
+    if (!match) return false;
+  }
+
+  // 3. Due Date Filters
+  const hasDueDateFilter = selectedDueDateFilters.length > 0;
+  if (hasDueDateFilter) {
+    let match = false;
+    const now = new Date();
+
+    selectedDueDateFilters.forEach((filterType) => {
+      if (filterType === "no-due" && !card.dueDate) {
+        match = true;
+      }
+
+      if (card.dueDate) {
+        const dueDate = new Date(card.dueDate);
+        const isPast = dueDate.getTime() < now.getTime();
+
+        if (filterType === "overdue" && isPast && !card.isCompleted) {
+          match = true;
+        }
+
+        if (filterType === "next-hour") {
+          const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
+          if (dueDate.getTime() >= now.getTime() && dueDate.getTime() <= oneHourFromNow.getTime()) {
+            match = true;
+          }
+        }
+
+        if (filterType === "tomorrow") {
+          const endOfTomorrow = new Date(now);
+          endOfTomorrow.setDate(now.getDate() + 1);
+          endOfTomorrow.setHours(23, 59, 59, 999);
+
+          if (dueDate.getTime() >= now.getTime() && dueDate.getTime() <= endOfTomorrow.getTime()) {
+            match = true;
+          }
+        }
+
+        if (filterType === "next-week") {
+          const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
+          if (dueDate.getTime() >= now.getTime() && dueDate.getTime() <= sevenDaysFromNow.getTime()) {
+            match = true;
+          }
+        }
+
+        if (filterType === "next-month") {
+          const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
+          if (dueDate.getTime() >= now.getTime() && dueDate.getTime() <= thirtyDaysFromNow.getTime()) {
+            match = true;
+          }
+        }
+      }
+    });
+
+    if (!match) return false;
+  }
+
+  return true;
+};
+
+const getDestinationIndex = ({
+  actualCards,
+  visibleCards,
+  destinationIndex,
+}: {
+  actualCards: CardWithAssignees[];
+  visibleCards: CardWithAssignees[];
+  destinationIndex: number;
+}) => {
+  const targetVisibleCard = visibleCards[destinationIndex];
+
+  if (targetVisibleCard) {
+    return actualCards.findIndex((card) => card.id === targetVisibleCard.id);
+  }
+
+  const lastVisibleCard = visibleCards[destinationIndex - 1];
+
+  if (lastVisibleCard) {
+    const lastVisibleIndex = actualCards.findIndex(
+      (card) => card.id === lastVisibleCard.id,
+    );
+
+    return lastVisibleIndex + 1;
+  }
+
+  return actualCards.length;
+};
+
 export const ListContainer = ({
   data,
   boardId,
+  boardMembers,
+  currentUserId,
 }: ListContainerProps) => {
   const [orderedData, setOrderedData] = useState(data);
+  const filters = useBoardFilters((state) =>
+    state.filtersByBoardId[boardId] ?? emptyBoardFilters,
+  );
+  const { selectedMemberIds, myWorkEnabled } = filters;
 
   const { execute: executeUpdateListOrder } = useAction(updateListOrder, {
     onSuccess: () => {
@@ -52,6 +191,38 @@ export const ListContainer = ({
   useEffect(() => {
     setOrderedData(data);
   }, [data]);
+
+  const currentBoardMember = useMemo(() => {
+    return boardMembers.find((member) => member.userId === currentUserId);
+  }, [boardMembers, currentUserId]);
+
+  const filtersAreActive = useMemo(() => {
+    return (
+      selectedMemberIds.length > 0 ||
+      myWorkEnabled ||
+      filters.noMembersEnabled ||
+      filters.completedEnabled ||
+      filters.notCompletedEnabled ||
+      filters.selectedDueDateFilters.length > 0
+    );
+  }, [selectedMemberIds, myWorkEnabled, filters]);
+
+  const filteredData = useMemo(() => {
+    if (!filtersAreActive) {
+      return orderedData;
+    }
+
+    return orderedData.map((list) => ({
+      ...list,
+      cards: list.cards.filter((card) =>
+        cardMatchesFilters(card, filters, currentBoardMember?.id),
+      ),
+    }));
+  }, [filters, filtersAreActive, orderedData, currentBoardMember]);
+
+  const visibleCardCount = useMemo(() => (
+    filteredData.reduce((total, list) => total + list.cards.length, 0)
+  ), [filteredData]);
 
   const onDragEnd = (result: DropResult) => {
     const { destination, source, type } = result;
@@ -83,12 +254,15 @@ export const ListContainer = ({
     // User moves a card
     if (type === "card") {
       const newOrderedData = [...orderedData];
+      const visibleData = filteredData;
 
       // Source and destination list
       const sourceList = newOrderedData.find(list => list.id === source.droppableId);
       const destList = newOrderedData.find(list => list.id === destination.droppableId);
+      const visibleSourceList = visibleData.find(list => list.id === source.droppableId);
+      const visibleDestList = visibleData.find(list => list.id === destination.droppableId);
 
-      if (!sourceList || !destList) {
+      if (!sourceList || !destList || !visibleSourceList || !visibleDestList) {
         return;
       }
 
@@ -104,6 +278,45 @@ export const ListContainer = ({
 
       // Moving the card in the same list
       if (source.droppableId === destination.droppableId) {
+        if (filtersAreActive) {
+          const visibleCard = visibleSourceList.cards[source.index];
+
+          if (!visibleCard) {
+            return;
+          }
+
+          const sourceIndex = sourceList.cards.findIndex(
+            (card) => card.id === visibleCard.id,
+          );
+          const destinationIndex = getDestinationIndex({
+            actualCards: sourceList.cards,
+            visibleCards: visibleSourceList.cards,
+            destinationIndex: destination.index,
+          });
+
+          if (sourceIndex === -1 || destinationIndex === -1) {
+            return;
+          }
+
+          const reorderedCards = reorder(
+            sourceList.cards,
+            sourceIndex,
+            destinationIndex > sourceIndex ? destinationIndex - 1 : destinationIndex,
+          );
+
+          reorderedCards.forEach((card, idx) => {
+            card.order = idx;
+          });
+
+          sourceList.cards = reorderedCards;
+          setOrderedData(newOrderedData);
+          executeUpdateCardOrder({
+            boardId,
+            items: reorderedCards,
+          });
+          return;
+        }
+
         const reorderedCards = reorder(
           sourceList.cards,
           source.index,
@@ -123,14 +336,35 @@ export const ListContainer = ({
         });
         // User moves the card to another list
       } else {
+        const visibleCard = visibleSourceList.cards[source.index];
+
+        if (!visibleCard) {
+          return;
+        }
+
+        const sourceIndex = filtersAreActive
+          ? sourceList.cards.findIndex((card) => card.id === visibleCard.id)
+          : source.index;
+        const destinationIndex = filtersAreActive
+          ? getDestinationIndex({
+            actualCards: destList.cards,
+            visibleCards: visibleDestList.cards,
+            destinationIndex: destination.index,
+          })
+          : destination.index;
+
+        if (sourceIndex === -1 || destinationIndex === -1) {
+          return;
+        }
+
         // Remove card from the source list
-        const [movedCard] = sourceList.cards.splice(source.index, 1);
+        const [movedCard] = sourceList.cards.splice(sourceIndex, 1);
 
         // Assign the new listId to the moved card
         movedCard.listId = destination.droppableId;
 
         // Add card to the destination list
-        destList.cards.splice(destination.index, 0, movedCard);
+        destList.cards.splice(destinationIndex, 0, movedCard);
 
         sourceList.cards.forEach((card, idx) => {
           card.order = idx;
@@ -151,29 +385,36 @@ export const ListContainer = ({
   }
 
   return (
-    <DragDropContext onDragEnd={onDragEnd}>
-      <Droppable droppableId="lists" type="list" direction="horizontal">
-        {(provided) => (
-          <ol 
-            {...provided.droppableProps}
-            ref={provided.innerRef}  
-            className="flex gap-x-3 h-full"
-          >
-            {orderedData.map((list, index) => {
-              return (
-                <ListItem
-                  key={list.id}
-                  index={index}
-                  data={list}
-                />
-              )
-            })}
-            {provided.placeholder}
-            <ListForm />
-            <div className="flex-shrink-0 w-1" />
-          </ol>
-        )}
-      </Droppable>
-    </DragDropContext>
+    <div className="h-full">
+      {filtersAreActive && visibleCardCount === 0 && (
+        <div className="mb-3 inline-flex rounded-lg bg-white/90 px-3 py-2 text-sm font-medium text-neutral-700 shadow-sm">
+          Không có thẻ nào phù hợp với bộ lọc hiện tại.
+        </div>
+      )}
+      <DragDropContext onDragEnd={onDragEnd}>
+        <Droppable droppableId="lists" type="list" direction="horizontal">
+          {(provided) => (
+            <ol
+              {...provided.droppableProps}
+              ref={provided.innerRef}
+              className="flex h-full gap-x-3"
+            >
+              {filteredData.map((list, index) => {
+                return (
+                  <ListItem
+                    key={list.id}
+                    index={index}
+                    data={list}
+                  />
+                )
+              })}
+              {provided.placeholder}
+              <ListForm />
+              <div className="flex-shrink-0 w-1" />
+            </ol>
+          )}
+        </Droppable>
+      </DragDropContext>
+    </div>
   );
 };

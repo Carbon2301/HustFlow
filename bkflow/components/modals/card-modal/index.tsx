@@ -75,7 +75,6 @@ export const CardModal = () => {
                   cardId={id}
                   items={commentsData ?? []}
                   boardMembers={cardData?.boardMembers}
-                  assignees={cardData?.assignees}
                 />
             }
           </div>

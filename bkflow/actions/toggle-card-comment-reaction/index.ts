@@ -43,23 +43,31 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       return { error: "Không tìm thấy bình luận." };
     }
 
-    const existingReaction = await db.cardCommentReaction.findUnique({
+    const userReactions = await db.cardCommentReaction.findMany({
       where: {
-        commentId_userId_emoji: {
-          commentId,
-          userId,
-          emoji,
-        },
+        commentId,
+        userId,
       },
     });
 
-    if (existingReaction) {
+    const existingExactReaction = userReactions.find((r) => r.emoji === emoji);
+
+    if (existingExactReaction) {
       reaction = await db.cardCommentReaction.delete({
         where: {
-          id: existingReaction.id,
+          id: existingExactReaction.id,
         },
       });
     } else {
+      if (userReactions.length > 0) {
+        await db.cardCommentReaction.deleteMany({
+          where: {
+            commentId,
+            userId,
+          },
+        });
+      }
+
       reaction = await db.cardCommentReaction.create({
         data: {
           commentId,
