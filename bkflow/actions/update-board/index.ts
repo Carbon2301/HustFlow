@@ -10,6 +10,7 @@ import { UpdateBoard } from "./schema";
 import { InputType, ReturnType } from "./types";
 import { createAuditLog } from "@/lib/create-audit-log";
 import { ACTION, ENTITY_TYPE } from "@prisma/client";
+import { requireBoardAdmin } from "@/lib/permissions";
 
 const handler = async (data: InputType): Promise<ReturnType> => {
   const { userId, orgId } = await auth();
@@ -24,6 +25,12 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   let board;
 
   try {
+    const permission = await requireBoardAdmin({ boardId: id, orgId, userId });
+
+    if (permission.error) {
+      return { error: permission.error };
+    }
+
     board = await db.board.update({
       where: {
         id,

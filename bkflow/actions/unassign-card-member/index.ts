@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { createAuditLog } from "@/lib/create-audit-log";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
+import { requireBoardMember } from "@/lib/permissions";
 
 import { UnassignCardMember } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -22,6 +23,12 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   let cardAssignee;
 
   try {
+    const permission = await requireBoardMember({ boardId, orgId, userId });
+
+    if (permission.error) {
+      return { error: permission.error };
+    }
+
     cardAssignee = await db.cardAssignee.findUnique({
       where: {
         cardId_boardMemberId: {

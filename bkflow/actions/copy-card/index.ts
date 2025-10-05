@@ -7,6 +7,7 @@ import { ACTION, ENTITY_TYPE } from "@prisma/client";
 import { db } from "@/lib/db";
 import { createAuditLog } from "@/lib/create-audit-log";
 import { createSafeAction } from "@/lib/create-safe-action";
+import { requireBoardMember } from "@/lib/permissions";
 
 import { CopyCard } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -24,11 +25,18 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   let card;
 
   try {
+    const permission = await requireBoardMember({ boardId, orgId, userId });
+
+    if (permission.error) {
+      return { error: permission.error };
+    }
+
     const cardToCopy = await db.card.findUnique({
       where: {
         id,
         list: {
           board: {
+            id: boardId,
             orgId,
           },
         },

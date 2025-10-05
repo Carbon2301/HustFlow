@@ -1,6 +1,6 @@
 "use server";
 
-import { auth } from "@clerk/nextjs/server";
+import { auth, currentUser } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
@@ -9,7 +9,7 @@ import { createSafeAction } from "@/lib/create-safe-action";
 import { InputType, ReturnType } from "./types";
 import { CreateBoard } from "./schema";
 import { createAuditLog } from "@/lib/create-audit-log";
-import { ACTION, ENTITY_TYPE } from "@prisma/client";
+import { ACTION, BoardMemberRole, ENTITY_TYPE } from "@prisma/client";
 import { 
   incrementAvailableCount, 
   hasAvailableCount
@@ -18,8 +18,9 @@ import { checkSubscription } from "@/lib/subscription";
 
 const handler = async (data: InputType): Promise<ReturnType> => {
   const { userId, orgId } = await auth();
+  const user = await currentUser();
 
-  if (!userId || !orgId) {
+  if (!userId || !orgId || !user) {
     return {
       error: "Không có quyền truy cập.",
     };
@@ -53,6 +54,12 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   let board;
 
   try {
+    const userName =
+      user.fullName ||
+      user.username ||
+      user.primaryEmailAddress?.emailAddress ||
+      "Quản trị viên";
+
     board = await db.board.create({
       data: {
         title,
@@ -62,6 +69,15 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         imageFullUrl,
         imageUserName,
         imageLinkHTML,
+        members: {
+          create: {
+            userId,
+            userName,
+            userImage: user.imageUrl,
+            userEmail: user.primaryEmailAddress?.emailAddress,
+            role: BoardMemberRole.ADMIN,
+          },
+        },
       }
     });
 

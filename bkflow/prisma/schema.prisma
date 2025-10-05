@@ -159,6 +159,7 @@ model BoardMember {
   userName  String @db.Text
   userImage String @db.Text
   userEmail String? @db.Text
+  role      BoardMemberRole @default(MEMBER)
 
   assignees CardAssignee[]
 
@@ -168,6 +169,11 @@ model BoardMember {
   @@unique([boardId, userId])
   @@index([boardId])
   @@index([userId])
+}
+
+enum BoardMemberRole {
+  ADMIN
+  MEMBER
 }
 
 model CardAssignee {

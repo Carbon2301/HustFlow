@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
+import { requireBoardMember } from "@/lib/permissions";
 
 export async function GET(
   req: NextRequest,
@@ -42,6 +43,16 @@ export async function GET(
 
     if (!card) {
       return new NextResponse("Not Found", { status: 404 });
+    }
+
+    const permission = await requireBoardMember({
+      boardId: card.list.boardId,
+      orgId,
+      userId,
+    });
+
+    if (permission.error) {
+      return new NextResponse(permission.error, { status: 403 });
     }
 
     const boardMembers = await db.boardMember.findMany({

@@ -1,7 +1,7 @@
 "use server";
 
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { ACTION, ENTITY_TYPE, NOTIFICATION_TYPE } from "@prisma/client";
+import { ACTION, BoardMemberRole, ENTITY_TYPE, NOTIFICATION_TYPE } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 import { createAuditLog } from "@/lib/create-audit-log";
@@ -9,6 +9,7 @@ import { createNotification } from "@/lib/create-notification";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { getOrganizationMember } from "@/lib/clerk-org-members";
+import { requireBoardAdmin } from "@/lib/permissions";
 
 import { AddBoardMember } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -40,6 +41,12 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       return { error: "Không tìm thấy bảng." };
     }
 
+    const permission = await requireBoardAdmin({ boardId, orgId, userId });
+
+    if (permission.error) {
+      return { error: permission.error };
+    }
+
     const orgMember = await getOrganizationMember(orgId, memberUserId);
 
     if (!orgMember) {
@@ -66,6 +73,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         userName: orgMember.name,
         userImage: orgMember.imageUrl,
         userEmail: orgMember.email,
+        role: BoardMemberRole.MEMBER,
       },
     });
 

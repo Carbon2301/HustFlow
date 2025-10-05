@@ -1,6 +1,8 @@
 "use client";
 
+import { useEffect } from "react";
 import { useQuery } from "@tanstack/react-query";
+import { toast } from "sonner";
 
 import { CardCommentWithReplies, CardWithList } from "@/types";
 import { fetcher } from "@/lib/fetcher";
@@ -19,11 +21,25 @@ export const CardModal = () => {
   const isOpen = useCardModal((state) => state.isOpen);
   const onClose = useCardModal((state) => state.onClose);
 
-  const { data: cardData } = useQuery<CardWithList>({
+  const { data: cardData, error, isError } = useQuery<CardWithList>({
     queryKey: ["card", id],
     queryFn: () => fetcher(`/api/cards/${id}`),
     enabled: !!id,
   });
+
+  useEffect(() => {
+    if (isError && error) {
+      const err = error as Error & { status?: number };
+      if (err.status === 403) {
+        toast.error("Bạn không còn quyền truy cập bảng này.");
+      } else if (err.status === 404) {
+        toast.error("Thẻ không tồn tại hoặc đã bị xóa.");
+      } else {
+        toast.error("Có lỗi xảy ra khi tải dữ liệu thẻ.");
+      }
+      onClose();
+    }
+  }, [isError, error, onClose]);
 
   const { data: auditLogsData } = useQuery<AuditLog[]>({
     queryKey: ["card-logs", id],
@@ -42,7 +58,10 @@ export const CardModal = () => {
       open={isOpen}
       onOpenChange={onClose}
     >
-      <DialogContent className="sm:max-w-5xl w-[calc(100%-2rem)] h-[min(760px,calc(100vh-4rem))] rounded-2xl p-0 overflow-hidden shadow-2xl border border-neutral-200 flex flex-col">
+      <DialogContent
+        onOpenAutoFocus={(event) => event.preventDefault()}
+        className="sm:max-w-5xl w-[calc(100%-2rem)] h-[min(760px,calc(100vh-4rem))] rounded-2xl p-0 overflow-hidden shadow-2xl border border-neutral-200 flex flex-col"
+      >
         <DialogTitle className="sr-only">
           {cardData?.title || "Chi tiết thẻ"}
         </DialogTitle>

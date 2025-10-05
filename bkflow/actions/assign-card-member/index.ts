@@ -9,6 +9,7 @@ import { createNotification } from "@/lib/create-notification";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { getOrganizationMember } from "@/lib/clerk-org-members";
+import { requireBoardMember } from "@/lib/permissions";
 
 import { AssignCardMember } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -25,6 +26,12 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   let cardAssignee;
 
   try {
+    const permission = await requireBoardMember({ boardId, orgId, userId });
+
+    if (permission.error) {
+      return { error: permission.error };
+    }
+
     const card = await db.card.findUnique({
       where: {
         id: cardId,

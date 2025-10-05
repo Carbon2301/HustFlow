@@ -3,18 +3,27 @@ import { notFound, redirect } from "next/navigation";
 
 import { db } from "@/lib/db";
 import { getOrganizationMembers } from "@/lib/clerk-org-members";
+import { requireBoardMember } from "@/lib/permissions";
 
 import { BoardNavbar } from "./_components/board-navbar";
 
-export async function generateMetadata({ 
-  params
- }: {
-  params: Promise<{ boardId: string; }>;
- }) {
+export async function generateMetadata({
+  params,
+}: {
+  params: Promise<{ boardId: string }>;
+}) {
   const { boardId } = await params;
-  const { orgId } = await auth();
+  const { orgId, userId } = await auth();
 
-  if (!orgId) {
+  if (!orgId || !userId) {
+    return {
+      title: "Bảng",
+    };
+  }
+
+  const currentMembership = await requireBoardMember({ boardId, orgId, userId });
+
+  if (currentMembership.error) {
     return {
       title: "Bảng",
     };
@@ -23,8 +32,8 @@ export async function generateMetadata({
   const board = await db.board.findUnique({
     where: {
       id: boardId,
-      orgId
-    }
+      orgId,
+    },
   });
 
   return {
@@ -37,13 +46,20 @@ const BoardIdLayout = async ({
   params,
 }: {
   children: React.ReactNode;
-  params: Promise<{ boardId: string; }>;
+  params: Promise<{ boardId: string }>;
 }) => {
   const { boardId } = await params;
   const { orgId, userId } = await auth();
 
   if (!orgId || !userId) {
     redirect("/select-org");
+  }
+
+  const currentMembership = await requireBoardMember({ boardId, orgId, userId });
+
+  if (currentMembership.error || !currentMembership.membership) {
+    const errorMessage = currentMembership.error || "Bạn không có quyền truy cập bảng này.";
+    redirect(`/organization/${orgId}?error=${encodeURIComponent(errorMessage)}`);
   }
 
   const board = await db.board.findUnique({
@@ -75,6 +91,7 @@ const BoardIdLayout = async ({
         data={board}
         organizationMembers={organizationMembers}
         currentUserId={userId}
+        currentMemberRole={currentMembership.membership.role}
       />
       <div className="absolute inset-0 bg-black/10" />
       <main className="relative pt-28 min-h-screen">

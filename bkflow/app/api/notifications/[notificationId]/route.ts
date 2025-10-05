@@ -17,12 +17,32 @@ export async function PATCH(
 
     const body = await req.json();
     const read = Boolean(body.read);
+    const boardMemberships = await db.boardMember.findMany({
+      where: {
+        userId,
+        board: {
+          orgId,
+        },
+      },
+      select: {
+        boardId: true,
+      },
+    });
+    const boardIds = boardMemberships.map((membership) => membership.boardId);
 
     const notification = await db.notification.findFirst({
       where: {
         id: notificationId,
         orgId,
         recipientUserId: userId,
+        OR: [
+          { boardId: null },
+          {
+            boardId: {
+              in: boardIds,
+            },
+          },
+        ],
       },
       select: {
         id: true,

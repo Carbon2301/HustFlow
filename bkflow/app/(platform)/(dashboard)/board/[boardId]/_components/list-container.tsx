@@ -3,7 +3,7 @@
 import { toast } from "sonner";
 import { useEffect, useMemo, useState } from "react";
 import { DragDropContext, Droppable, type DropResult } from "@hello-pangea/dnd";
-import { BoardMember } from "@prisma/client";
+import { BoardMember, BoardMemberRole } from "@prisma/client";
 
 import { CardWithAssignees, ListWithCards } from "@/types";
 import { useAction } from "@/hooks/use-action";
@@ -19,6 +19,7 @@ interface ListContainerProps {
   boardId: string;
   boardMembers: BoardMember[];
   currentUserId: string;
+  currentMemberRole: BoardMemberRole;
 };
 
 function reorder<T>(list: T[], startIndex: number, endIndex: number) {

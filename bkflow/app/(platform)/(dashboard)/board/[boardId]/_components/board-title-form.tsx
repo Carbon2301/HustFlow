@@ -11,10 +11,12 @@ import { useAction } from "@/hooks/use-action";
 
 interface BoardTitleFormProps {
   data: Board;
+  canEdit: boolean;
 };
 
 export const BoardTitleForm = ({
   data,
+  canEdit,
 }: BoardTitleFormProps) => {
   const { execute } = useAction(updateBoard, {
     onSuccess: (data) => {
@@ -34,6 +36,10 @@ export const BoardTitleForm = ({
   const [isEditing, setIsEditing] = useState(false);
 
   const enableEditing = () => {
+    if (!canEdit) {
+      return;
+    }
+
     setIsEditing(true);
     setTimeout(() => {
      inputRef.current?.focus();
@@ -76,6 +82,7 @@ export const BoardTitleForm = ({
     <Button
       onClick={enableEditing}
       variant="transparent"
+      disabled={!canEdit}
       className="font-bold text-lg h-auto w-auto p-1 px-2"
     >
       {title}

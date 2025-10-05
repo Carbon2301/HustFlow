@@ -7,9 +7,10 @@ import { revalidatePath } from "next/cache";
 import { createAuditLog } from "@/lib/create-audit-log";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
+import { getRoleLabel } from "@/lib/board-member-role";
 import { requireBoardAdmin } from "@/lib/permissions";
 
-import { RemoveBoardMember } from "./schema";
+import { UpdateBoardMemberRole } from "./schema";
 import { InputType, ReturnType } from "./types";
 
 const handler = async (data: InputType): Promise<ReturnType> => {
@@ -19,7 +20,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     return { error: "Không có quyền truy cập." };
   }
 
-  const { boardId, boardMemberId } = data;
+  const { boardId, boardMemberId, role } = data;
   let boardMember;
 
   try {
@@ -29,7 +30,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       return { error: permission.error };
     }
 
-    boardMember = await db.boardMember.findUnique({
+    const existingBoardMember = await db.boardMember.findUnique({
       where: {
         id: boardMemberId,
         board: {
@@ -47,11 +48,18 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       },
     });
 
-    if (!boardMember) {
+    if (!existingBoardMember) {
       return { error: "Không tìm thấy thành viên trong bảng." };
     }
 
-    if (boardMember.role === BoardMemberRole.ADMIN) {
+    if (existingBoardMember.role === role) {
+      return { error: "Thành viên đã có vai trò này." };
+    }
+
+    if (
+      existingBoardMember.role === BoardMemberRole.ADMIN &&
+      role === BoardMemberRole.MEMBER
+    ) {
       const adminCount = await db.boardMember.count({
         where: {
           boardId,
@@ -64,24 +72,30 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       }
     }
 
-    await db.boardMember.delete({
+    boardMember = await db.boardMember.update({
       where: {
-        id: boardMember.id,
+        id: existingBoardMember.id,
+      },
+      data: {
+        role,
       },
     });
 
+    const actionLabel =
+      role === BoardMemberRole.ADMIN ? "đã thăng quyền" : "đã hạ quyền";
+
     await createAuditLog({
-      entityId: boardMember.board.id,
-      entityTitle: `detail:đã xóa ${boardMember.userName} khỏi bảng "${boardMember.board.title}"`,
+      entityId: existingBoardMember.board.id,
+      entityTitle: `detail:${actionLabel} ${existingBoardMember.userName} thành ${getRoleLabel(role).toLowerCase()} trong bảng "${existingBoardMember.board.title}"`,
       entityType: ENTITY_TYPE.BOARD,
       action: ACTION.UPDATE,
     });
   } catch {
-    return { error: "Xóa thành viên khỏi bảng thất bại." };
+    return { error: "Cập nhật vai trò thành viên thất bại." };
   }
 
   revalidatePath(`/board/${boardId}`);
   return { data: boardMember };
 };
 
-export const removeBoardMember = createSafeAction(RemoveBoardMember, handler);
+export const updateBoardMemberRole = createSafeAction(UpdateBoardMemberRole, handler);

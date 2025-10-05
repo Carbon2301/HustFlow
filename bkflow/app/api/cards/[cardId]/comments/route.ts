@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
+import { requireBoardMember } from "@/lib/permissions";
 
 export async function GET(
   req: NextRequest,
@@ -26,11 +27,26 @@ export async function GET(
       },
       select: {
         id: true,
+        list: {
+          select: {
+            boardId: true,
+          },
+        },
       },
     });
 
     if (!card) {
       return new NextResponse("Không tìm thấy thẻ.", { status: 404 });
+    }
+
+    const permission = await requireBoardMember({
+      boardId: card.list.boardId,
+      orgId,
+      userId,
+    });
+
+    if (permission.error) {
+      return new NextResponse(permission.error, { status: 403 });
     }
 
     const comments = await db.cardComment.findMany({

@@ -10,6 +10,7 @@ import { DeleteCard } from "./schema";
 import { InputType, ReturnType } from "./types";
 import { createAuditLog } from "@/lib/create-audit-log";
 import { ACTION, ENTITY_TYPE } from "@prisma/client";
+import { requireBoardMember } from "@/lib/permissions";
 
 const handler = async (data: InputType): Promise<ReturnType> => {
   const { userId, orgId } = await auth();
@@ -24,11 +25,18 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   let card;
 
   try {
+    const permission = await requireBoardMember({ boardId, orgId, userId });
+
+    if (permission.error) {
+      return { error: permission.error };
+    }
+
     card = await db.card.delete({
       where: {
         id,
         list: {
           board: {
+            id: boardId,
             orgId,
           },
         },

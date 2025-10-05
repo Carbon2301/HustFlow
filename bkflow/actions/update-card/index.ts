@@ -12,6 +12,7 @@ import { InputType, ReturnType } from "./types";
 import { createAuditLog } from "@/lib/create-audit-log";
 import { ACTION, ENTITY_TYPE } from "@prisma/client";
 import { deleteCardReminderNotifications } from "@/lib/reminder-notifications";
+import { requireBoardMember } from "@/lib/permissions";
 
 const formatFriendlyDate = (dueDate: Date | string) => {
   const date = new Date(dueDate);
@@ -39,11 +40,18 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   let card;
 
   try {
+    const permission = await requireBoardMember({ boardId, orgId, userId });
+
+    if (permission.error) {
+      return { error: permission.error };
+    }
+
     const currentCard = await db.card.findUnique({
       where: {
         id,
         list: {
           board: {
+            id: boardId,
             orgId,
           },
         },
@@ -82,6 +90,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         id,
         list: {
           board: {
+            id: boardId,
             orgId,
           },
         },

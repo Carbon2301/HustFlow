@@ -12,15 +12,20 @@ import { getAvailableCount } from "@/lib/org-limit";
 import { checkSubscription } from "@/lib/subscription";
 
 export const BoardList = async () => {
-  const { orgId } = await auth();
+  const { orgId, userId } = await auth();
 
-  if (!orgId) {
+  if (!orgId || !userId) {
     return redirect("/select-org");
   }
 
   const boards = await db.board.findMany({
     where: {
       orgId,
+      members: {
+        some: {
+          userId,
+        },
+      },
     },
     orderBy: {
       createdAt: "desc"

@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 
 import { db } from "@/lib/db";
 import { createSafeAction } from "@/lib/create-safe-action";
+import { requireBoardMember } from "@/lib/permissions";
 
 import { UpdateCardOrder } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -22,12 +23,36 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   let updatedCards;
 
   try {
+    const permission = await requireBoardMember({ boardId, orgId, userId });
+
+    if (permission.error) {
+      return { error: permission.error };
+    }
+
+    const destinationListIds = Array.from(new Set(items.map((card) => card.listId)));
+    const destinationListCount = await db.list.count({
+      where: {
+        id: {
+          in: destinationListIds,
+        },
+        boardId,
+        board: {
+          orgId,
+        },
+      },
+    });
+
+    if (destinationListCount !== destinationListIds.length) {
+      return { error: "Không thể di chuyển thẻ sang bảng khác." };
+    }
+
     const transaction = items.map((card) => 
       db.card.update({
         where: {
           id: card.id,
           list: {
             board: {
+              id: boardId,
               orgId,
             },
           },

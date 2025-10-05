@@ -13,6 +13,7 @@ import { createAuditLog } from "@/lib/create-audit-log";
 import { ACTION, ENTITY_TYPE } from "@prisma/client";
 import { decreaseAvailableCount } from "@/lib/org-limit";
 import { checkSubscription } from "@/lib/subscription";
+import { requireBoardAdmin } from "@/lib/permissions";
 
 const handler = async (data: InputType): Promise<ReturnType> => {
   const { userId, orgId } = await auth();
@@ -29,6 +30,12 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   let board;
 
   try {
+    const permission = await requireBoardAdmin({ boardId: id, orgId, userId });
+
+    if (permission.error) {
+      return { error: permission.error };
+    }
+
     board = await db.board.delete({
       where: {
         id,
