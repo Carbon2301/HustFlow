@@ -84,7 +84,7 @@ const BoardIdLayout = async ({
 
   return (
     <div
-      className="relative min-h-screen bg-no-repeat bg-cover bg-center"
+      className="relative h-screen flex flex-col overflow-hidden bg-no-repeat bg-cover bg-center"
       style={{ backgroundImage: `url(${board.imageFullUrl})` }}
     >
       <BoardNavbar
@@ -94,7 +94,7 @@ const BoardIdLayout = async ({
         currentMemberRole={currentMembership.membership.role}
       />
       <div className="absolute inset-0 bg-black/10" />
-      <main className="relative pt-28 min-h-screen">
+      <main className="relative pt-28 flex-1 min-h-0 overflow-hidden">
         {children}
       </main>
     </div>
