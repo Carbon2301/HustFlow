@@ -246,7 +246,7 @@ export const BoardFilters = ({
             {/* 2. Card Status Section */}
             <div className="space-y-2 pt-3.5 border-t border-neutral-100">
               <p className="text-sm font-semibold text-neutral-800 pl-0.5">
-                Card status
+                Trạng thái thẻ
               </p>
               
               <label className="flex cursor-pointer items-center gap-x-2.5 rounded-lg px-2 py-1.5 transition hover:bg-neutral-50 select-none">

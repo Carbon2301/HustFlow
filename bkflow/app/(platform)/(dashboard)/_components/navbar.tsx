@@ -8,10 +8,12 @@ import { MobileSidebar } from "./mobile-sidebar";
 import { FormPopover } from "@/components/form/form-popover";
 import { NotificationsPopover } from "@/components/notifications-popover";
 import { NotificationToasts } from "@/components/notifications/notification-toasts";
+import { RealtimeNotificationSync } from "@/components/notifications/realtime-notification-sync";
 
 export const Navbar = () => {
     return (
         <nav className="fixed z-50 top-0 px-4 w-full h-14 border-b border-neutral-200/80 bg-white/95 backdrop-blur-sm flex items-center gap-x-4">
+            <RealtimeNotificationSync />
             <NotificationToasts />
             <MobileSidebar />
             <div className="flex items-center gap-x-4">

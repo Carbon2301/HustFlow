@@ -1,6 +1,7 @@
-import { NOTIFICATION_TYPE } from "@prisma/client";
+import { NOTIFICATION_TYPE, Notification, Prisma } from "@prisma/client";
 
 import { db } from "@/lib/db";
+import { triggerNotificationCreated } from "@/lib/notifications/realtime";
 
 type NotificationActor = {
   userId: string;
@@ -50,13 +51,45 @@ export const createNotification = async ({
       return;
     }
 
+    let notification: Notification;
+
     if (dedupeKey) {
-      await db.notification.upsert({
-        where: {
-          dedupeKey,
-        },
-        update: {},
-        create: {
+      try {
+        notification = await db.notification.create({
+          data: {
+            orgId,
+            recipientUserId,
+            actorUserId: actor?.userId,
+            actorName: actor?.name,
+            actorImage: actor?.image,
+            type,
+            title,
+            message,
+            boardId,
+            boardTitle,
+            cardId,
+            cardTitle,
+            listTitle,
+            commentId,
+            dueDate,
+            triggerTime,
+            reminderLabel,
+            dedupeKey,
+          },
+        });
+      } catch (error) {
+        if (
+          error instanceof Prisma.PrismaClientKnownRequestError &&
+          error.code === "P2002"
+        ) {
+          return;
+        }
+
+        throw error;
+      }
+    } else {
+      notification = await db.notification.create({
+        data: {
           orgId,
           recipientUserId,
           actorUserId: actor?.userId,
@@ -77,31 +110,9 @@ export const createNotification = async ({
           dedupeKey,
         },
       });
-      return;
     }
 
-    await db.notification.create({
-      data: {
-        orgId,
-        recipientUserId,
-        actorUserId: actor?.userId,
-        actorName: actor?.name,
-        actorImage: actor?.image,
-        type,
-        title,
-        message,
-        boardId,
-        boardTitle,
-        cardId,
-        cardTitle,
-        listTitle,
-        commentId,
-        dueDate,
-        triggerTime,
-        reminderLabel,
-        dedupeKey,
-      },
-    });
+    await triggerNotificationCreated(notification);
   } catch (error) {
     console.log("[CREATE_NOTIFICATION_ERROR]", error);
   }

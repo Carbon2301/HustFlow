@@ -16,6 +16,12 @@ type ClientPusherConfig = {
 const channelRefs = new Map<string, number>();
 let clientPusher: Pusher | null = null;
 
+export const isRealtimeClientConfigured = () =>
+  Boolean(
+    process.env.NEXT_PUBLIC_PUSHER_KEY &&
+      process.env.NEXT_PUBLIC_PUSHER_CLUSTER,
+  );
+
 const readClientPusherConfig = (): ClientPusherConfig => {
   const config = {
     key: process.env.NEXT_PUBLIC_PUSHER_KEY,

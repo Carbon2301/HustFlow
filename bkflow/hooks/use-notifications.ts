@@ -6,7 +6,7 @@ import { useMutation, useQuery, useQueryClient } from "@tanstack/react-query";
 import { fetcher } from "@/lib/fetcher";
 import { NotificationItem } from "@/components/notifications/types";
 
-const NOTIFICATIONS_QUERY_KEY = ["notifications"];
+export const NOTIFICATIONS_QUERY_KEY = ["notifications"] as const;
 
 const patchNotification = async (id: string, read: boolean) => {
   const response = await fetch(`/api/notifications/${id}`, {
