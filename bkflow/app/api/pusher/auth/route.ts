@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseRealtimeChannelName } from "@/lib/realtime/channels";
 import { getServerPusher } from "@/lib/realtime/server";
 import { requireBoardMember } from "@/lib/permissions";
+import { db } from "@/lib/db";
 
 const parsePusherAuthRequest = async (req: NextRequest) => {
   const contentType = req.headers.get("content-type") ?? "";
@@ -74,6 +75,40 @@ export async function POST(req: NextRequest) {
     if (channelScope.type === "board") {
       const permission = await requireBoardMember({
         boardId: channelScope.boardId,
+        orgId,
+        userId,
+      });
+
+      if (permission.error) {
+        return new NextResponse("Forbidden", { status: 403 });
+      }
+    }
+
+    if (channelScope.type === "card") {
+      const card = await db.card.findUnique({
+        where: {
+          id: channelScope.cardId,
+          list: {
+            board: {
+              orgId,
+            },
+          },
+        },
+        select: {
+          list: {
+            select: {
+              boardId: true,
+            },
+          },
+        },
+      });
+
+      if (!card) {
+        return new NextResponse("Forbidden", { status: 403 });
+      }
+
+      const permission = await requireBoardMember({
+        boardId: card.list.boardId,
         orgId,
         userId,
       });

@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { requireBoardMember } from "@/lib/permissions";
+import { triggerCommentDeleted } from "@/lib/comments/realtime";
 
 import { DeleteCardComment } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -55,10 +56,24 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       },
     });
 
+    const replyCount = await db.cardComment.count({
+      where: {
+        parentId: existingComment.id,
+      },
+    });
+
     comment = await db.cardComment.delete({
       where: {
         id: existingComment.id,
       },
+    });
+
+    await triggerCommentDeleted({
+      boardId,
+      cardId,
+      actorUserId: userId,
+      comment,
+      deletedCount: 1 + replyCount,
     });
   } catch {
     return { error: "Xóa bình luận thất bại." };

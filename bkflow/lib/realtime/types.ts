@@ -36,41 +36,68 @@ export type NotificationCreatedPayload = {
 };
 
 export type CommentCreatedPayload = {
+  eventId: string;
   boardId: string;
   cardId: string;
   commentId: string;
   parentId: string | null;
-  actor: RealtimeActor;
+  actorUserId: string;
   createdAt: string;
   invalidate: RealtimeQueryInvalidation[];
 };
 
 export type CommentUpdatedPayload = {
+  eventId: string;
   boardId: string;
   cardId: string;
   commentId: string;
-  actor: RealtimeActor;
+  actorUserId: string;
   updatedAt: string;
   invalidate: RealtimeQueryInvalidation[];
 };
 
 export type CommentDeletedPayload = {
+  eventId: string;
   boardId: string;
   cardId: string;
   commentId: string;
-  actor: RealtimeActor;
+  actorUserId: string;
   deletedAt: string;
+  invalidate: RealtimeQueryInvalidation[];
+  deletedCount?: number;
+};
+
+export type ReactionCreatedPayload = {
+  eventId: string;
+  boardId: string;
+  cardId: string;
+  commentId: string;
+  reactionId: string;
+  actorUserId: string;
+  createdAt: string;
   invalidate: RealtimeQueryInvalidation[];
 };
 
 export type ReactionUpdatedPayload = {
+  eventId: string;
   boardId: string;
   cardId: string;
   commentId: string;
-  actor: RealtimeActor;
+  reactionId: string;
+  actorUserId: string;
   emoji: string;
-  action: "added" | "removed" | "replaced";
   updatedAt: string;
+  invalidate: RealtimeQueryInvalidation[];
+};
+
+export type ReactionDeletedPayload = {
+  eventId: string;
+  boardId: string;
+  cardId: string;
+  commentId: string;
+  reactionId: string;
+  actorUserId: string;
+  deletedAt: string;
   invalidate: RealtimeQueryInvalidation[];
 };
 
@@ -127,7 +154,9 @@ export type RealtimeEventPayloads = {
   "comment.created": CommentCreatedPayload;
   "comment.updated": CommentUpdatedPayload;
   "comment.deleted": CommentDeletedPayload;
+  "reaction.created": ReactionCreatedPayload;
   "reaction.updated": ReactionUpdatedPayload;
+  "reaction.deleted": ReactionDeletedPayload;
   "card.assigned": CardAssignedPayload;
   "card.updated": CardUpdatedPayload;
   "card.moved": CardMovedPayload;

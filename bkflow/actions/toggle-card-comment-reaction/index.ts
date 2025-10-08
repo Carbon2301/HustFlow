@@ -6,6 +6,11 @@ import { revalidatePath } from "next/cache";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { requireBoardMember } from "@/lib/permissions";
+import {
+  triggerReactionCreated,
+  triggerReactionDeleted,
+  triggerReactionUpdated,
+} from "@/lib/comments/realtime";
 
 import { ToggleCardCommentReaction } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -65,6 +70,14 @@ const handler = async (data: InputType): Promise<ReturnType> => {
           id: existingExactReaction.id,
         },
       });
+
+      await triggerReactionDeleted({
+        boardId,
+        cardId,
+        commentId,
+        actorUserId: userId,
+        reaction,
+      });
     } else {
       if (userReactions.length > 0) {
         await db.cardCommentReaction.deleteMany({
@@ -82,6 +95,24 @@ const handler = async (data: InputType): Promise<ReturnType> => {
           emoji,
         },
       });
+
+      if (userReactions.length > 0) {
+        await triggerReactionUpdated({
+          boardId,
+          cardId,
+          commentId,
+          actorUserId: userId,
+          reaction,
+        });
+      } else {
+        await triggerReactionCreated({
+          boardId,
+          cardId,
+          commentId,
+          actorUserId: userId,
+          reaction,
+        });
+      }
     }
   } catch {
     return { error: "Cập nhật cảm xúc thất bại." };

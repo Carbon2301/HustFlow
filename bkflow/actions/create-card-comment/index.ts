@@ -9,6 +9,7 @@ import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { findMentionedBoardMembers } from "@/lib/mentions";
 import { requireBoardMember } from "@/lib/permissions";
+import { triggerCommentCreated } from "@/lib/comments/realtime";
 
 import { CreateCardComment } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -193,6 +194,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     });
 
     await createNotifications(notifications);
+
+    await triggerCommentCreated({
+      boardId,
+      cardId,
+      actorUserId: userId,
+      comment,
+    });
   } catch {
     return { error: "Tạo bình luận thất bại." };
   }

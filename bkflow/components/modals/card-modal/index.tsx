@@ -15,6 +15,7 @@ import { Metadata } from "./metadata";
 import { Description } from "./description";
 import { Activity } from "./activity";
 import { Comments } from "./comments";
+import { CardRealtimeSync } from "./card-realtime-sync";
 
 export const CardModal = () => {
   const id = useCardModal((state) => state.id);
@@ -58,6 +59,7 @@ export const CardModal = () => {
       open={isOpen}
       onOpenChange={onClose}
     >
+      <CardRealtimeSync cardId={id} isOpen={isOpen} />
       <DialogContent
         onOpenAutoFocus={(event) => event.preventDefault()}
         className="sm:max-w-5xl w-[calc(100%-2rem)] h-[min(760px,calc(100vh-4rem))] rounded-2xl p-0 overflow-hidden shadow-2xl border border-neutral-200 flex flex-col"

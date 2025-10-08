@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { requireBoardMember } from "@/lib/permissions";
+import { triggerCommentUpdated } from "@/lib/comments/realtime";
 
 import { UpdateCardComment } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -49,6 +50,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       select: {
         id: true,
         userId: true,
+        content: true,
+        cardId: true,
+        parentId: true,
+        userName: true,
+        userImage: true,
+        createdAt: true,
+        updatedAt: true,
       },
     });
 
@@ -60,14 +68,25 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       return { error: "Bạn chỉ có thể chỉnh sửa bình luận của mình." };
     }
 
-    comment = await db.cardComment.update({
-      where: {
-        id: existingComment.id,
-      },
-      data: {
-        content,
-      },
-    });
+    if (existingComment.content === content) {
+      comment = existingComment;
+    } else {
+      comment = await db.cardComment.update({
+        where: {
+          id: existingComment.id,
+        },
+        data: {
+          content,
+        },
+      });
+
+      await triggerCommentUpdated({
+        boardId,
+        cardId,
+        actorUserId: userId,
+        comment,
+      });
+    }
   } catch {
     return { error: "Cập nhật bình luận thất bại." };
   }

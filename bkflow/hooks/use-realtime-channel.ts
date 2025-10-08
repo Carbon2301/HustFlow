@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useCallback, useEffect } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import type { RealtimeChannelName } from "@/lib/realtime/channels";
@@ -44,9 +44,9 @@ export const useRealtimeChannel = <TEvent extends RealtimeEventName>({
 export const useRealtimeInvalidation = () => {
   const queryClient = useQueryClient();
 
-  return (invalidations: RealtimeQueryInvalidation[]) => {
+  return useCallback((invalidations: RealtimeQueryInvalidation[]) => {
     invalidations.forEach(({ queryKey }) => {
       queryClient.invalidateQueries({ queryKey });
     });
-  };
+  }, [queryClient]);
 };

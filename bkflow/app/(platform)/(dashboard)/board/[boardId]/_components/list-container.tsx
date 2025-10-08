@@ -10,6 +10,10 @@ import { useAction } from "@/hooks/use-action";
 import { emptyBoardFilters, useBoardFilters, BoardFilterState } from "@/hooks/use-board-filters";
 import { updateListOrder } from "@/actions/update-list-order";
 import { updateCardOrder } from "@/actions/update-card-order";
+import { useRealtimeChannel } from "@/hooks/use-realtime-channel";
+import { realtimeChannels } from "@/lib/realtime/channels";
+import { isRealtimeClientConfigured } from "@/lib/realtime/client";
+import { REALTIME_EVENTS } from "@/lib/realtime/events";
 
 import { ListForm } from "./list-form";
 import { ListItem } from "./list-item";
@@ -192,6 +196,60 @@ export const ListContainer = ({
   useEffect(() => {
     setOrderedData(data);
   }, [data]);
+
+  const channelName = realtimeChannels.board(boardId);
+  const enabled = isRealtimeClientConfigured();
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.COMMENT_CREATED,
+    onEvent: (payload) => {
+      setOrderedData((prevData) =>
+        prevData.map((list) => ({
+          ...list,
+          cards: list.cards.map((card) =>
+            card.id === payload.cardId
+              ? {
+                  ...card,
+                  _count: {
+                    ...card._count,
+                    comments: (card._count?.comments || 0) + 1,
+                  },
+                }
+              : card
+          ),
+        }))
+      );
+    },
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.COMMENT_DELETED,
+    onEvent: (payload) => {
+      setOrderedData((prevData) =>
+        prevData.map((list) => ({
+          ...list,
+          cards: list.cards.map((card) =>
+            card.id === payload.cardId
+              ? {
+                  ...card,
+                  _count: {
+                    ...card._count,
+                    comments: Math.max(
+                      (card._count?.comments || 0) - (payload.deletedCount || 1),
+                      0
+                    ),
+                  },
+                }
+              : card
+          ),
+        }))
+      );
+    },
+    enabled,
+  });
 
   const currentBoardMember = useMemo(() => {
     return boardMembers.find((member) => member.userId === currentUserId);
