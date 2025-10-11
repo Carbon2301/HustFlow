@@ -11,6 +11,7 @@ import { InputType, ReturnType } from "./types";
 import { createAuditLog } from "@/lib/create-audit-log";
 import { ACTION, ENTITY_TYPE } from "@prisma/client";
 import { requireBoardMember } from "@/lib/permissions";
+import { triggerCardDeleted } from "@/lib/boards/realtime";
 
 const handler = async (data: InputType): Promise<ReturnType> => {
   const { userId, orgId } = await auth();
@@ -49,6 +50,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityType: ENTITY_TYPE.CARD,
       action: ACTION.DELETE,
     })
+
+    await triggerCardDeleted({
+      boardId,
+      listId: card.listId,
+      cardId: card.id,
+      actorUserId: userId,
+    });
   } catch {
     return {
       error: "Xóa thẻ thất bại."

@@ -14,6 +14,7 @@ import { ACTION, ENTITY_TYPE } from "@prisma/client";
 import { decreaseAvailableCount } from "@/lib/org-limit";
 import { checkSubscription } from "@/lib/subscription";
 import { requireBoardAdmin } from "@/lib/permissions";
+import { triggerBoardDeleted } from "@/lib/boards/realtime";
 
 const handler = async (data: InputType): Promise<ReturnType> => {
   const { userId, orgId } = await auth();
@@ -53,6 +54,12 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityType: ENTITY_TYPE.BOARD,
       action: ACTION.DELETE,
     })
+
+    await triggerBoardDeleted({
+      boardId: board.id,
+      orgId,
+      actorUserId: userId,
+    });
   } catch {
     return {
       error: "Xóa bảng thất bại."

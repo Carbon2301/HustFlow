@@ -8,6 +8,7 @@ import { createAuditLog } from "@/lib/create-audit-log";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { requireBoardAdmin } from "@/lib/permissions";
+import { triggerBoardMemberRemoved } from "@/lib/boards/realtime";
 
 import { RemoveBoardMember } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -75,6 +76,14 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityTitle: `detail:đã xóa ${boardMember.userName} khỏi bảng "${boardMember.board.title}"`,
       entityType: ENTITY_TYPE.BOARD,
       action: ACTION.UPDATE,
+    });
+
+    await triggerBoardMemberRemoved({
+      boardId,
+      orgId,
+      boardMemberId: boardMember.id,
+      targetUserId: boardMember.userId,
+      actorUserId: userId,
     });
   } catch {
     return { error: "Xóa thành viên khỏi bảng thất bại." };

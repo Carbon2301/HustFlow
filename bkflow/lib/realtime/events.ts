@@ -9,10 +9,23 @@ export const REALTIME_EVENTS = {
   REACTION_UPDATED: "reaction.updated",
   REACTION_DELETED: "reaction.deleted",
   CARD_ASSIGNED: "card.assigned",
+  CARD_MEMBER_ASSIGNED: "card.member.assigned",
+  CARD_MEMBER_UNASSIGNED: "card.member.unassigned",
   CARD_UPDATED: "card.updated",
   CARD_MOVED: "card.moved",
+  CARD_CREATED: "card.created",
+  CARD_DELETED: "card.deleted",
+  CARD_COMMENT_COUNT_UPDATED: "card.comment.count.updated",
   MEMBER_UPDATED: "member.updated",
   BOARD_UPDATED: "board.updated",
+  BOARD_DELETED: "board.deleted",
+  BOARD_ACCESS_REVOKED: "board.access.revoked",
+  BOARD_MEMBER_ADDED: "board.member.added",
+  BOARD_MEMBER_REMOVED: "board.member.removed",
+  BOARD_MEMBER_ROLE_UPDATED: "board.member.role.updated",
+  LIST_CREATED: "list.created",
+  LIST_UPDATED: "list.updated",
+  LIST_DELETED: "list.deleted",
 } as const;
 
 export type RealtimeEventName =

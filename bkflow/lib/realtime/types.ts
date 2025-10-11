@@ -20,6 +20,17 @@ export type RealtimeQueryInvalidation =
       queryKey: ["card-comments", string];
     };
 
+export type CardUpdatedField =
+  | "title"
+  | "description"
+  | "dueDate"
+  | "isCompleted"
+  | "reminder"
+  | "reminderSetAt"
+  | "assignees";
+
+export type BoardUpdatedField = "title" | "members" | "roles";
+
 export type NotificationCreatedPayload = {
   notificationId: string;
   orgId: string;
@@ -67,6 +78,15 @@ export type CommentDeletedPayload = {
   deletedCount?: number;
 };
 
+export type CardCommentCountUpdatedPayload = {
+  eventId: string;
+  boardId: string;
+  cardId: string;
+  actorUserId: string;
+  delta: number;
+  updatedAt: string;
+};
+
 export type ReactionCreatedPayload = {
   eventId: string;
   boardId: string;
@@ -102,22 +122,44 @@ export type ReactionDeletedPayload = {
 };
 
 export type CardAssignedPayload = {
+  eventId: string;
   boardId: string;
   cardId: string;
   boardMemberId: string;
   assignedUserId: string;
-  actor: RealtimeActor;
+  actorUserId: string;
   assignedAt: string;
   invalidate: RealtimeQueryInvalidation[];
 };
 
-export type CardUpdatedPayload = {
+export type CardMemberAssignedPayload = {
+  eventId: string;
   boardId: string;
   cardId: string;
-  actor: RealtimeActor;
-  changedFields: Array<
-    "title" | "description" | "dueDate" | "isCompleted" | "reminder"
-  >;
+  boardMemberId: string;
+  memberUserId: string;
+  actorUserId: string;
+  createdAt: string;
+  invalidate: RealtimeQueryInvalidation[];
+};
+
+export type CardMemberUnassignedPayload = {
+  eventId: string;
+  boardId: string;
+  cardId: string;
+  boardMemberId: string;
+  memberUserId: string;
+  actorUserId: string;
+  deletedAt: string;
+  invalidate: RealtimeQueryInvalidation[];
+};
+
+export type CardUpdatedPayload = {
+  eventId: string;
+  boardId: string;
+  cardId: string;
+  actorUserId: string;
+  changedFields: CardUpdatedField[];
   updatedAt: string;
   invalidate: RealtimeQueryInvalidation[];
 };
@@ -131,6 +173,24 @@ export type CardMovedPayload = {
   movedAt: string;
 };
 
+export type CardCreatedPayload = {
+  eventId: string;
+  boardId: string;
+  listId: string;
+  cardId: string;
+  actorUserId: string;
+  createdAt: string;
+};
+
+export type CardDeletedPayload = {
+  eventId: string;
+  boardId: string;
+  listId: string;
+  cardId: string;
+  actorUserId: string;
+  deletedAt: string;
+};
+
 export type MemberUpdatedPayload = {
   boardId: string;
   boardMemberId: string;
@@ -142,11 +202,84 @@ export type MemberUpdatedPayload = {
 };
 
 export type BoardUpdatedPayload = {
+  eventId: string;
   boardId: string;
   orgId: string;
-  actor: RealtimeActor;
-  changedFields: Array<"title" | "members" | "settings">;
+  actorUserId: string;
+  title?: string;
+  changedFields: BoardUpdatedField[];
   updatedAt: string;
+};
+
+export type BoardDeletedPayload = {
+  eventId: string;
+  boardId: string;
+  orgId: string;
+  actorUserId: string;
+  deletedAt: string;
+};
+
+export type BoardAccessRevokedPayload = {
+  eventId: string;
+  boardId: string;
+  orgId: string;
+  targetUserId: string;
+  actorUserId: string;
+  revokedAt: string;
+};
+
+export type BoardMemberAddedPayload = {
+  eventId: string;
+  boardId: string;
+  boardMemberId: string;
+  targetUserId: string;
+  actorUserId: string;
+  createdAt: string;
+};
+
+export type BoardMemberRemovedPayload = {
+  eventId: string;
+  boardId: string;
+  orgId: string;
+  boardMemberId: string;
+  targetUserId: string;
+  actorUserId: string;
+  removedAt: string;
+};
+
+export type BoardMemberRoleUpdatedPayload = {
+  eventId: string;
+  boardId: string;
+  boardMemberId: string;
+  targetUserId: string;
+  actorUserId: string;
+  role: BoardMemberRole;
+  updatedAt: string;
+};
+
+export type ListCreatedPayload = {
+  eventId: string;
+  boardId: string;
+  listId: string;
+  actorUserId: string;
+  createdAt: string;
+};
+
+export type ListUpdatedPayload = {
+  eventId: string;
+  boardId: string;
+  listId: string;
+  actorUserId: string;
+  changedFields: Array<"title">;
+  updatedAt: string;
+};
+
+export type ListDeletedPayload = {
+  eventId: string;
+  boardId: string;
+  listId: string;
+  actorUserId: string;
+  deletedAt: string;
 };
 
 export type RealtimeEventPayloads = {
@@ -157,9 +290,22 @@ export type RealtimeEventPayloads = {
   "reaction.created": ReactionCreatedPayload;
   "reaction.updated": ReactionUpdatedPayload;
   "reaction.deleted": ReactionDeletedPayload;
+  "card.comment.count.updated": CardCommentCountUpdatedPayload;
   "card.assigned": CardAssignedPayload;
+  "card.member.assigned": CardMemberAssignedPayload;
+  "card.member.unassigned": CardMemberUnassignedPayload;
   "card.updated": CardUpdatedPayload;
   "card.moved": CardMovedPayload;
+  "card.created": CardCreatedPayload;
+  "card.deleted": CardDeletedPayload;
   "member.updated": MemberUpdatedPayload;
   "board.updated": BoardUpdatedPayload;
+  "board.deleted": BoardDeletedPayload;
+  "board.access.revoked": BoardAccessRevokedPayload;
+  "board.member.added": BoardMemberAddedPayload;
+  "board.member.removed": BoardMemberRemovedPayload;
+  "board.member.role.updated": BoardMemberRoleUpdatedPayload;
+  "list.created": ListCreatedPayload;
+  "list.updated": ListUpdatedPayload;
+  "list.deleted": ListDeletedPayload;
 };

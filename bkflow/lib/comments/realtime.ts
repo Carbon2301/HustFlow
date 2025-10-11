@@ -55,8 +55,15 @@ export const triggerCommentCreated = async ({
 
     await triggerRealtimeEvent({
       channel: realtimeChannels.board(boardId),
-      event: REALTIME_EVENTS.COMMENT_CREATED,
-      payload,
+      event: REALTIME_EVENTS.CARD_COMMENT_COUNT_UPDATED,
+      payload: {
+        eventId: randomUUID(),
+        boardId,
+        cardId,
+        actorUserId,
+        delta: 1,
+        updatedAt: new Date().toISOString(),
+      },
     });
   } catch (error) {
     console.error("[COMMENT_REALTIME_ERROR]", error);
@@ -120,8 +127,15 @@ export const triggerCommentDeleted = async ({
 
     await triggerRealtimeEvent({
       channel: realtimeChannels.board(boardId),
-      event: REALTIME_EVENTS.COMMENT_DELETED,
-      payload,
+      event: REALTIME_EVENTS.CARD_COMMENT_COUNT_UPDATED,
+      payload: {
+        eventId: randomUUID(),
+        boardId,
+        cardId,
+        actorUserId,
+        delta: -(deletedCount || 1),
+        updatedAt: new Date().toISOString(),
+      },
     });
   } catch (error) {
     console.error("[COMMENT_REALTIME_ERROR]", error);

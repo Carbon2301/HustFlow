@@ -11,6 +11,7 @@ import { InputType, ReturnType } from "./types";
 import { createAuditLog } from "@/lib/create-audit-log";
 import { ACTION, ENTITY_TYPE } from "@prisma/client";
 import { requireBoardMember } from "@/lib/permissions";
+import { triggerListUpdated } from "@/lib/boards/realtime";
 
 const handler = async (data: InputType): Promise<ReturnType> => {
   const { userId, orgId } = await auth();
@@ -29,6 +30,24 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
     if (permission.error) {
       return { error: permission.error };
+    }
+
+    const existingList = await db.list.findUnique({
+      where: {
+        id,
+        boardId,
+        board: {
+          orgId,
+        },
+      },
+    });
+
+    if (!existingList) {
+      return { error: "Không tìm thấy danh sách." };
+    }
+
+    if (existingList.title === title) {
+      return { data: existingList };
     }
 
     list = await db.list.update({
@@ -50,6 +69,12 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityType: ENTITY_TYPE.CARD,
       action: ACTION.UPDATE,
     })
+
+    await triggerListUpdated({
+      boardId,
+      listId: list.id,
+      actorUserId: userId,
+    });
   } catch {
     return {
       error: "Cập nhật danh sách thất bại."

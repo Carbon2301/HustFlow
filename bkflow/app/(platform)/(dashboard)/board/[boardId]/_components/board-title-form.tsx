@@ -1,22 +1,28 @@
 "use client";
 
 import { toast } from "sonner";
-import { useRef, useState } from "react";
+import { useRef, useState, useEffect } from "react";
 import { Board } from "@prisma/client";
 
 import { Button } from "@/components/ui/button";
 import { FormInput } from "@/components/form/form-input";
 import { updateBoard } from "@/actions/update-board"; 
 import { useAction } from "@/hooks/use-action";
+import { useRealtimeChannel } from "@/hooks/use-realtime-channel";
+import { realtimeChannels } from "@/lib/realtime/channels";
+import { isRealtimeClientConfigured } from "@/lib/realtime/client";
+import { REALTIME_EVENTS } from "@/lib/realtime/events";
 
 interface BoardTitleFormProps {
   data: Board;
   canEdit: boolean;
+  currentUserId: string;
 };
 
 export const BoardTitleForm = ({
   data,
   canEdit,
+  currentUserId,
 }: BoardTitleFormProps) => {
   const { execute } = useAction(updateBoard, {
     onSuccess: (data) => {
@@ -34,6 +40,27 @@ export const BoardTitleForm = ({
 
   const [title, setTitle] = useState(data.title);
   const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    setTitle(data.title);
+  }, [data.title]);
+
+  const channelName = realtimeChannels.board(data.id);
+  const enabled = isRealtimeClientConfigured();
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.BOARD_UPDATED,
+    onEvent: (payload) => {
+      if (payload.actorUserId === currentUserId) {
+        return;
+      }
+      if (payload.title) {
+        setTitle(payload.title);
+      }
+    },
+    enabled,
+  });
 
   const enableEditing = () => {
     if (!canEdit) {

@@ -10,6 +10,7 @@ import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { getOrganizationMember } from "@/lib/clerk-org-members";
 import { requireBoardAdmin } from "@/lib/permissions";
+import { triggerBoardMemberAdded } from "@/lib/boards/realtime";
 
 import { AddBoardMember } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -97,6 +98,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       message: `Bạn đã được thêm vào bảng "${board.title}".`,
       boardId: board.id,
       boardTitle: board.title,
+    });
+
+    await triggerBoardMemberAdded({
+      boardId,
+      boardMemberId: boardMember.id,
+      targetUserId: boardMember.userId,
+      actorUserId: userId,
     });
   } catch {
     return { error: "Thêm thành viên vào bảng thất bại." };

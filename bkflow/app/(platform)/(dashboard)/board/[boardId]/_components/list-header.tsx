@@ -2,7 +2,7 @@
 
 import { toast } from "sonner";
 import { useEventListener } from "usehooks-ts";
-import { useState, useRef } from "react";
+import { useState, useRef, useEffect } from "react";
 
 import { useAction } from "@/hooks/use-action";
 import { updateList } from "@/actions/update-list";
@@ -22,6 +22,10 @@ export const ListHeader = ({
 }: ListHeaderProps) => {
   const [title, setTitle] = useState(data.title);
   const [isEditing, setIsEditing] = useState(false);
+
+  useEffect(() => {
+    setTitle(data.title);
+  }, [data.title]);
 
   const formRef = useRef<HTMLFormElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);

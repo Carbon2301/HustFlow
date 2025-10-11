@@ -1,7 +1,8 @@
 "use client";
 
 import { toast } from "sonner";
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { useRouter } from "next/navigation";
 import { DragDropContext, Droppable, type DropResult } from "@hello-pangea/dnd";
 import { BoardMember, BoardMemberRole } from "@prisma/client";
 
@@ -11,9 +12,27 @@ import { emptyBoardFilters, useBoardFilters, BoardFilterState } from "@/hooks/us
 import { updateListOrder } from "@/actions/update-list-order";
 import { updateCardOrder } from "@/actions/update-card-order";
 import { useRealtimeChannel } from "@/hooks/use-realtime-channel";
+import { useCardModal } from "@/hooks/use-card-modal";
 import { realtimeChannels } from "@/lib/realtime/channels";
 import { isRealtimeClientConfigured } from "@/lib/realtime/client";
 import { REALTIME_EVENTS } from "@/lib/realtime/events";
+import type {
+  BoardAccessRevokedPayload,
+  BoardDeletedPayload,
+  BoardMemberAddedPayload,
+  BoardMemberRemovedPayload,
+  BoardMemberRoleUpdatedPayload,
+  BoardUpdatedPayload,
+  CardCommentCountUpdatedPayload,
+  CardCreatedPayload,
+  CardDeletedPayload,
+  CardMemberAssignedPayload,
+  CardMemberUnassignedPayload,
+  CardUpdatedPayload,
+  ListCreatedPayload,
+  ListDeletedPayload,
+  ListUpdatedPayload,
+} from "@/lib/realtime/types";
 
 import { ListForm } from "./list-form";
 import { ListItem } from "./list-item";
@@ -169,7 +188,10 @@ export const ListContainer = ({
   boardMembers,
   currentUserId,
 }: ListContainerProps) => {
+  const router = useRouter();
+  const cardModal = useCardModal();
   const [orderedData, setOrderedData] = useState(data);
+  const processedCardEventIdsRef = useRef<Set<string>>(new Set());
   const filters = useBoardFilters((state) =>
     state.filtersByBoardId[boardId] ?? emptyBoardFilters,
   );
@@ -200,10 +222,117 @@ export const ListContainer = ({
   const channelName = realtimeChannels.board(boardId);
   const enabled = isRealtimeClientConfigured();
 
+  const processBoardEvent = useCallback((eventId: string) => {
+    if (processedCardEventIdsRef.current.has(eventId)) {
+      return false;
+    }
+
+    processedCardEventIdsRef.current.add(eventId);
+    return true;
+  }, []);
+
+  const handleBoardCardSync = useCallback((
+    payload:
+      | CardUpdatedPayload
+      | CardMemberAssignedPayload
+      | CardMemberUnassignedPayload
+      | CardCreatedPayload
+      | CardDeletedPayload
+      | ListCreatedPayload
+      | ListUpdatedPayload
+      | ListDeletedPayload
+      | BoardUpdatedPayload
+      | BoardMemberAddedPayload
+      | BoardMemberRoleUpdatedPayload,
+  ) => {
+    if (payload.boardId !== boardId) {
+      return;
+    }
+
+    if (!processBoardEvent(payload.eventId)) {
+      return;
+    }
+
+    if (payload.actorUserId === currentUserId) {
+      return;
+    }
+
+    router.refresh();
+  }, [boardId, currentUserId, processBoardEvent, router]);
+
+  const handleBoardDeleted = useCallback((payload: BoardDeletedPayload) => {
+    if (payload.boardId !== boardId || !processBoardEvent(payload.eventId)) {
+      return;
+    }
+
+    if (payload.actorUserId === currentUserId) {
+      return;
+    }
+
+    toast.error("Bảng này đã bị xóa.");
+    cardModal.onClose();
+    router.push(`/organization/${payload.orgId}`);
+  }, [boardId, cardModal, currentUserId, processBoardEvent, router]);
+
+  const handleAccessRevoked = useCallback((payload: BoardAccessRevokedPayload) => {
+    if (payload.boardId !== boardId || !processBoardEvent(payload.eventId)) {
+      return;
+    }
+
+    if (payload.targetUserId !== currentUserId) {
+      router.refresh();
+      return;
+    }
+
+    toast.error("Bạn không còn quyền truy cập bảng này.");
+    cardModal.onClose();
+    router.push(`/organization/${payload.orgId}`);
+  }, [boardId, cardModal, currentUserId, processBoardEvent, router]);
+
+  const handleBoardMemberRemoved = useCallback((payload: BoardMemberRemovedPayload) => {
+    if (payload.boardId !== boardId || !processBoardEvent(payload.eventId)) {
+      return;
+    }
+
+    if (payload.targetUserId === currentUserId) {
+      toast.error("Bạn không còn quyền truy cập bảng này.");
+      cardModal.onClose();
+      router.push(`/organization/${payload.orgId}`);
+      return;
+    }
+
+    if (payload.actorUserId !== currentUserId) {
+      router.refresh();
+    }
+  }, [boardId, cardModal, currentUserId, processBoardEvent, router]);
+
+  const handleCardDeleted = useCallback((payload: CardDeletedPayload) => {
+    if (payload.boardId !== boardId || !processBoardEvent(payload.eventId)) {
+      return;
+    }
+
+    if (cardModal.id === payload.cardId) {
+      cardModal.onClose();
+      toast.error("Thẻ này đã bị xóa.");
+    }
+
+    if (payload.actorUserId !== currentUserId) {
+      router.refresh();
+    }
+  }, [boardId, cardModal, currentUserId, processBoardEvent, router]);
+
   useRealtimeChannel({
     channelName,
-    event: REALTIME_EVENTS.COMMENT_CREATED,
-    onEvent: (payload) => {
+    event: REALTIME_EVENTS.CARD_COMMENT_COUNT_UPDATED,
+    onEvent: (payload: CardCommentCountUpdatedPayload) => {
+      if (payload.boardId !== boardId || !processBoardEvent(payload.eventId)) {
+        return;
+      }
+
+      if (payload.actorUserId === currentUserId) {
+        return;
+      }
+
       setOrderedData((prevData) =>
         prevData.map((list) => ({
           ...list,
@@ -213,7 +342,10 @@ export const ListContainer = ({
                   ...card,
                   _count: {
                     ...card._count,
-                    comments: (card._count?.comments || 0) + 1,
+                    comments: Math.max(
+                      (card._count?.comments || 0) + payload.delta,
+                      0,
+                    ),
                   },
                 }
               : card
@@ -226,28 +358,99 @@ export const ListContainer = ({
 
   useRealtimeChannel({
     channelName,
-    event: REALTIME_EVENTS.COMMENT_DELETED,
-    onEvent: (payload) => {
-      setOrderedData((prevData) =>
-        prevData.map((list) => ({
-          ...list,
-          cards: list.cards.map((card) =>
-            card.id === payload.cardId
-              ? {
-                  ...card,
-                  _count: {
-                    ...card._count,
-                    comments: Math.max(
-                      (card._count?.comments || 0) - (payload.deletedCount || 1),
-                      0
-                    ),
-                  },
-                }
-              : card
-          ),
-        }))
-      );
-    },
+    event: REALTIME_EVENTS.BOARD_UPDATED,
+    onEvent: handleBoardCardSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.CARD_UPDATED,
+    onEvent: handleBoardCardSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.CARD_MEMBER_ASSIGNED,
+    onEvent: handleBoardCardSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.CARD_MEMBER_UNASSIGNED,
+    onEvent: handleBoardCardSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.BOARD_DELETED,
+    onEvent: handleBoardDeleted,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.BOARD_ACCESS_REVOKED,
+    onEvent: handleAccessRevoked,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.BOARD_MEMBER_ADDED,
+    onEvent: handleBoardCardSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.BOARD_MEMBER_REMOVED,
+    onEvent: handleBoardMemberRemoved,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.BOARD_MEMBER_ROLE_UPDATED,
+    onEvent: handleBoardCardSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.LIST_CREATED,
+    onEvent: handleBoardCardSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.LIST_UPDATED,
+    onEvent: handleBoardCardSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.LIST_DELETED,
+    onEvent: handleBoardCardSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.CARD_CREATED,
+    onEvent: handleBoardCardSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.CARD_DELETED,
+    onEvent: handleCardDeleted,
     enabled,
   });
 

@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { createAuditLog } from "@/lib/create-audit-log";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { requireBoardMember } from "@/lib/permissions";
+import { triggerCardCreated } from "@/lib/boards/realtime";
 
 import { CopyCard } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -72,6 +73,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityType: ENTITY_TYPE.CARD,
       action: ACTION.CREATE,
     })
+
+    await triggerCardCreated({
+      boardId,
+      listId: card.listId,
+      cardId: card.id,
+      actorUserId: userId,
+    });
   } catch {
     return {
       error: "Sao chép thẻ thất bại."

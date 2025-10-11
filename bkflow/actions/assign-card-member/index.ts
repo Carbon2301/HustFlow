@@ -10,6 +10,7 @@ import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { getOrganizationMember } from "@/lib/clerk-org-members";
 import { requireBoardMember } from "@/lib/permissions";
+import { triggerCardMemberAssigned } from "@/lib/cards/realtime";
 
 import { AssignCardMember } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -133,6 +134,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       cardId: card.id,
       cardTitle: card.title,
       listTitle: card.list.title,
+    });
+
+    await triggerCardMemberAssigned({
+      boardId,
+      cardId: card.id,
+      actorUserId: userId,
+      assignee: cardAssignee,
     });
   } catch {
     return { error: "Giao thành viên cho thẻ thất bại." };

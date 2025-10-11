@@ -13,6 +13,8 @@ import { createAuditLog } from "@/lib/create-audit-log";
 import { ACTION, ENTITY_TYPE } from "@prisma/client";
 import { deleteCardReminderNotifications } from "@/lib/reminder-notifications";
 import { requireBoardMember } from "@/lib/permissions";
+import { triggerCardUpdated } from "@/lib/cards/realtime";
+import type { CardUpdatedField } from "@/lib/realtime/types";
 
 const formatFriendlyDate = (dueDate: Date | string) => {
   const date = new Date(dueDate);
@@ -73,6 +75,38 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     );
     const reminderChanged = reminder !== undefined && reminder !== currentCard.reminder;
     const reminderConfigChanged = dueDateChanged || reminderChanged;
+    const changedFields: CardUpdatedField[] = [];
+
+    if (values.title !== undefined && values.title !== currentCard.title) {
+      changedFields.push("title");
+    }
+
+    if (
+      values.description !== undefined &&
+      values.description !== currentCard.description
+    ) {
+      changedFields.push("description");
+    }
+
+    if (dueDateChanged) {
+      changedFields.push("dueDate");
+    }
+
+    if (isCompleted !== undefined && isCompleted !== currentCard.isCompleted) {
+      changedFields.push("isCompleted");
+    }
+
+    if (reminderChanged) {
+      changedFields.push("reminder");
+    }
+
+    if (reminderConfigChanged || dueDate === null) {
+      changedFields.push("reminderSetAt");
+    }
+
+    if (changedFields.length === 0) {
+      return { data: currentCard };
+    }
 
     const updateData = {
       ...values,
@@ -142,6 +176,14 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityId: card.id,
       entityType: ENTITY_TYPE.CARD,
       action: ACTION.UPDATE,
+    });
+
+    await triggerCardUpdated({
+      boardId,
+      cardId: card.id,
+      actorUserId: userId,
+      changedFields,
+      updatedAt: card.updatedAt,
     });
   } catch {
     return {

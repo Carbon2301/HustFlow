@@ -8,6 +8,7 @@ import { db } from "@/lib/db";
 import { createAuditLog } from "@/lib/create-audit-log";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { requireBoardMember } from "@/lib/permissions";
+import { triggerListCreated } from "@/lib/boards/realtime";
 
 import { CopyList } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -82,6 +83,12 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityType: ENTITY_TYPE.LIST,
       action: ACTION.CREATE,
     })
+
+    await triggerListCreated({
+      boardId,
+      listId: list.id,
+      actorUserId: userId,
+    });
   } catch {
     return {
       error: "Sao chép danh sách thất bại."

@@ -9,6 +9,7 @@ import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { getRoleLabel } from "@/lib/board-member-role";
 import { requireBoardAdmin } from "@/lib/permissions";
+import { triggerBoardMemberRoleUpdated } from "@/lib/boards/realtime";
 
 import { UpdateBoardMemberRole } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -89,6 +90,14 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityTitle: `detail:${actionLabel} ${existingBoardMember.userName} thành ${getRoleLabel(role).toLowerCase()} trong bảng "${existingBoardMember.board.title}"`,
       entityType: ENTITY_TYPE.BOARD,
       action: ACTION.UPDATE,
+    });
+
+    await triggerBoardMemberRoleUpdated({
+      boardId,
+      boardMemberId: boardMember.id,
+      targetUserId: boardMember.userId,
+      actorUserId: userId,
+      role,
     });
   } catch {
     return { error: "Cập nhật vai trò thành viên thất bại." };

@@ -2,11 +2,13 @@
 
 import { useCallback, useRef } from "react";
 import { useUser } from "@clerk/nextjs";
+import { toast } from "sonner";
 
 import {
   useRealtimeChannel,
   useRealtimeInvalidation,
 } from "@/hooks/use-realtime-channel";
+import { useCardModal } from "@/hooks/use-card-modal";
 import { realtimeChannels } from "@/lib/realtime/channels";
 import { isRealtimeClientConfigured } from "@/lib/realtime/client";
 import { REALTIME_EVENTS } from "@/lib/realtime/events";
@@ -14,6 +16,10 @@ import type {
   CommentCreatedPayload,
   CommentDeletedPayload,
   CommentUpdatedPayload,
+  CardMemberAssignedPayload,
+  CardMemberUnassignedPayload,
+  CardDeletedPayload,
+  CardUpdatedPayload,
   ReactionCreatedPayload,
   ReactionDeletedPayload,
   ReactionUpdatedPayload,
@@ -26,7 +32,10 @@ type CardCommentRealtimePayload =
   | CommentDeletedPayload
   | ReactionCreatedPayload
   | ReactionUpdatedPayload
-  | ReactionDeletedPayload;
+  | ReactionDeletedPayload
+  | CardUpdatedPayload
+  | CardMemberAssignedPayload
+  | CardMemberUnassignedPayload;
 
 export const CardRealtimeSync = ({
   cardId,
@@ -36,6 +45,7 @@ export const CardRealtimeSync = ({
   isOpen: boolean;
 }) => {
   const { user, isLoaded } = useUser();
+  const cardModal = useCardModal();
   const invalidateRealtimeQueries = useRealtimeInvalidation();
   const processedEventIdsRef = useRef<Set<string>>(new Set());
 
@@ -61,6 +71,25 @@ export const CardRealtimeSync = ({
     },
     [cardId, invalidateRealtimeQueries, user],
   );
+
+  const handleCardDeleted = useCallback((payload: CardDeletedPayload) => {
+    if (!cardId || payload.cardId !== cardId) {
+      return;
+    }
+
+    if (processedEventIdsRef.current.has(payload.eventId)) {
+      return;
+    }
+
+    processedEventIdsRef.current.add(payload.eventId);
+
+    if (user && payload.actorUserId === user.id) {
+      return;
+    }
+
+    toast.error("Thẻ này đã bị xóa.");
+    cardModal.onClose();
+  }, [cardId, cardModal, user]);
 
   const channelName = cardId ? realtimeChannels.card(cardId) : null;
   const enabled =
@@ -109,6 +138,34 @@ export const CardRealtimeSync = ({
     channelName,
     event: REALTIME_EVENTS.REACTION_DELETED,
     onEvent: handleRealtimeEvent,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.CARD_UPDATED,
+    onEvent: handleRealtimeEvent,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.CARD_MEMBER_ASSIGNED,
+    onEvent: handleRealtimeEvent,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.CARD_MEMBER_UNASSIGNED,
+    onEvent: handleRealtimeEvent,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.CARD_DELETED,
+    onEvent: handleCardDeleted,
     enabled,
   });
 

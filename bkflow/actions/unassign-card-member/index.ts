@@ -8,6 +8,7 @@ import { createAuditLog } from "@/lib/create-audit-log";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { requireBoardMember } from "@/lib/permissions";
+import { triggerCardMemberUnassigned } from "@/lib/cards/realtime";
 
 import { UnassignCardMember } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -71,6 +72,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityTitle: `detail:đã bỏ giao ${cardAssignee.boardMember.userName} khỏi thẻ "${cardAssignee.card.title}"`,
       entityType: ENTITY_TYPE.CARD,
       action: ACTION.UPDATE,
+    });
+
+    await triggerCardMemberUnassigned({
+      boardId,
+      cardId: cardAssignee.card.id,
+      actorUserId: userId,
+      assignee: cardAssignee,
     });
   } catch {
     return { error: "Bỏ giao thành viên khỏi thẻ thất bại." };

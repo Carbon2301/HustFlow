@@ -11,6 +11,7 @@ import { InputType, ReturnType } from "./types";
 import { createAuditLog } from "@/lib/create-audit-log";
 import { ACTION, ENTITY_TYPE } from "@prisma/client";
 import { requireBoardAdmin } from "@/lib/permissions";
+import { triggerBoardUpdated } from "@/lib/boards/realtime";
 
 const handler = async (data: InputType): Promise<ReturnType> => {
   const { userId, orgId } = await auth();
@@ -31,6 +32,21 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       return { error: permission.error };
     }
 
+    const currentBoard = await db.board.findUnique({
+      where: {
+        id,
+        orgId,
+      },
+    });
+
+    if (!currentBoard) {
+      return { error: "Không tìm thấy bảng." };
+    }
+
+    if (currentBoard.title === title) {
+      return { data: currentBoard };
+    }
+
     board = await db.board.update({
       where: {
         id,
@@ -47,6 +63,14 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityType: ENTITY_TYPE.BOARD,
       action: ACTION.UPDATE,
     })
+
+    await triggerBoardUpdated({
+      boardId: board.id,
+      orgId,
+      actorUserId: userId,
+      title: board.title,
+      changedFields: ["title"],
+    });
   } catch {
     return {
       error: "Cập nhật bảng thất bại."
