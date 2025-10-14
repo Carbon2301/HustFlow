@@ -28,9 +28,12 @@ import type {
   CardDeletedPayload,
   CardMemberAssignedPayload,
   CardMemberUnassignedPayload,
+  CardMovedPayload,
+  CardReorderedPayload,
   CardUpdatedPayload,
   ListCreatedPayload,
   ListDeletedPayload,
+  ListReorderedPayload,
   ListUpdatedPayload,
 } from "@/lib/realtime/types";
 
@@ -241,9 +244,12 @@ export const ListContainer = ({
       | ListCreatedPayload
       | ListUpdatedPayload
       | ListDeletedPayload
+      | ListReorderedPayload
       | BoardUpdatedPayload
       | BoardMemberAddedPayload
-      | BoardMemberRoleUpdatedPayload,
+      | BoardMemberRoleUpdatedPayload
+      | CardReorderedPayload
+      | CardMovedPayload,
   ) => {
     if (payload.boardId !== boardId) {
       return;
@@ -372,6 +378,20 @@ export const ListContainer = ({
 
   useRealtimeChannel({
     channelName,
+    event: REALTIME_EVENTS.CARD_REORDERED,
+    onEvent: handleBoardCardSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.CARD_MOVED,
+    onEvent: handleBoardCardSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
     event: REALTIME_EVENTS.CARD_MEMBER_ASSIGNED,
     onEvent: handleBoardCardSync,
     enabled,
@@ -436,6 +456,13 @@ export const ListContainer = ({
   useRealtimeChannel({
     channelName,
     event: REALTIME_EVENTS.LIST_DELETED,
+    onEvent: handleBoardCardSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.LIST_REORDERED,
     onEvent: handleBoardCardSync,
     enabled,
   });

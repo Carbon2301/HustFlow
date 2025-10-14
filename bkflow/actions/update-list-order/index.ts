@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { requireBoardMember } from "@/lib/permissions";
+import { triggerListReordered } from "@/lib/boards/realtime";
 
 import { UpdateListOrder } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -21,12 +22,38 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
   const { items, boardId } = data;
   let lists;
+  let shouldTriggerRealtime = false;
 
   try {
     const permission = await requireBoardMember({ boardId, orgId, userId });
 
     if (permission.error) {
       return { error: permission.error };
+    }
+
+    const existingLists = await db.list.findMany({
+      where: {
+        id: {
+          in: items.map((list) => list.id),
+        },
+        boardId,
+        board: {
+          orgId,
+        },
+      },
+    });
+
+    if (existingLists.length !== items.length) {
+      return { error: "KhÃ´ng thá»ƒ sáº¯p xáº¿p danh sÃ¡ch khÃ´ng thuá»™c báº£ng nÃ y." };
+    }
+
+    const nextOrderById = new Map(items.map((list) => [list.id, list.order]));
+    shouldTriggerRealtime = existingLists.some(
+      (list) => nextOrderById.get(list.id) !== list.order,
+    );
+
+    if (!shouldTriggerRealtime) {
+      return { data: existingLists };
     }
 
     const transaction = items.map((list) => 
@@ -52,6 +79,11 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   }
 
   revalidatePath(`/board/${boardId}`);
+  await triggerListReordered({
+    boardId,
+    actorUserId: userId,
+  });
+
   return { data: lists };
 };
 

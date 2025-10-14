@@ -164,13 +164,22 @@ export type CardUpdatedPayload = {
   invalidate: RealtimeQueryInvalidation[];
 };
 
-export type CardMovedPayload = {
+export type CardReorderedPayload = {
+  eventId: string;
   boardId: string;
-  cardId: string;
-  fromListId: string;
-  toListId: string;
-  actor: RealtimeActor;
-  movedAt: string;
+  actorUserId: string;
+  listId?: string;
+  updatedAt: string;
+};
+
+export type CardMovedPayload = {
+  eventId: string;
+  boardId: string;
+  cardId?: string;
+  sourceListId?: string;
+  destinationListId?: string;
+  actorUserId: string;
+  updatedAt: string;
 };
 
 export type CardCreatedPayload = {
@@ -282,6 +291,13 @@ export type ListDeletedPayload = {
   deletedAt: string;
 };
 
+export type ListReorderedPayload = {
+  eventId: string;
+  boardId: string;
+  actorUserId: string;
+  updatedAt: string;
+};
+
 export type RealtimeEventPayloads = {
   "notification.created": NotificationCreatedPayload;
   "comment.created": CommentCreatedPayload;
@@ -295,6 +311,7 @@ export type RealtimeEventPayloads = {
   "card.member.assigned": CardMemberAssignedPayload;
   "card.member.unassigned": CardMemberUnassignedPayload;
   "card.updated": CardUpdatedPayload;
+  "card.reordered": CardReorderedPayload;
   "card.moved": CardMovedPayload;
   "card.created": CardCreatedPayload;
   "card.deleted": CardDeletedPayload;
@@ -308,4 +325,5 @@ export type RealtimeEventPayloads = {
   "list.created": ListCreatedPayload;
   "list.updated": ListUpdatedPayload;
   "list.deleted": ListDeletedPayload;
+  "list.reordered": ListReorderedPayload;
 };

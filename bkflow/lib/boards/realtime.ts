@@ -213,6 +213,22 @@ export const triggerListDeleted = async ({
   }
 };
 
+export const triggerListReordered = async ({
+  boardId,
+  actorUserId,
+}: BoardRealtimeInput) => {
+  try {
+    await triggerBoardEvent(REALTIME_EVENTS.LIST_REORDERED, boardId, {
+      eventId: randomUUID(),
+      boardId,
+      actorUserId,
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("[BOARD_REALTIME_ERROR]", error);
+  }
+};
+
 export const triggerCardCreated = async ({
   boardId,
   listId,
@@ -254,6 +270,52 @@ export const triggerCardDeleted = async ({
       channel: realtimeChannels.card(cardId),
       event: REALTIME_EVENTS.CARD_DELETED,
       payload,
+    });
+  } catch (error) {
+    console.error("[BOARD_REALTIME_ERROR]", error);
+  }
+};
+
+export const triggerCardReordered = async ({
+  boardId,
+  actorUserId,
+  listId,
+}: BoardRealtimeInput & {
+  listId?: string;
+}) => {
+  try {
+    await triggerBoardEvent(REALTIME_EVENTS.CARD_REORDERED, boardId, {
+      eventId: randomUUID(),
+      boardId,
+      actorUserId,
+      listId,
+      updatedAt: new Date().toISOString(),
+    });
+  } catch (error) {
+    console.error("[BOARD_REALTIME_ERROR]", error);
+  }
+};
+
+export const triggerCardMoved = async ({
+  boardId,
+  actorUserId,
+  cardId,
+  sourceListId,
+  destinationListId,
+}: BoardRealtimeInput & {
+  cardId?: string;
+  sourceListId?: string;
+  destinationListId?: string;
+}) => {
+  try {
+    await triggerBoardEvent(REALTIME_EVENTS.CARD_MOVED, boardId, {
+      eventId: randomUUID(),
+      boardId,
+      cardId,
+      sourceListId,
+      destinationListId,
+      actorUserId,
+      updatedAt: new Date().toISOString(),
     });
   } catch (error) {
     console.error("[BOARD_REALTIME_ERROR]", error);

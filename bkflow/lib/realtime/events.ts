@@ -13,6 +13,7 @@ export const REALTIME_EVENTS = {
   CARD_MEMBER_UNASSIGNED: "card.member.unassigned",
   CARD_UPDATED: "card.updated",
   CARD_MOVED: "card.moved",
+  CARD_REORDERED: "card.reordered",
   CARD_CREATED: "card.created",
   CARD_DELETED: "card.deleted",
   CARD_COMMENT_COUNT_UPDATED: "card.comment.count.updated",
@@ -26,6 +27,7 @@ export const REALTIME_EVENTS = {
   LIST_CREATED: "list.created",
   LIST_UPDATED: "list.updated",
   LIST_DELETED: "list.deleted",
+  LIST_REORDERED: "list.reordered",
 } as const;
 
 export type RealtimeEventName =

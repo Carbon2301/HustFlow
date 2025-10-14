@@ -2,7 +2,7 @@
 
 import { toast } from "sonner";
 import { useEventListener } from "usehooks-ts";
-import { useState, useRef, useEffect } from "react";
+import { useState, useRef } from "react";
 
 import { useAction } from "@/hooks/use-action";
 import { updateList } from "@/actions/update-list";
@@ -20,12 +20,7 @@ export const ListHeader = ({
   data,
   onAddCard,
 }: ListHeaderProps) => {
-  const [title, setTitle] = useState(data.title);
   const [isEditing, setIsEditing] = useState(false);
-
-  useEffect(() => {
-    setTitle(data.title);
-  }, [data.title]);
 
   const formRef = useRef<HTMLFormElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
@@ -45,7 +40,6 @@ export const ListHeader = ({
   const { execute } = useAction(updateList, {
     onSuccess: (data) => {
       toast.success(`Đã đổi tên thành "${data.title}"`);
-      setTitle(data.title);
       disableEditing();
     },
     onError: (error) => {
@@ -96,7 +90,7 @@ export const ListHeader = ({
             onBlur={onBlur}
             id="title"
             placeholder="Nhập tên danh sách…"
-            defaultValue={title}
+            defaultValue={data.title}
             className="text-base px-2 py-1 h-8 font-bold border-transparent hover:border-input focus:border-violet-400 focus:ring-1 focus:ring-violet-200 transition rounded-md bg-transparent focus:bg-white truncate"
           />
           <button type="submit" hidden />
@@ -108,7 +102,7 @@ export const ListHeader = ({
             onClick={enableEditing}
             className="flex h-8 w-fit max-w-full items-center rounded-md px-2 py-1 text-left text-base font-bold text-neutral-800 transition-colors hover:bg-neutral-200/60"
           >
-            <span className="truncate">{title}</span>
+            <span className="truncate">{data.title}</span>
           </button>
         </div>
       )}
