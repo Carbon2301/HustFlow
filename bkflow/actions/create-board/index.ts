@@ -78,6 +78,18 @@ const handler = async (data: InputType): Promise<ReturnType> => {
             role: BoardMemberRole.ADMIN,
           },
         },
+        labels: {
+          createMany: {
+            data: [
+              { color: "#4ade80", title: "" },
+              { color: "#facc15", title: "" },
+              { color: "#fb923c", title: "" },
+              { color: "#f87171", title: "" },
+              { color: "#c084fc", title: "" },
+              { color: "#60a5fa", title: "" },
+            ]
+          }
+        },
       }
     });
 

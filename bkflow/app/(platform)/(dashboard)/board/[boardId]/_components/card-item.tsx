@@ -19,7 +19,7 @@ import {
 import { useAction } from "@/hooks/use-action";
 import { copyCard } from "@/actions/copy-card";
 import { deleteCard } from "@/actions/delete-card";
-import { cn } from "@/lib/utils";
+import { cn, getColorName } from "@/lib/utils";
 
 interface CardItemProps {
   data: CardWithAssignees;
@@ -126,11 +126,29 @@ export const CardItem = ({
             onClick={() => onOpen()}
             onContextMenu={handleContextMenu}
             className={cn(
-              "group relative flex flex-col justify-between border border-transparent hover:border-violet-200 py-2.5 px-3 text-sm bg-white rounded-lg shadow-sm hover:shadow transition-all duration-150 !cursor-pointer select-none",
+              "group relative flex flex-col justify-between border border-transparent hover:border-violet-200 pb-2.5 px-3 text-sm bg-white rounded-lg shadow-sm hover:shadow transition-all duration-150 !cursor-pointer select-none overflow-hidden",
+              data.labels && data.labels.length > 0 ? "pt-4.5" : "pt-2.5",
               snapshot.isDragging && "shadow-md rotate-1 opacity-90 border-violet-300",
               showMenu && "relative z-[100] ring-2 ring-violet-500 shadow-xl"
             )}
           >
+            {data.labels && data.labels.length > 0 && (
+              <div className="absolute top-0 left-0 right-0 flex h-2 gap-x-0.5">
+                {data.labels.map((cardLabel) => (
+                  <Hint
+                    key={cardLabel.id}
+                    description={`Màu: ${getColorName(cardLabel.label.color)}, Tiêu đề: ${cardLabel.label.title || "Không"}`}
+                    side="top"
+                    sideOffset={4}
+                  >
+                    <div
+                      className="h-full flex-1"
+                      style={{ backgroundColor: cardLabel.label.color }}
+                    />
+                  </Hint>
+                ))}
+              </div>
+            )}
             <div className="w-full space-y-2">
               <span className={cn(
                 "block text-[15px] font-semibold leading-snug text-neutral-800 break-words",

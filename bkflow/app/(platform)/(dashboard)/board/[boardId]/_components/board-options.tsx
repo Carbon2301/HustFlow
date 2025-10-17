@@ -32,7 +32,7 @@ export const BoardOptions = ({ id }: BoardOptionsProps) => {
     <Popover>
       <PopoverTrigger asChild>
         <Button
-          className="h-8 w-8 p-0 text-white/80 hover:text-white hover:bg-white/20 rounded-lg"
+          className="h-8 w-8 p-0 text-white/80 hover:text-white hover:bg-white/20 rounded-lg cursor-pointer"
           variant="ghost"
         >
           <MoreHorizontal className="h-4 w-4" />

@@ -9,6 +9,8 @@ export type BoardFilterState = {
   completedEnabled: boolean;
   notCompletedEnabled: boolean;
   selectedDueDateFilters: string[]; // "no-due" | "overdue" | "next-hour" | "tomorrow" | "next-week" | "next-month"
+  selectedLabelIds: string[];
+  noLabelsEnabled: boolean;
 };
 
 type BoardFiltersStore = {
@@ -19,6 +21,9 @@ type BoardFiltersStore = {
   toggleNotCompleted: (boardId: string) => void;
   toggleMember: (boardId: string, memberId: string) => void;
   toggleDueDateFilter: (boardId: string, filterType: string) => void;
+  toggleLabel: (boardId: string, labelId: string) => void;
+  toggleNoLabels: (boardId: string) => void;
+  setSelectedLabels: (boardId: string, labelIds: string[]) => void;
   clearFilters: (boardId: string) => void;
 };
 
@@ -29,6 +34,8 @@ export const emptyBoardFilters: BoardFilterState = {
   completedEnabled: false,
   notCompletedEnabled: false,
   selectedDueDateFilters: [],
+  selectedLabelIds: [],
+  noLabelsEnabled: false,
 };
 
 const getBoardFilters = (
@@ -124,6 +131,49 @@ export const useBoardFilters = create<BoardFiltersStore>((set) => ({
           [boardId]: {
             ...currentFilters,
             selectedDueDateFilters,
+          },
+        },
+      };
+    }),
+  toggleLabel: (boardId, labelId) =>
+    set((state) => {
+      const currentFilters = getBoardFilters(state.filtersByBoardId, boardId);
+      const selectedLabelIds = currentFilters.selectedLabelIds.includes(labelId)
+        ? currentFilters.selectedLabelIds.filter((id) => id !== labelId)
+        : [...currentFilters.selectedLabelIds, labelId];
+
+      return {
+        filtersByBoardId: {
+          ...state.filtersByBoardId,
+          [boardId]: {
+            ...currentFilters,
+            selectedLabelIds,
+          },
+        },
+      };
+    }),
+  toggleNoLabels: (boardId) =>
+    set((state) => {
+      const currentFilters = getBoardFilters(state.filtersByBoardId, boardId);
+      return {
+        filtersByBoardId: {
+          ...state.filtersByBoardId,
+          [boardId]: {
+            ...currentFilters,
+            noLabelsEnabled: !currentFilters.noLabelsEnabled,
+          },
+        },
+      };
+    }),
+  setSelectedLabels: (boardId, labelIds) =>
+    set((state) => {
+      const currentFilters = getBoardFilters(state.filtersByBoardId, boardId);
+      return {
+        filtersByBoardId: {
+          ...state.filtersByBoardId,
+          [boardId]: {
+            ...currentFilters,
+            selectedLabelIds: labelIds,
           },
         },
       };

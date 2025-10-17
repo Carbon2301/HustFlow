@@ -73,6 +73,11 @@ const BoardIdLayout = async ({
           createdAt: "asc",
         },
       },
+      labels: {
+        orderBy: {
+          createdAt: "asc",
+        },
+      },
     },
   });
 

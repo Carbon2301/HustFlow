@@ -106,7 +106,7 @@ export const ListForm = () => {
     <ListWrapper>
       <button
         onClick={enableEditing}
-        className="w-full rounded-xl bg-white/10 hover:bg-white/20 border border-transparent transition-all duration-150 p-3 flex items-center gap-x-2 font-semibold text-sm text-white backdrop-blur-xs shadow-sm"
+        className="w-full rounded-xl bg-white/10 hover:bg-white/20 border border-transparent transition-all duration-150 p-3 flex items-center gap-x-2 font-semibold text-sm text-white backdrop-blur-xs shadow-sm cursor-pointer"
       >
         <Plus className="h-4 w-4" />
         Thêm danh sách

@@ -39,3 +39,49 @@ export function formatNotificationText(title: string, message: string) {
 
   return { title: formattedTitle, message: formattedMessage };
 }
+
+export function getColorName(colorHex: string): string {
+  const colorMap: Record<string, string> = {
+    // Row 1
+    "#bbf7d0": "Xanh lá nhạt",
+    "#fef08a": "Vàng nhạt",
+    "#fed7aa": "Cam nhạt",
+    "#fecaca": "Đỏ nhạt",
+    "#f3e8ff": "Tím nhạt",
+    // Row 2
+    "#4ade80": "Xanh lá",
+    "#facc15": "Vàng",
+    "#fb923c": "Cam",
+    "#f87171": "Đỏ",
+    "#c084fc": "Tím",
+    // Row 3
+    "#15803d": "Xanh lá đậm",
+    "#a16207": "Vàng sẫm",
+    "#c2410c": "Cam đậm",
+    "#b91c1c": "Đỏ đậm",
+    "#7e22ce": "Tím đậm",
+    // Row 4
+    "#dbeafe": "Xanh dương nhạt",
+    "#e0f2fe": "Xanh da trời nhạt",
+    "#d9f99d": "Xanh đọt chuối nhạt",
+    "#fce7f3": "Hồng nhạt",
+    "#e5e7eb": "Xám nhạt",
+    // Row 5
+    "#3b82f6": "Xanh dương",
+    "#0ea5e9": "Xanh da trời",
+    "#84cc16": "Xanh lá mạ",
+    "#db2777": "Hồng",
+    "#9ca3af": "Xám",
+    // Row 6
+    "#1d4ed8": "Xanh dương đậm",
+    "#0369a1": "Xanh da trời đậm",
+    "#4d7c0f": "Xanh lá mạ đậm",
+    "#9d174d": "Hồng sẫm",
+    "#4b5563": "Xám đậm",
+    // Seeded default blue
+    "#60a5fa": "Xanh dương",
+  };
+
+  const lowerHex = colorHex.toLowerCase();
+  return colorMap[lowerHex] || "Màu sắc khác";
+}

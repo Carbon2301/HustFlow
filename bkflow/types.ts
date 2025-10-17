@@ -1,4 +1,4 @@
-import { BoardMember, Card, List, Prisma } from "@prisma/client";
+import { BoardMember, Card, List, Prisma, Label, CardLabel } from "@prisma/client";
 
 export type CardWithAssignees = Card & {
   assignees: Prisma.CardAssigneeGetPayload<{
@@ -6,6 +6,9 @@ export type CardWithAssignees = Card & {
       boardMember: true;
     };
   }>[];
+  labels: (CardLabel & {
+    label: Label;
+  })[];
   _count?: {
     comments: number;
   };
@@ -20,7 +23,11 @@ export type CardWithList = Card & {
       boardMember: true;
     };
   }>[];
+  labels: (CardLabel & {
+    label: Label;
+  })[];
   boardMembers: BoardMember[];
+  boardLabels: Label[];
 };
 
 export type CardCommentWithReplies = Prisma.CardCommentGetPayload<{

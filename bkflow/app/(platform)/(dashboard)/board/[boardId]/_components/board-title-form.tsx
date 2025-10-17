@@ -110,7 +110,7 @@ export const BoardTitleForm = ({
       onClick={enableEditing}
       variant="transparent"
       disabled={!canEdit}
-      className="font-bold text-lg h-auto w-auto p-1 px-2"
+      className="font-bold text-lg h-auto w-auto p-1 px-2 cursor-pointer"
     >
       {title}
     </Button>

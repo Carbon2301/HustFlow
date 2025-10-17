@@ -154,6 +154,20 @@ const cardMatchesFilters = (
     if (!match) return false;
   }
 
+  // 4. Label Filters
+  const { selectedLabelIds = [], noLabelsEnabled = false } = filters;
+  const hasLabelFilter = selectedLabelIds.length > 0 || noLabelsEnabled;
+  if (hasLabelFilter) {
+    let match = false;
+    if (noLabelsEnabled && (!card.labels || card.labels.length === 0)) {
+      match = true;
+    }
+    if (selectedLabelIds.length > 0 && card.labels && card.labels.some((cl) => selectedLabelIds.includes(cl.labelId))) {
+      match = true;
+    }
+    if (!match) return false;
+  }
+
   return true;
 };
 
@@ -492,7 +506,9 @@ export const ListContainer = ({
       filters.noMembersEnabled ||
       filters.completedEnabled ||
       filters.notCompletedEnabled ||
-      filters.selectedDueDateFilters.length > 0
+      filters.selectedDueDateFilters.length > 0 ||
+      (filters.selectedLabelIds && filters.selectedLabelIds.length > 0) ||
+      !!filters.noLabelsEnabled
     );
   }, [selectedMemberIds, myWorkEnabled, filters]);
 

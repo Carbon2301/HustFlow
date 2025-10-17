@@ -13,7 +13,8 @@ import {
   ChevronDown, 
   X, 
   Check, 
-  Search 
+  Search,
+  Tag
 } from "lucide-react";
 
 import { CardWithList } from "@/types";
@@ -35,6 +36,8 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Hint } from "@/components/hint";
+import { LabelPopover } from "./label-popover";
+import { getColorName } from "@/lib/utils";
 
 interface MetadataProps {
   data: CardWithList;
@@ -59,6 +62,7 @@ export const Metadata = ({
   data,
 }: MetadataProps) => {
   const params = useParams();
+  const boardId = params.boardId as string;
   const queryClient = useQueryClient();
 
   const [searchQuery, setSearchQuery] = useState("");
@@ -215,6 +219,7 @@ export const Metadata = ({
 
   const hasAssignees = data.assignees && data.assignees.length > 0;
   const hasDueDate = !!data.dueDate;
+  const hasLabels = data.labels && data.labels.length > 0;
 
   // Format dynamic badge for due date
   const status = data.dueDate ? getDueDateStatus(data.dueDate) : "normal";
@@ -222,7 +227,7 @@ export const Metadata = ({
     ? format(new Date(data.dueDate), "H:mm d 'thg' M", { locale: vi }) 
     : "";
 
-  const showActionButtonRow = !hasDueDate || !hasAssignees;
+  const showActionButtonRow = !hasDueDate || !hasAssignees || !hasLabels;
 
   return (
     <div className="space-y-5">
@@ -385,6 +390,24 @@ export const Metadata = ({
               </PopoverContent>
             </Popover>
           )}
+
+          {/* Nhãn Button (Only shown when card has no labels) */}
+          {!hasLabels && (
+            <LabelPopover
+              cardId={data.id}
+              boardId={boardId}
+              labels={data.labels}
+              boardLabels={data.boardLabels}
+            >
+              <button
+                type="button"
+                className="rounded-lg border border-neutral-200 bg-white hover:bg-neutral-50 active:bg-neutral-100 text-neutral-600 px-3 py-1.5 flex items-center gap-x-1.5 text-xs font-semibold shadow-xs cursor-pointer transition-colors h-8"
+              >
+                <Tag className="h-3.5 w-3.5 text-neutral-500" />
+                Nhãn
+              </button>
+            </LabelPopover>
+          )}
         </div>
       )}
 
@@ -488,6 +511,57 @@ export const Metadata = ({
                   </div>
                 </PopoverContent>
               </Popover>
+            </div>
+          </div>
+        )}
+
+        {/* Column B: Nhãn (Active State) */}
+        {hasLabels && (
+          <div className="flex flex-col gap-y-1.5">
+            <span className="text-xs font-semibold text-neutral-600 pl-0.5">
+              Nhãn
+            </span>
+            <div className="flex flex-wrap items-center gap-1.5">
+              {data.labels.map((cardLabel) => (
+                <Hint
+                  key={cardLabel.id}
+                  description={`Màu: ${getColorName(cardLabel.label.color)}, Tiêu đề: ${cardLabel.label.title || "Không"}`}
+                  side="bottom"
+                >
+                  <div className="inline-block">
+                    <LabelPopover
+                      cardId={data.id}
+                      boardId={boardId}
+                      labels={data.labels}
+                      boardLabels={data.boardLabels}
+                    >
+                      <button
+                        type="button"
+                        style={{ backgroundColor: cardLabel.label.color }}
+                        className="h-8 min-w-[32px] max-w-[140px] px-3 rounded-md flex items-center font-bold text-neutral-900/90 text-xs shadow-xs border border-black/5 hover:opacity-85 transition cursor-pointer"
+                      >
+                        <span className="truncate">{cardLabel.label.title}</span>
+                      </button>
+                    </LabelPopover>
+                  </div>
+                </Hint>
+              ))}
+
+              {/* Plus button inside active state to add/remove labels */}
+              <LabelPopover
+                cardId={data.id}
+                boardId={boardId}
+                labels={data.labels}
+                boardLabels={data.boardLabels}
+              >
+                <button
+                  type="button"
+                  className="rounded-lg bg-neutral-100 hover:bg-neutral-200 border border-neutral-200 flex items-center justify-center h-8 w-8 cursor-pointer transition-colors shadow-xs"
+                  aria-label="Quản lý nhãn"
+                >
+                  <Plus className="h-4 w-4 text-neutral-600" />
+                </button>
+              </LabelPopover>
             </div>
           </div>
         )}

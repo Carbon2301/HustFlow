@@ -25,6 +25,7 @@ model Board {
 
   lists         List[]
   members       BoardMember[]
+  labels        Label[]
 
   createdAt     DateTime @default(now())
   updatedAt     DateTime @updatedAt
@@ -60,6 +61,7 @@ model Card {
   list        List  @relation(fields: [listId], references: [id], onDelete: Cascade)
   assignees   CardAssignee[]
   comments    CardComment[]
+  labels      CardLabel[]
 
   createdAt   DateTime @default(now())
   updatedAt   DateTime @updatedAt
@@ -235,4 +237,33 @@ model OrgSubscription {
   stripeSubscriptionId String? @unique @map(name: "stripe_subscription_id")
   stripePriceId        String? @map(name: "stripe_price_id")
   stripeCurrentPeriodEnd DateTime? @map(name: "stripe_current_period_end")
+}
+
+model Label {
+  id        String @id @default(uuid())
+  boardId   String
+  board     Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  title     String
+  color     String
+  cards     CardLabel[]
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([boardId])
+}
+
+model CardLabel {
+  id        String @id @default(uuid())
+  cardId    String
+  card      Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  labelId   String
+  label     Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([cardId, labelId])
+  @@index([cardId])
+  @@index([labelId])
 }

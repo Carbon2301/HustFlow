@@ -133,7 +133,7 @@ export const BoardMembers = ({
           <Button
             variant="transparent"
             size="sm"
-            className="h-8 gap-x-2 border-white/20 bg-white/10 text-white hover:bg-white/20"
+            className="h-8 gap-x-2 border-white/20 bg-white/10 text-white hover:bg-white/20 cursor-pointer"
           >
             <Plus className="h-4 w-4" />
             {canManage ? "Thêm thành viên" : "Thành viên"}

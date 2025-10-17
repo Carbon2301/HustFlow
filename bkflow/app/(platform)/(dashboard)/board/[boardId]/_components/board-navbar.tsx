@@ -1,4 +1,4 @@
-import { Board, BoardMember, BoardMemberRole } from "@prisma/client";
+import { Board, BoardMember, BoardMemberRole, Label } from "@prisma/client";
 
 import { BoardTitleForm } from "./board-title-form";
 import { BoardOptions } from "./board-options";
@@ -7,7 +7,7 @@ import { BoardFilters } from "./board-filters";
 import { ClerkOrgMember } from "@/lib/clerk-org-members";
 
 interface BoardNavbarProps {
-  data: Board & { members: BoardMember[] };
+  data: Board & { members: BoardMember[]; labels: Label[] };
   organizationMembers: ClerkOrgMember[];
   currentUserId: string;
   currentMemberRole: BoardMemberRole;
@@ -29,6 +29,7 @@ export const BoardNavbar = async ({
           boardId={data.id}
           members={data.members}
           currentUserId={currentUserId}
+          labels={data.labels}
         />
         <BoardMembers
           boardId={data.id}

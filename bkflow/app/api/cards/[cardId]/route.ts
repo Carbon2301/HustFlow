@@ -38,6 +38,14 @@ export async function GET(
             boardMember: true,
           },
         },
+        labels: {
+          include: {
+            label: true,
+          },
+          orderBy: {
+            createdAt: "asc",
+          },
+        },
       },
     });
 
@@ -61,9 +69,19 @@ export async function GET(
       },
     });
 
+    const boardLabels = await db.label.findMany({
+      where: {
+        boardId: card.list.boardId,
+      },
+      orderBy: {
+        createdAt: "asc",
+      },
+    });
+
     return NextResponse.json({
       ...card,
       boardMembers,
+      boardLabels,
     });
   } catch (error) {
     console.error("[CARD_GET_ERROR]", error);

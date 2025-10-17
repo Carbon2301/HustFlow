@@ -1,8 +1,8 @@
 "use client";
 
 import { useState, useMemo } from "react";
-import { BoardMember } from "@prisma/client";
-import { Filter, UserRound, X, User, ChevronDown, Clock, CalendarDays } from "lucide-react";
+import { BoardMember, Label } from "@prisma/client";
+import { Filter, UserRound, X, User, ChevronDown, Clock, CalendarDays, Tag } from "lucide-react";
 
 import {
   Avatar,
@@ -24,6 +24,7 @@ interface BoardFiltersProps {
   boardId: string;
   members: BoardMember[];
   currentUserId: string;
+  labels: Label[];
 }
 
 const getInitials = (name: string) => {
@@ -37,6 +38,7 @@ export const BoardFilters = ({
   boardId,
   members,
   currentUserId,
+  labels,
 }: BoardFiltersProps) => {
   const filters = useBoardFilters((state) =>
     state.filtersByBoardId[boardId] ?? emptyBoardFilters,
@@ -48,9 +50,13 @@ export const BoardFilters = ({
   const toggleNotCompleted = useBoardFilters((state) => state.toggleNotCompleted);
   const toggleMember = useBoardFilters((state) => state.toggleMember);
   const toggleDueDateFilter = useBoardFilters((state) => state.toggleDueDateFilter);
+  const toggleLabel = useBoardFilters((state) => state.toggleLabel);
+  const toggleNoLabels = useBoardFilters((state) => state.toggleNoLabels);
+  const setSelectedLabels = useBoardFilters((state) => state.setSelectedLabels);
   const clearFilters = useBoardFilters((state) => state.clearFilters);
 
   const [membersExpanded, setMembersExpanded] = useState(false);
+  const [labelsExpanded, setLabelsExpanded] = useState(false);
 
   const {
     selectedMemberIds,
@@ -59,6 +65,8 @@ export const BoardFilters = ({
     completedEnabled,
     notCompletedEnabled,
     selectedDueDateFilters,
+    selectedLabelIds = [],
+    noLabelsEnabled = false,
   } = filters;
 
   const activeFilterCount = useMemo(() => {
@@ -68,9 +76,20 @@ export const BoardFilters = ({
       (noMembersEnabled ? 1 : 0) +
       (completedEnabled ? 1 : 0) +
       (notCompletedEnabled ? 1 : 0) +
-      selectedDueDateFilters.length
+      selectedDueDateFilters.length +
+      selectedLabelIds.length +
+      (noLabelsEnabled ? 1 : 0)
     );
-  }, [selectedMemberIds, myWorkEnabled, noMembersEnabled, completedEnabled, notCompletedEnabled, selectedDueDateFilters]);
+  }, [
+    selectedMemberIds,
+    myWorkEnabled,
+    noMembersEnabled,
+    completedEnabled,
+    notCompletedEnabled,
+    selectedDueDateFilters,
+    selectedLabelIds,
+    noLabelsEnabled,
+  ]);
 
   const hasActiveFilters = activeFilterCount > 0;
   const currentBoardMember = members.find((member) => member.userId === currentUserId);
@@ -89,7 +108,7 @@ export const BoardFilters = ({
           onClick={() => toggleMyWork(boardId)}
           disabled={!currentBoardMember}
           className={cn(
-            "h-8 w-8 rounded-lg border border-white/20 bg-white/10 text-white shadow-sm hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50",
+            "h-8 w-8 rounded-lg border border-white/20 bg-white/10 text-white shadow-sm hover:bg-white/20 disabled:cursor-not-allowed disabled:opacity-50 cursor-pointer",
             myWorkEnabled && "border-violet-200 bg-white text-violet-700 hover:bg-violet-50",
           )}
           aria-label="Việc của tôi"
@@ -110,7 +129,7 @@ export const BoardFilters = ({
               size="icon"
               variant="transparent"
               className={cn(
-                "relative h-8 w-8 rounded-lg border border-white/20 bg-white/10 text-white shadow-sm hover:bg-white/20",
+                "relative h-8 w-8 rounded-lg border border-white/20 bg-white/10 text-white shadow-sm hover:bg-white/20 cursor-pointer",
                 hasActiveFilters && "border-violet-200 bg-white text-violet-700 hover:bg-violet-50",
               )}
               aria-label="Lọc thẻ"
@@ -376,6 +395,115 @@ export const BoardFilters = ({
                 </span>
               </label>
             </div>
+
+            {/* 4. Nhãn Section */}
+            <div className="space-y-2 pt-3.5 border-t border-neutral-100">
+              <p className="text-sm font-semibold text-neutral-800 pl-0.5">
+                Nhãn
+              </p>
+
+              {/* Không có Nhãn */}
+              <label className="flex cursor-pointer items-center gap-x-2.5 rounded-lg px-2 py-1.5 transition hover:bg-neutral-50 select-none">
+                <input
+                  type="checkbox"
+                  checked={noLabelsEnabled}
+                  onChange={() => toggleNoLabels(boardId)}
+                  className="h-4 w-4 rounded border-neutral-300 accent-violet-600 cursor-pointer"
+                />
+                <div className="flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-500">
+                  <Tag className="h-3.5 w-3.5" />
+                </div>
+                <span className="text-sm text-neutral-700 font-normal">
+                  Không có Nhãn
+                </span>
+              </label>
+
+              {/* Hiển thị 3 nhãn màu mặc định */}
+              {labels.slice(0, 3).map((label) => {
+                const isChecked = selectedLabelIds.includes(label.id);
+                return (
+                  <label
+                    key={label.id}
+                    className="flex cursor-pointer items-center gap-x-2.5 rounded-lg px-2 py-1 select-none transition hover:bg-neutral-50"
+                  >
+                    <input
+                      type="checkbox"
+                      checked={isChecked}
+                      onChange={() => toggleLabel(boardId, label.id)}
+                      className="h-4 w-4 rounded border-neutral-300 accent-violet-600 cursor-pointer"
+                    />
+                    <div
+                      style={{ backgroundColor: label.color }}
+                      className="flex-1 h-8 rounded-md px-3 flex items-center font-semibold text-neutral-900/90 text-xs shadow-xs border border-black/5"
+                    >
+                      <span className="truncate">{label.title || "\u00A0"}</span>
+                    </div>
+                  </label>
+                );
+              })}
+
+              {/* Collapsible Chọn nhãn */}
+              <div className="space-y-1">
+                <div className="w-full flex items-center justify-between rounded-lg px-2 py-1.5 hover:bg-neutral-50 transition cursor-pointer select-none">
+                  <div className="flex items-center gap-x-2.5 flex-1">
+                    <input
+                      type="checkbox"
+                      checked={labels.length > 0 && labels.every((l) => selectedLabelIds.includes(l.id))}
+                      onChange={() => {
+                        const allSelected = labels.length > 0 && labels.every((l) => selectedLabelIds.includes(l.id));
+                        if (allSelected) {
+                          setSelectedLabels(boardId, []);
+                        } else {
+                          setSelectedLabels(boardId, labels.map((l) => l.id));
+                        }
+                      }}
+                      className="h-4 w-4 rounded border-neutral-300 accent-violet-600 cursor-pointer z-10"
+                    />
+                    <span 
+                      onClick={() => setLabelsExpanded(!labelsExpanded)}
+                      className="text-sm text-neutral-500 font-normal flex-1 py-1"
+                    >
+                      Chọn nhãn
+                    </span>
+                  </div>
+                  <ChevronDown 
+                    onClick={() => setLabelsExpanded(!labelsExpanded)}
+                    className={cn("h-4 w-4 text-neutral-400 transition-transform", labelsExpanded && "rotate-180")} 
+                  />
+                </div>
+
+                {labelsExpanded && (
+                  <div className="pl-7 space-y-1 mt-1 max-h-40 overflow-y-auto pr-1 styled-scrollbar">
+                    {labels.length <= 3 ? (
+                      <p className="text-xs text-neutral-400 italic py-1 pl-2">Không còn nhãn khác</p>
+                    ) : (
+                      labels.slice(3).map((label) => {
+                        const isChecked = selectedLabelIds.includes(label.id);
+                        return (
+                          <label
+                            key={label.id}
+                            className="flex cursor-pointer items-center gap-x-2.5 rounded-lg px-2 py-1 transition hover:bg-neutral-50 select-none"
+                          >
+                            <input
+                              type="checkbox"
+                              checked={isChecked}
+                              onChange={() => toggleLabel(boardId, label.id)}
+                              className="h-4 w-4 rounded border-neutral-300 accent-violet-600 cursor-pointer"
+                            />
+                            <div
+                              style={{ backgroundColor: label.color }}
+                              className="flex-1 h-7 rounded-md px-2.5 flex items-center font-semibold text-neutral-900/90 text-xs shadow-xs border border-black/5"
+                            >
+                              <span className="truncate">{label.title || "\u00A0"}</span>
+                            </div>
+                          </label>
+                        );
+                      })
+                    )}
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </PopoverContent>
       </Popover>
@@ -387,7 +515,7 @@ export const BoardFilters = ({
             size="icon"
             variant="transparent"
             onClick={() => clearFilters(boardId)}
-            className="h-8 w-8 rounded-lg border border-white/15 bg-black/20 text-white shadow-sm hover:bg-black/30"
+            className="h-8 w-8 rounded-lg border border-white/15 bg-black/20 text-white shadow-sm hover:bg-black/30 cursor-pointer"
             aria-label="Xóa bộ lọc"
           >
             <X className="h-4 w-4" />

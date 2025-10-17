@@ -47,6 +47,14 @@ const BoardIdPage = async ({
               createdAt: "asc",
             },
           },
+          labels: {
+            include: {
+              label: true,
+            },
+            orderBy: {
+              createdAt: "asc",
+            },
+          },
           _count: {
             select: {
               comments: true,
