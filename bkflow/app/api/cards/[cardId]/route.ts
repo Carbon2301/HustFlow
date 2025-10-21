@@ -46,6 +46,21 @@ export async function GET(
             createdAt: "asc",
           },
         },
+        checklists: {
+          include: {
+            items: {
+              include: {
+                assignee: true,
+              },
+              orderBy: {
+                order: "asc",
+              },
+            },
+          },
+          orderBy: {
+            order: "asc",
+          },
+        },
       },
     });
 
@@ -78,10 +93,39 @@ export async function GET(
       },
     });
 
+    const boardChecklists = await db.checklist.findMany({
+      where: {
+        card: {
+          list: {
+            boardId: card.list.boardId,
+          },
+        },
+      },
+      include: {
+        items: {
+          include: {
+            assignee: true,
+          },
+          orderBy: {
+            order: "asc",
+          },
+        },
+        card: {
+          select: {
+            title: true,
+          },
+        },
+      },
+      orderBy: {
+        order: "asc",
+      },
+    });
+
     return NextResponse.json({
       ...card,
       boardMembers,
       boardLabels,
+      boardChecklists,
     });
   } catch (error) {
     console.error("[CARD_GET_ERROR]", error);

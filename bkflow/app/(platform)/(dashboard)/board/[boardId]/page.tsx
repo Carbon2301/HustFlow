@@ -60,6 +60,15 @@ const BoardIdPage = async ({
               comments: true,
             },
           },
+          checklists: {
+            select: {
+              items: {
+                select: {
+                  isCompleted: true,
+                },
+              },
+            },
+          },
         },
         orderBy: {
           order: "asc",

@@ -3,6 +3,7 @@
 import { toast } from "sonner";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
+import { useQueryClient } from "@tanstack/react-query";
 import { DragDropContext, Droppable, type DropResult } from "@hello-pangea/dnd";
 import { BoardMember, BoardMemberRole } from "@prisma/client";
 
@@ -31,6 +32,10 @@ import type {
   CardMovedPayload,
   CardReorderedPayload,
   CardUpdatedPayload,
+  ChecklistItemMovedPayload,
+  ChecklistItemReorderedPayload,
+  ChecklistItemPayload,
+  ChecklistPayload,
   ListCreatedPayload,
   ListDeletedPayload,
   ListReorderedPayload,
@@ -206,6 +211,7 @@ export const ListContainer = ({
   currentUserId,
 }: ListContainerProps) => {
   const router = useRouter();
+  const queryClient = useQueryClient();
   const cardModal = useCardModal();
   const [orderedData, setOrderedData] = useState(data);
   const processedCardEventIdsRef = useRef<Set<string>>(new Set());
@@ -340,6 +346,30 @@ export const ListContainer = ({
       router.refresh();
     }
   }, [boardId, cardModal, currentUserId, processBoardEvent, router]);
+
+  const handleChecklistSync = useCallback((
+    payload:
+      | ChecklistPayload
+      | ChecklistItemPayload
+      | ChecklistItemReorderedPayload
+      | ChecklistItemMovedPayload,
+  ) => {
+    if (payload.boardId !== boardId || !processBoardEvent(payload.eventId)) {
+      return;
+    }
+
+    if (payload.actorUserId === currentUserId) {
+      return;
+    }
+
+    if (cardModal.isOpen && cardModal.id === payload.cardId) {
+      payload.invalidate.forEach(({ queryKey }) => {
+        queryClient.invalidateQueries({ queryKey });
+      });
+    }
+
+    router.refresh();
+  }, [boardId, cardModal.id, cardModal.isOpen, currentUserId, processBoardEvent, queryClient, router]);
 
   useRealtimeChannel({
     channelName,
@@ -492,6 +522,83 @@ export const ListContainer = ({
     channelName,
     event: REALTIME_EVENTS.CARD_DELETED,
     onEvent: handleCardDeleted,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.CHECKLIST_CREATED,
+    onEvent: handleChecklistSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.CHECKLIST_UPDATED,
+    onEvent: handleChecklistSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.CHECKLIST_DELETED,
+    onEvent: handleChecklistSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.CHECKLIST_ITEM_CREATED,
+    onEvent: handleChecklistSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.CHECKLIST_ITEM_UPDATED,
+    onEvent: handleChecklistSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.CHECKLIST_ITEM_DELETED,
+    onEvent: handleChecklistSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.CHECKLIST_ITEM_TOGGLED,
+    onEvent: handleChecklistSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.CHECKLIST_ITEM_ASSIGNEE_UPDATED,
+    onEvent: handleChecklistSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.CHECKLIST_ITEM_DUE_DATE_UPDATED,
+    onEvent: handleChecklistSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.CHECKLIST_ITEM_REORDERED,
+    onEvent: handleChecklistSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.CHECKLIST_ITEM_MOVED,
+    onEvent: handleChecklistSync,
     enabled,
   });
 

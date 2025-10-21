@@ -298,6 +298,67 @@ export type ListReorderedPayload = {
   updatedAt: string;
 };
 
+export type ChecklistPayload = {
+  eventId: string;
+  boardId: string;
+  cardId: string;
+  checklistId: string;
+  actorUserId: string;
+  action: "created" | "updated" | "deleted";
+  createdAt?: string;
+  updatedAt?: string;
+  deletedAt?: string;
+  invalidate: RealtimeQueryInvalidation[];
+};
+
+export type ChecklistItemPayload = {
+  eventId: string;
+  boardId: string;
+  cardId: string;
+  checklistId: string;
+  checklistItemId: string;
+  actorUserId: string;
+  action:
+    | "created"
+    | "updated"
+    | "deleted"
+    | "toggled"
+    | "assignee-updated"
+    | "due-date-updated";
+  assigneeId?: string | null;
+  dueDate?: string | null;
+  createdAt?: string;
+  updatedAt?: string;
+  deletedAt?: string;
+  toggledAt?: string;
+  invalidate: RealtimeQueryInvalidation[];
+};
+
+export type ChecklistItemReorderedPayload = {
+  eventId: string;
+  boardId: string;
+  cardId: string;
+  checklistId: string;
+  actorUserId: string;
+  orderedItemIds: string[];
+  reorderedAt: string;
+  invalidate: RealtimeQueryInvalidation[];
+};
+
+export type ChecklistItemMovedPayload = {
+  eventId: string;
+  boardId: string;
+  cardId: string;
+  checklistItemId: string;
+  sourceChecklistId: string;
+  destinationChecklistId: string;
+  actorUserId: string;
+  sourceOrderedItemIds: string[];
+  destinationOrderedItemIds: string[];
+  movedAt: string;
+  invalidate: RealtimeQueryInvalidation[];
+};
+
 export type RealtimeEventPayloads = {
   "notification.created": NotificationCreatedPayload;
   "comment.created": CommentCreatedPayload;
@@ -326,4 +387,15 @@ export type RealtimeEventPayloads = {
   "list.updated": ListUpdatedPayload;
   "list.deleted": ListDeletedPayload;
   "list.reordered": ListReorderedPayload;
+  "checklist.created": ChecklistPayload;
+  "checklist.updated": ChecklistPayload;
+  "checklist.deleted": ChecklistPayload;
+  "checklist-item.created": ChecklistItemPayload;
+  "checklist-item.updated": ChecklistItemPayload;
+  "checklist-item.deleted": ChecklistItemPayload;
+  "checklist-item.toggled": ChecklistItemPayload;
+  "checklist-item.assignee-updated": ChecklistItemPayload;
+  "checklist-item.due-date-updated": ChecklistItemPayload;
+  "checklist-item.reordered": ChecklistItemReorderedPayload;
+  "checklist-item.moved": ChecklistItemMovedPayload;
 };

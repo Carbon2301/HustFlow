@@ -28,6 +28,17 @@ export const REALTIME_EVENTS = {
   LIST_UPDATED: "list.updated",
   LIST_DELETED: "list.deleted",
   LIST_REORDERED: "list.reordered",
+  CHECKLIST_CREATED: "checklist.created",
+  CHECKLIST_UPDATED: "checklist.updated",
+  CHECKLIST_DELETED: "checklist.deleted",
+  CHECKLIST_ITEM_CREATED: "checklist-item.created",
+  CHECKLIST_ITEM_UPDATED: "checklist-item.updated",
+  CHECKLIST_ITEM_DELETED: "checklist-item.deleted",
+  CHECKLIST_ITEM_TOGGLED: "checklist-item.toggled",
+  CHECKLIST_ITEM_ASSIGNEE_UPDATED: "checklist-item.assignee-updated",
+  CHECKLIST_ITEM_DUE_DATE_UPDATED: "checklist-item.due-date-updated",
+  CHECKLIST_ITEM_REORDERED: "checklist-item.reordered",
+  CHECKLIST_ITEM_MOVED: "checklist-item.moved",
 } as const;
 
 export type RealtimeEventName =

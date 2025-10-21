@@ -3,11 +3,15 @@ import { ACTION, AuditLog } from "@prisma/client";
 const translateEntityType = (type: string) => {
   switch (type) {
     case "BOARD":
-      return "bảng";
+      return "bang";
     case "LIST":
-      return "danh sách";
+      return "danh sach";
     case "CARD":
-      return "thẻ";
+      return "the";
+    case "CHECKLIST":
+      return "danh sach cong viec";
+    case "CHECKLIST_ITEM":
+      return "muc cong viec";
     default:
       return type.toLowerCase();
   }
@@ -22,12 +26,12 @@ export const generateLogMessage = (log: AuditLog) => {
 
   switch (action) {
     case ACTION.CREATE:
-      return `đã tạo ${translateEntityType(entityType)} "${entityTitle}"`;
+      return `da tao ${translateEntityType(entityType)} "${entityTitle}"`;
     case ACTION.UPDATE:
-      return `đã cập nhật ${translateEntityType(entityType)} "${entityTitle}"`;
+      return `da cap nhat ${translateEntityType(entityType)} "${entityTitle}"`;
     case ACTION.DELETE:
-      return `đã xóa ${translateEntityType(entityType)} "${entityTitle}"`;
+      return `da xoa ${translateEntityType(entityType)} "${entityTitle}"`;
     default:
-      return `hành động không xác định trên ${translateEntityType(entityType)} "${entityTitle}"`;
-  };
+      return `hanh dong khong xac dinh tren ${translateEntityType(entityType)} "${entityTitle}"`;
+  }
 };

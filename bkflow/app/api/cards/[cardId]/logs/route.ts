@@ -1,8 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
-import { ENTITY_TYPE } from "@prisma/client";
-
 import { db } from "@/lib/db";
 import { requireBoardMember } from "@/lib/permissions";
 
@@ -53,8 +51,14 @@ export async function GET(
     const auditLogs = await db.auditLog.findMany({
       where: {
         orgId,
-        entityId: cardId,
-        entityType: ENTITY_TYPE.CARD,
+        OR: [
+          {
+            cardId,
+          },
+          {
+            entityId: cardId,
+          },
+        ],
       },
       orderBy: {
         createdAt: "desc",

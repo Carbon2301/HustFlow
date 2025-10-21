@@ -1,4 +1,4 @@
-import { NOTIFICATION_TYPE, Notification, Prisma } from "@prisma/client";
+import { NOTIFICATION_TYPE, Notification } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { triggerNotificationCreated } from "@/lib/notifications/realtime";
@@ -54,39 +54,42 @@ export const createNotification = async ({
     let notification: Notification;
 
     if (dedupeKey) {
-      try {
-        notification = await db.notification.create({
-          data: {
-            orgId,
-            recipientUserId,
-            actorUserId: actor?.userId,
-            actorName: actor?.name,
-            actorImage: actor?.image,
-            type,
-            title,
-            message,
-            boardId,
-            boardTitle,
-            cardId,
-            cardTitle,
-            listTitle,
-            commentId,
-            dueDate,
-            triggerTime,
-            reminderLabel,
-            dedupeKey,
-          },
-        });
-      } catch (error) {
-        if (
-          error instanceof Prisma.PrismaClientKnownRequestError &&
-          error.code === "P2002"
-        ) {
-          return;
-        }
+      const existingUnreadNotification = await db.notification.findFirst({
+        where: {
+          dedupeKey,
+          readAt: null,
+        },
+        select: {
+          id: true,
+        },
+      });
 
-        throw error;
+      if (existingUnreadNotification) {
+        return;
       }
+
+      notification = await db.notification.create({
+        data: {
+          orgId,
+          recipientUserId,
+          actorUserId: actor?.userId,
+          actorName: actor?.name,
+          actorImage: actor?.image,
+          type,
+          title,
+          message,
+          boardId,
+          boardTitle,
+          cardId,
+          cardTitle,
+          listTitle,
+          commentId,
+          dueDate,
+          triggerTime,
+          reminderLabel,
+          dedupeKey,
+        },
+      });
     } else {
       notification = await db.notification.create({
         data: {

@@ -1,4 +1,8 @@
-import { BoardMember, Card, List, Prisma, Label, CardLabel } from "@prisma/client";
+import { BoardMember, Card, List, Prisma, Label, CardLabel, Checklist, ChecklistItem } from "@prisma/client";
+
+export type ChecklistItemWithAssignee = ChecklistItem & {
+  assignee: BoardMember | null;
+};
 
 export type CardWithAssignees = Card & {
   assignees: Prisma.CardAssigneeGetPayload<{
@@ -9,6 +13,9 @@ export type CardWithAssignees = Card & {
   labels: (CardLabel & {
     label: Label;
   })[];
+  checklists?: {
+    items: { isCompleted: boolean }[];
+  }[];
   _count?: {
     comments: number;
   };
@@ -26,8 +33,17 @@ export type CardWithList = Card & {
   labels: (CardLabel & {
     label: Label;
   })[];
+  checklists: (Checklist & {
+    items: ChecklistItemWithAssignee[];
+  })[];
   boardMembers: BoardMember[];
   boardLabels: Label[];
+  boardChecklists: (Checklist & {
+    items: ChecklistItemWithAssignee[];
+    card: {
+      title: string;
+    };
+  })[];
 };
 
 export type CardCommentWithReplies = Prisma.CardCommentGetPayload<{

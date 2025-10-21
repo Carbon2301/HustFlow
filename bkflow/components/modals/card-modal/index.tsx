@@ -16,6 +16,7 @@ import { Description } from "./description";
 import { Activity } from "./activity";
 import { Comments } from "./comments";
 import { CardRealtimeSync } from "./card-realtime-sync";
+import { Checklists } from "./checklists";
 
 export const CardModal = () => {
   const id = useCardModal((state) => state.id);
@@ -82,7 +83,17 @@ export const CardModal = () => {
             }
             {!cardData
               ? <Description.Skeleton />
-              : <Description data={cardData} />
+              : (
+                  <>
+                    <Description data={cardData} />
+                    <Checklists
+                      cardId={cardData.id}
+                      boardId={cardData.list.boardId}
+                      boardMembers={cardData.boardMembers || []}
+                      checklists={cardData.checklists || []}
+                    />
+                  </>
+                )
             }
           </div>
           <div className="col-span-1 md:col-span-5 pl-0 md:pl-2 space-y-6">

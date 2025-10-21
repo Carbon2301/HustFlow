@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Bell,
+  CheckSquare,
   CheckCheck,
   ChevronLeft,
   ChevronRight,
@@ -35,6 +36,8 @@ const getNotificationIcon = (type: NotificationItem["type"]) => {
   switch (type) {
     case "CARD_ASSIGNED":
       return Users;
+    case "CHECKLIST_ITEM_ASSIGNED":
+      return CheckSquare;
     case "BOARD_INVITE":
       return UserPlus;
     case "COMMENT_REPLY":

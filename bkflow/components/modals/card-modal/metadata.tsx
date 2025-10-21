@@ -14,7 +14,8 @@ import {
   X, 
   Check, 
   Search,
-  Tag
+  Tag,
+  CheckSquare
 } from "lucide-react";
 
 import { CardWithList } from "@/types";
@@ -38,6 +39,7 @@ import {
 import { Hint } from "@/components/hint";
 import { LabelPopover } from "./label-popover";
 import { getColorName } from "@/lib/utils";
+import { ChecklistPopover } from "./checklist-popover";
 
 interface MetadataProps {
   data: CardWithList;
@@ -227,7 +229,7 @@ export const Metadata = ({
     ? format(new Date(data.dueDate), "H:mm d 'thg' M", { locale: vi }) 
     : "";
 
-  const showActionButtonRow = !hasDueDate || !hasAssignees || !hasLabels;
+  const showActionButtonRow = true;
 
   return (
     <div className="space-y-5">
@@ -408,6 +410,21 @@ export const Metadata = ({
               </button>
             </LabelPopover>
           )}
+
+          {/* Việc cần làm Button */}
+          <ChecklistPopover
+            cardId={data.id}
+            boardId={boardId}
+            boardChecklists={data.boardChecklists || []}
+          >
+            <button
+              type="button"
+              className="rounded-lg border border-neutral-200 bg-white hover:bg-neutral-50 active:bg-neutral-100 text-neutral-600 px-3 py-1.5 flex items-center gap-x-1.5 text-xs font-semibold shadow-xs cursor-pointer transition-colors h-8"
+            >
+              <CheckSquare className="h-3.5 w-3.5 text-neutral-500" />
+              Việc cần làm
+            </button>
+          </ChecklistPopover>
         </div>
       )}
 

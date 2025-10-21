@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { Draggable } from "@hello-pangea/dnd";
-import { AlignLeft, ExternalLink, Copy, Trash2, MessageSquare, Check } from "lucide-react";
+import { AlignLeft, ExternalLink, Copy, Trash2, MessageSquare, CheckSquare } from "lucide-react";
 
 import { useCardModal } from "@/hooks/use-card-modal";
 import { DueDateBadge } from "@/components/due-date-badge";
@@ -107,7 +107,18 @@ export const CardItem = ({
 
   const visibleAssignees = data.assignees.slice(0, 3);
   const hiddenAssigneesCount = Math.max(data.assignees.length - visibleAssignees.length, 0);
-  const hasFooter = Boolean(data.dueDate) || data.isCompleted || data.assignees.length > 0 || Boolean(data._count && data._count.comments > 0);
+
+  // Checklist progress
+  const checklistTotalItems = data.checklists?.reduce((acc, cl) => acc + cl.items.length, 0) ?? 0;
+  const checklistCompletedItems = data.checklists?.reduce(
+    (acc, cl) => acc + cl.items.filter((item) => item.isCompleted).length,
+    0,
+  ) ?? 0;
+  const hasChecklistProgress = checklistTotalItems > 0;
+  const isChecklistAllDone = hasChecklistProgress && checklistCompletedItems === checklistTotalItems;
+
+  const hasFooter = Boolean(data.dueDate) || data.isCompleted || data.assignees.length > 0
+    || Boolean(data._count && data._count.comments > 0) || hasChecklistProgress;
 
   return (
     <Draggable draggableId={data.id} index={index}>
@@ -157,8 +168,8 @@ export const CardItem = ({
                 {data.title}
               </span>
               {hasFooter && (
-                <div className="flex min-h-7 items-center justify-between gap-x-2">
-                  <div className="flex items-center gap-x-2.5 min-w-0">
+                <div className="flex min-h-7 flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
+                  <div className="flex items-center gap-x-2 flex-wrap gap-y-1">
                     {data.dueDate && (
                       <DueDateBadge
                         dueDate={data.dueDate}
@@ -168,7 +179,7 @@ export const CardItem = ({
                     {!data.dueDate && data.isCompleted && (
                       <Hint description="Thẻ đã hoàn thành" side="bottom">
                         <span className="inline-flex h-7 items-center gap-x-1 rounded-md border border-emerald-200 bg-emerald-50 text-emerald-700 px-2 py-0.5 text-xs font-semibold shadow-xs">
-                          <Check className="h-3 w-3.5 text-emerald-600 shrink-0" />
+                          <CheckSquare className="h-3 w-3.5 text-emerald-600 shrink-0" />
                           Hoàn thành
                         </span>
                       </Hint>
@@ -178,6 +189,21 @@ export const CardItem = ({
                         <div className="flex items-center gap-x-1 text-xs text-neutral-400 hover:text-neutral-600 transition-colors py-0.5 px-1.5 rounded bg-neutral-50 hover:bg-neutral-100/70 border border-neutral-100">
                           <MessageSquare className="h-3.5 w-3.5 text-neutral-400 flex-shrink-0" />
                           <span className="font-semibold text-neutral-500 leading-none">{data._count.comments}</span>
+                        </div>
+                      </Hint>
+                    )}
+                    {hasChecklistProgress && (
+                      <Hint description={`${checklistCompletedItems}/${checklistTotalItems} mục hoàn thành`} side="bottom">
+                        <div className={cn(
+                          "flex items-center gap-x-1 text-xs py-0.5 px-1.5 rounded border transition-colors",
+                          isChecklistAllDone
+                            ? "bg-emerald-50 border-emerald-200 text-emerald-700"
+                            : "bg-neutral-50 border-neutral-100 text-neutral-500 hover:bg-neutral-100/70",
+                        )}>
+                          <CheckSquare className={cn("h-3.5 w-3.5 flex-shrink-0", isChecklistAllDone ? "text-emerald-600" : "text-neutral-400")} />
+                          <span className="font-semibold leading-none">
+                            {checklistCompletedItems}/{checklistTotalItems}
+                          </span>
                         </div>
                       </Hint>
                     )}

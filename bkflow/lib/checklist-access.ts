@@ -1,0 +1,344 @@
+import { ChecklistItem } from "@prisma/client";
+
+import { db } from "@/lib/db";
+import { requireBoardMember } from "@/lib/permissions";
+
+type ChecklistAccessInput = {
+  boardId: string;
+  checklistId: string;
+  orgId: string;
+  userId: string;
+  cardId?: string;
+};
+
+type ChecklistItemAccessInput = {
+  boardId: string;
+  itemId: string;
+  orgId: string;
+  userId: string;
+  cardId?: string;
+};
+
+type ChecklistItemOrderInput = Pick<ChecklistItem, "id" | "order">;
+
+type ChecklistItemMoveInput = {
+  boardId: string;
+  cardId: string;
+  sourceChecklistId: string;
+  destinationChecklistId: string;
+  itemId: string;
+  orgId: string;
+  userId: string;
+  sourceItems: ChecklistItemOrderInput[];
+  destinationItems: ChecklistItemOrderInput[];
+};
+
+const idsMatch = (actualIds: string[], payloadIds: string[]) => {
+  if (actualIds.length !== payloadIds.length) {
+    return false;
+  }
+
+  const payloadIdSet = new Set(payloadIds);
+
+  return actualIds.every((id) => payloadIdSet.has(id));
+};
+
+export const getChecklistAccess = async ({
+  boardId,
+  checklistId,
+  orgId,
+  userId,
+  cardId,
+}: ChecklistAccessInput) => {
+  const permission = await requireBoardMember({ boardId, orgId, userId });
+
+  if (permission.error) {
+    return { error: permission.error, checklist: null };
+  }
+
+  const checklist = await db.checklist.findFirst({
+    where: {
+      id: checklistId,
+      ...(cardId ? { cardId } : {}),
+      card: {
+        list: {
+          board: {
+            id: boardId,
+            orgId,
+          },
+        },
+      },
+    },
+    include: {
+      card: {
+        include: {
+          list: {
+            select: {
+              id: true,
+              title: true,
+              boardId: true,
+              board: {
+                select: {
+                  id: true,
+                  title: true,
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!checklist) {
+    return { error: "Khong tim thay danh sach cong viec.", checklist: null };
+  }
+
+  return { error: null, checklist };
+};
+
+export const getChecklistItemAccess = async ({
+  boardId,
+  itemId,
+  orgId,
+  userId,
+  cardId,
+}: ChecklistItemAccessInput) => {
+  const permission = await requireBoardMember({ boardId, orgId, userId });
+
+  if (permission.error) {
+    return { error: permission.error, item: null };
+  }
+
+  const item = await db.checklistItem.findFirst({
+    where: {
+      id: itemId,
+      checklist: {
+        ...(cardId ? { cardId } : {}),
+        card: {
+          list: {
+            board: {
+              id: boardId,
+              orgId,
+            },
+          },
+        },
+      },
+    },
+    include: {
+      assignee: true,
+      checklist: {
+        include: {
+          card: {
+            include: {
+              list: {
+                select: {
+                  id: true,
+                  title: true,
+                  boardId: true,
+                  board: {
+                    select: {
+                      id: true,
+                      title: true,
+                    },
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (!item) {
+    return { error: "Khong tim thay muc cong viec.", item: null };
+  }
+
+  return { error: null, item };
+};
+
+export const validateChecklistItemsForReorder = async ({
+  boardId,
+  cardId,
+  checklistId,
+  orgId,
+  userId,
+  items,
+}: ChecklistAccessInput & { items: ChecklistItemOrderInput[] }) => {
+  const access = await getChecklistAccess({
+    boardId,
+    checklistId,
+    orgId,
+    userId,
+    cardId,
+  });
+
+  if (access.error || !access.checklist) {
+    return { error: access.error, checklist: null };
+  }
+
+  const existingItemCount = await db.checklistItem.count({
+    where: {
+      id: {
+        in: items.map((item) => item.id),
+      },
+      checklistId,
+      checklist: {
+        card: {
+          list: {
+            board: {
+              id: boardId,
+              orgId,
+            },
+          },
+        },
+      },
+    },
+  });
+
+  if (existingItemCount !== items.length) {
+    return {
+      error: "Khong the sap xep muc cong viec khong thuoc danh sach nay.",
+      checklist: null,
+    };
+  }
+
+  return { error: null, checklist: access.checklist };
+};
+
+export const validateChecklistItemMove = async ({
+  boardId,
+  cardId,
+  sourceChecklistId,
+  destinationChecklistId,
+  itemId,
+  orgId,
+  userId,
+  sourceItems,
+  destinationItems,
+}: ChecklistItemMoveInput) => {
+  if (sourceChecklistId === destinationChecklistId) {
+    return {
+      error: "Hay su dung sap xep trong cung danh sach cho thao tac nay.",
+      sourceChecklist: null,
+      destinationChecklist: null,
+    };
+  }
+
+  const permission = await requireBoardMember({ boardId, orgId, userId });
+
+  if (permission.error) {
+    return {
+      error: permission.error,
+      sourceChecklist: null,
+      destinationChecklist: null,
+    };
+  }
+
+  const checklists = await db.checklist.findMany({
+    where: {
+      id: {
+        in: [sourceChecklistId, destinationChecklistId],
+      },
+      cardId,
+      card: {
+        list: {
+          board: {
+            id: boardId,
+            orgId,
+          },
+        },
+      },
+    },
+    include: {
+      card: {
+        include: {
+          list: {
+            select: {
+              id: true,
+              title: true,
+              boardId: true,
+              board: {
+                select: {
+                  id: true,
+                  title: true,
+                },
+              },
+            },
+          },
+        },
+      },
+      items: {
+        select: {
+          id: true,
+        },
+        orderBy: {
+          order: "asc",
+        },
+      },
+    },
+  });
+
+  const sourceChecklist = checklists.find((checklist) => checklist.id === sourceChecklistId) ?? null;
+  const destinationChecklist = checklists.find((checklist) => checklist.id === destinationChecklistId) ?? null;
+
+  if (!sourceChecklist || !destinationChecklist) {
+    return {
+      error: "Khong tim thay danh sach cong viec hop le.",
+      sourceChecklist: null,
+      destinationChecklist: null,
+    };
+  }
+
+  const sourceCurrentIds = sourceChecklist.items.map((item) => item.id);
+  const destinationCurrentIds = destinationChecklist.items.map((item) => item.id);
+
+  if (!sourceCurrentIds.includes(itemId)) {
+    return {
+      error: "Muc cong viec khong con thuoc danh sach nguon.",
+      sourceChecklist: null,
+      destinationChecklist: null,
+    };
+  }
+
+  const sourcePayloadIds = sourceItems.map((item) => item.id);
+  const destinationPayloadIds = destinationItems.map((item) => item.id);
+  const combinedPayloadIds = [...sourcePayloadIds, ...destinationPayloadIds];
+
+  if (new Set(combinedPayloadIds).size !== combinedPayloadIds.length) {
+    return {
+      error: "Danh sach sap xep khong hop le.",
+      sourceChecklist: null,
+      destinationChecklist: null,
+    };
+  }
+
+  if (sourcePayloadIds.includes(itemId) || !destinationPayloadIds.includes(itemId)) {
+    return {
+      error: "Muc cong viec di chuyen khong nam dung danh sach dich.",
+      sourceChecklist: null,
+      destinationChecklist: null,
+    };
+  }
+
+  const expectedSourceIds = sourceCurrentIds.filter((id) => id !== itemId);
+  const expectedDestinationIds = [...destinationCurrentIds, itemId];
+
+  if (
+    !idsMatch(expectedSourceIds, sourcePayloadIds) ||
+    !idsMatch(expectedDestinationIds, destinationPayloadIds)
+  ) {
+    return {
+      error: "Khong the di chuyen voi du lieu sap xep da cu.",
+      sourceChecklist: null,
+      destinationChecklist: null,
+    };
+  }
+
+  return {
+    error: null,
+    sourceChecklist,
+    destinationChecklist,
+  };
+};
