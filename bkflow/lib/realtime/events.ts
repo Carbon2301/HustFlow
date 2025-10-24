@@ -39,6 +39,11 @@ export const REALTIME_EVENTS = {
   CHECKLIST_ITEM_DUE_DATE_UPDATED: "checklist-item.due-date-updated",
   CHECKLIST_ITEM_REORDERED: "checklist-item.reordered",
   CHECKLIST_ITEM_MOVED: "checklist-item.moved",
+  LABEL_CREATED: "label.created",
+  LABEL_UPDATED: "label.updated",
+  LABEL_DELETED: "label.deleted",
+  CARD_LABEL_ATTACHED: "card-label.attached",
+  CARD_LABEL_DETACHED: "card-label.detached",
 } as const;
 
 export type RealtimeEventName =

@@ -1,5 +1,4 @@
 import { z } from "zod";
-import { CardLabel } from "@prisma/client";
 
 import { ActionState } from "@/lib/create-safe-action";
 import { ToggleCardLabel } from "./schema";

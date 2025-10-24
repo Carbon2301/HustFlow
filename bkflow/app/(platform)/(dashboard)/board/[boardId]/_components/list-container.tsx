@@ -36,6 +36,8 @@ import type {
   ChecklistItemReorderedPayload,
   ChecklistItemPayload,
   ChecklistPayload,
+  CardLabelPayload,
+  LabelPayload,
   ListCreatedPayload,
   ListDeletedPayload,
   ListReorderedPayload,
@@ -371,6 +373,26 @@ export const ListContainer = ({
     router.refresh();
   }, [boardId, cardModal.id, cardModal.isOpen, currentUserId, processBoardEvent, queryClient, router]);
 
+  const handleLabelSync = useCallback((
+    payload: LabelPayload | CardLabelPayload,
+  ) => {
+    if (payload.boardId !== boardId || !processBoardEvent(payload.eventId)) {
+      return;
+    }
+
+    if (payload.actorUserId === currentUserId) {
+      return;
+    }
+
+    if (cardModal.isOpen) {
+      if (!payload.cardId || cardModal.id === payload.cardId) {
+        queryClient.invalidateQueries({ queryKey: ["card", cardModal.id] });
+      }
+    }
+
+    router.refresh();
+  }, [boardId, cardModal.id, cardModal.isOpen, currentUserId, processBoardEvent, queryClient, router]);
+
   useRealtimeChannel({
     channelName,
     event: REALTIME_EVENTS.CARD_COMMENT_COUNT_UPDATED,
@@ -599,6 +621,41 @@ export const ListContainer = ({
     channelName,
     event: REALTIME_EVENTS.CHECKLIST_ITEM_MOVED,
     onEvent: handleChecklistSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.LABEL_CREATED,
+    onEvent: handleLabelSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.LABEL_UPDATED,
+    onEvent: handleLabelSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.LABEL_DELETED,
+    onEvent: handleLabelSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.CARD_LABEL_ATTACHED,
+    onEvent: handleLabelSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.CARD_LABEL_DETACHED,
+    onEvent: handleLabelSync,
     enabled,
   });
 

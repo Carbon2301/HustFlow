@@ -569,3 +569,118 @@ export const triggerChecklistItemMoved = async ({
     console.error("[BOARD_REALTIME_ERROR]", error);
   }
 };
+
+const labelInvalidations = (cardId?: string): RealtimeQueryInvalidation[] =>
+  cardId
+    ? [{
+        queryKey: ["card", cardId],
+      }]
+    : [];
+
+type LabelRealtimeInput = BoardRealtimeInput & {
+  labelId: string;
+  cardId?: string;
+  labelName?: string;
+  labelColor?: string;
+};
+
+const triggerLabelEvent = async ({
+  event,
+  timestampField,
+  boardId,
+  cardId,
+  labelId,
+  actorUserId,
+  labelName,
+  labelColor,
+}: LabelRealtimeInput & {
+  event:
+    | typeof REALTIME_EVENTS.LABEL_CREATED
+    | typeof REALTIME_EVENTS.LABEL_UPDATED
+    | typeof REALTIME_EVENTS.LABEL_DELETED;
+  timestampField: "createdAt" | "updatedAt" | "deletedAt";
+}) => {
+  try {
+    await triggerBoardEvent(event, boardId, {
+      eventId: randomUUID(),
+      boardId,
+      ...(cardId ? { cardId } : {}),
+      labelId,
+      actorUserId,
+      ...(labelName !== undefined ? { labelName } : {}),
+      ...(labelColor !== undefined ? { labelColor } : {}),
+      [timestampField]: new Date().toISOString(),
+      invalidate: labelInvalidations(cardId),
+    });
+  } catch (error) {
+    console.error("[BOARD_REALTIME_ERROR]", error);
+  }
+};
+
+const triggerCardLabelEvent = async ({
+  event,
+  timestampField,
+  boardId,
+  cardId,
+  labelId,
+  actorUserId,
+  labelName,
+  labelColor,
+}: LabelRealtimeInput & {
+  cardId: string;
+  event:
+    | typeof REALTIME_EVENTS.CARD_LABEL_ATTACHED
+    | typeof REALTIME_EVENTS.CARD_LABEL_DETACHED;
+  timestampField: "attachedAt" | "detachedAt";
+}) => {
+  try {
+    await triggerBoardEvent(event, boardId, {
+      eventId: randomUUID(),
+      boardId,
+      cardId,
+      labelId,
+      actorUserId,
+      ...(labelName !== undefined ? { labelName } : {}),
+      ...(labelColor !== undefined ? { labelColor } : {}),
+      [timestampField]: new Date().toISOString(),
+      invalidate: labelInvalidations(cardId),
+    });
+  } catch (error) {
+    console.error("[BOARD_REALTIME_ERROR]", error);
+  }
+};
+
+export const triggerLabelCreated = (input: LabelRealtimeInput) =>
+  triggerLabelEvent({
+    ...input,
+    event: REALTIME_EVENTS.LABEL_CREATED,
+    timestampField: "createdAt",
+  });
+
+export const triggerLabelUpdated = (input: LabelRealtimeInput) =>
+  triggerLabelEvent({
+    ...input,
+    event: REALTIME_EVENTS.LABEL_UPDATED,
+    timestampField: "updatedAt",
+  });
+
+export const triggerLabelDeleted = (input: LabelRealtimeInput) =>
+  triggerLabelEvent({
+    ...input,
+    event: REALTIME_EVENTS.LABEL_DELETED,
+    timestampField: "deletedAt",
+  });
+
+export const triggerCardLabelAttached = (input: LabelRealtimeInput & { cardId: string }) =>
+  triggerCardLabelEvent({
+    ...input,
+    event: REALTIME_EVENTS.CARD_LABEL_ATTACHED,
+    timestampField: "attachedAt",
+  });
+
+export const triggerCardLabelDetached = (input: LabelRealtimeInput & { cardId: string }) =>
+  triggerCardLabelEvent({
+    ...input,
+    event: REALTIME_EVENTS.CARD_LABEL_DETACHED,
+    timestampField: "detachedAt",
+  });

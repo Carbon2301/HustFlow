@@ -359,6 +359,33 @@ export type ChecklistItemMovedPayload = {
   invalidate: RealtimeQueryInvalidation[];
 };
 
+export type LabelPayload = {
+  eventId: string;
+  boardId: string;
+  cardId?: string;
+  labelId: string;
+  actorUserId: string;
+  labelName?: string;
+  labelColor?: string;
+  createdAt?: string;
+  updatedAt?: string;
+  deletedAt?: string;
+  invalidate: RealtimeQueryInvalidation[];
+};
+
+export type CardLabelPayload = {
+  eventId: string;
+  boardId: string;
+  cardId: string;
+  labelId: string;
+  actorUserId: string;
+  labelName?: string;
+  labelColor?: string;
+  attachedAt?: string;
+  detachedAt?: string;
+  invalidate: RealtimeQueryInvalidation[];
+};
+
 export type RealtimeEventPayloads = {
   "notification.created": NotificationCreatedPayload;
   "comment.created": CommentCreatedPayload;
@@ -398,4 +425,9 @@ export type RealtimeEventPayloads = {
   "checklist-item.due-date-updated": ChecklistItemPayload;
   "checklist-item.reordered": ChecklistItemReorderedPayload;
   "checklist-item.moved": ChecklistItemMovedPayload;
+  "label.created": LabelPayload;
+  "label.updated": LabelPayload;
+  "label.deleted": LabelPayload;
+  "card-label.attached": CardLabelPayload;
+  "card-label.detached": CardLabelPayload;
 };

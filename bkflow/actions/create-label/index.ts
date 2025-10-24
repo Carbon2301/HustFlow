@@ -6,6 +6,7 @@ import { revalidatePath } from "next/cache";
 import { db } from "@/lib/db";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { requireBoardMember } from "@/lib/permissions";
+import { triggerLabelCreated } from "@/lib/boards/realtime";
 
 import { CreateLabel } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -28,9 +29,33 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       return { error: permission.error };
     }
 
+    const card = await db.card.findFirst({
+      where: {
+        id: cardId,
+        list: {
+          board: {
+            id: boardId,
+            orgId,
+          },
+        },
+      },
+      select: {
+        id: true,
+        list: {
+          select: {
+            boardId: true,
+          },
+        },
+      },
+    });
+
+    if (!card) {
+      return { error: "KhÃ´ng tÃ¬m tháº¥y tháº»." };
+    }
+
     const label = await db.label.create({
       data: {
-        boardId,
+        boardId: card.list.boardId,
         title,
         color,
         cards: {
@@ -41,7 +66,16 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       },
     });
 
-    revalidatePath(`/board/${boardId}`);
+    await triggerLabelCreated({
+      boardId: card.list.boardId,
+      cardId: card.id,
+      labelId: label.id,
+      actorUserId: userId,
+      labelName: label.title,
+      labelColor: label.color,
+    });
+
+    revalidatePath(`/board/${card.list.boardId}`);
     return { data: label };
   } catch {
     return {

@@ -10,6 +10,7 @@ interface DueDateBadgeProps {
   dueDate: Date | string;
   isCompleted?: boolean;
   className?: string;
+  isCard?: boolean;
 }
 
 export const getDueDateStatus = (dueDate: Date | string) => {
@@ -32,6 +33,7 @@ export const DueDateBadge = ({
   dueDate,
   isCompleted = false,
   className,
+  isCard = false,
 }: DueDateBadgeProps) => {
   const status = getDueDateStatus(dueDate);
 
@@ -46,11 +48,17 @@ export const DueDateBadge = ({
     tooltipText = "Thẻ còn hạn";
   }
 
+  const isCurrentYear = new Date(dueDate).getFullYear() === new Date().getFullYear();
+  const formatStr = isCard 
+    ? (isCurrentYear ? "dd/MM HH:mm" : "dd/MM/yy HH:mm") 
+    : "dd/MM/yyyy HH:mm";
+
   return (
     <Hint description={tooltipText} side="bottom">
       <span
         className={cn(
-          "inline-flex h-7 max-w-full items-center gap-x-1.5 rounded-md border px-2.5 text-xs font-medium shadow-sm !cursor-pointer",
+          "inline-flex h-7 max-w-full items-center rounded-md border text-xs font-medium shadow-sm !cursor-pointer",
+          isCard ? "px-2 gap-x-1" : "px-2.5 gap-x-1.5",
           status === "normal" && "border-neutral-200 bg-white text-neutral-600",
           status === "warning" && "border-yellow-200 bg-yellow-50 text-yellow-700",
           status === "overdue" && "border-red-200 bg-red-50 text-red-700",
@@ -59,7 +67,7 @@ export const DueDateBadge = ({
         )}
       >
         <Clock className="h-3.5 w-3.5 shrink-0" />
-        <span className="truncate">{format(new Date(dueDate), "dd/MM/yyyy HH:mm")}</span>
+        <span className="truncate">{format(new Date(dueDate), formatStr)}</span>
       </span>
     </Hint>
   );
