@@ -194,7 +194,16 @@ export const Checklists = ({
   });
 
   const { execute: executeAssignItem } = useAction(assignChecklistItem, {
-    onSuccess: () => invalidateCard(true),
+    onSuccess: (data) => {
+      if (data.cardMemberAdded) {
+        toast.success("Đã giao thành viên vào checklist và tự động thêm vào thẻ.");
+      } else if (data.item.assigneeId) {
+        toast.success("Đã giao thành viên vào checklist.");
+      } else {
+        toast.success("Đã bỏ giao thành viên khỏi checklist.");
+      }
+      invalidateCard(true);
+    },
     onError: (error) => toast.error(error),
   });
 

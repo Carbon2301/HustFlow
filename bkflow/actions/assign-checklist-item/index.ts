@@ -1,15 +1,15 @@
 "use server";
 
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { ACTION, ENTITY_TYPE, NOTIFICATION_TYPE } from "@prisma/client";
+import { ACTION, ENTITY_TYPE, NOTIFICATION_TYPE, Notification } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
-import { createAuditLog } from "@/lib/create-audit-log";
-import { createNotification } from "@/lib/create-notification";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { getChecklistItemAccess } from "@/lib/checklist-access";
 import { triggerChecklistItemAssigneeUpdated } from "@/lib/boards/realtime";
+import { triggerCardMemberAssigned } from "@/lib/cards/realtime";
+import { triggerNotificationCreated } from "@/lib/notifications/realtime";
 
 import { AssignChecklistItem } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -41,6 +41,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     const list = card.list;
     const dedupeKey = `checklist-item-assigned:${id}`;
     const actorName = user.fullName || user.username || user.primaryEmailAddress?.emailAddress || "Thành viên";
+    const logUserName = user.fullName || `${user.firstName ?? ""} ${user.lastName ?? ""}`.trim() || "Thành viên";
     const nextAssignee = assigneeId
       ? await db.boardMember.findFirst({
           where: {
@@ -58,61 +59,168 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     }
 
     if ((access.item.assigneeId ?? null) === assigneeId) {
-      return { data: access.item };
+      return { data: { item: access.item, cardMemberAdded: false } };
     }
 
-    const item = await db.checklistItem.update({
-      where: {
-        id,
-      },
-      data: {
-        assigneeId,
-      },
-      include: {
-        assignee: true,
-      },
-    });
+    let cardMemberAdded = false;
+    let cardAssigneeAdded: any = null;
+    let item: any = null;
+    const createdNotifications: Notification[] = [];
 
-    let entityTitle = `detail:đã bỏ giao "${access.item.title}"`;
-    if (nextAssignee && access.item.assignee) {
-      entityTitle = `detail:đã đổi người phụ trách "${access.item.title}" từ ${access.item.assignee.userName} sang ${nextAssignee.userName}`;
-    } else if (nextAssignee) {
-      entityTitle = `detail:đã giao "${access.item.title}" cho ${nextAssignee.userName}`;
-    }
+    await db.$transaction(async (tx) => {
+      // 1. If assigneeId exists, check whether this user is already assigned to the parent card.
+      if (nextAssignee) {
+        const existingCardAssignee = await tx.cardAssignee.findUnique({
+          where: {
+            cardId_boardMemberId: {
+              cardId,
+              boardMemberId: nextAssignee.id,
+            },
+          },
+        });
 
-    await createAuditLog({
-      entityId: item.id,
-      entityTitle,
-      entityType: ENTITY_TYPE.CHECKLIST_ITEM,
-      action: ACTION.UPDATE,
-      cardId,
-    });
+        if (!existingCardAssignee) {
+          cardAssigneeAdded = await tx.cardAssignee.create({
+            data: {
+              cardId,
+              boardMemberId: nextAssignee.id,
+            },
+            include: {
+              boardMember: true,
+            },
+          });
+          cardMemberAdded = true;
 
-    await db.notification.deleteMany({
-      where: {
-        dedupeKey,
-        readAt: null,
-      },
-    });
+          // Create notification for card assignment inside the transaction
+          if (nextAssignee.userId !== userId) {
+            const notif = await tx.notification.create({
+              data: {
+                orgId,
+                recipientUserId: nextAssignee.userId,
+                actorUserId: userId,
+                actorName,
+                actorImage: user.imageUrl,
+                type: NOTIFICATION_TYPE.CARD_ASSIGNED,
+                title: "Bạn được giao một thẻ",
+                message: `Bạn đã được tự động thêm vào thẻ "${card.title}" do được giao việc cần làm.`,
+                boardId: list.boardId,
+                boardTitle: list.board.title,
+                cardId: card.id,
+                cardTitle: card.title,
+                listTitle: list.title,
+              },
+            });
+            createdNotifications.push(notif);
+          }
 
-    if (nextAssignee) {
-      await createNotification({
-        orgId,
-        recipientUserId: nextAssignee.userId,
-        actor: {
-          userId,
-          name: actorName,
-          image: user.imageUrl,
+          // Create audit log for card auto-add inside the transaction
+          await tx.auditLog.create({
+            data: {
+              orgId,
+              cardId,
+              entityId: card.id,
+              entityType: ENTITY_TYPE.CARD,
+              entityTitle: `detail:đã tự động thêm ${nextAssignee.userName} vào thẻ "${card.title}"`,
+              action: ACTION.UPDATE,
+              userId: user.id,
+              userImage: user.imageUrl,
+              userName: logUserName,
+            },
+          });
+        }
+      }
+
+      // 2. Update checklist item
+      item = await tx.checklistItem.update({
+        where: {
+          id,
         },
-        type: NOTIFICATION_TYPE.CHECKLIST_ITEM_ASSIGNED,
-        title: "Bạn được giao một việc cần làm",
-        message: `${actorName} đã giao mục "${access.item.title}" trong thẻ "${card.title}" cho bạn.`,
-        boardId: list.boardId,
-        boardTitle: list.board.title,
+        data: {
+          assigneeId,
+        },
+        include: {
+          assignee: true,
+        },
+      });
+
+      // 3. Create audit log for checklist item assignment
+      let entityTitle = `detail:đã bỏ giao "${access.item.title}"`;
+      if (nextAssignee && access.item.assignee) {
+        entityTitle = `detail:đã đổi người phụ trách "${access.item.title}" từ ${access.item.assignee.userName} sang ${nextAssignee.userName}`;
+      } else if (nextAssignee) {
+        entityTitle = `detail:đã giao ${nextAssignee.userName} vào checklist "${access.item.title}"`;
+      }
+
+      await tx.auditLog.create({
+        data: {
+          orgId,
+          cardId,
+          entityId: item.id,
+          entityType: ENTITY_TYPE.CHECKLIST_ITEM,
+          entityTitle,
+          action: ACTION.UPDATE,
+          userId: user.id,
+          userImage: user.imageUrl,
+          userName: logUserName,
+        },
+      });
+
+      // 4. Handle notification for checklist item assignment
+      await tx.notification.deleteMany({
+        where: {
+          dedupeKey,
+          readAt: null,
+        },
+      });
+
+      if (nextAssignee && nextAssignee.userId !== userId) {
+        // Check dedupeKey inside transaction
+        const existingUnreadNotification = await tx.notification.findFirst({
+          where: {
+            dedupeKey,
+            readAt: null,
+          },
+          select: {
+            id: true,
+          },
+        });
+
+        if (!existingUnreadNotification) {
+          const notif = await tx.notification.create({
+            data: {
+              orgId,
+              recipientUserId: nextAssignee.userId,
+              actorUserId: userId,
+              actorName,
+              actorImage: user.imageUrl,
+              type: NOTIFICATION_TYPE.CHECKLIST_ITEM_ASSIGNED,
+              title: "Bạn được giao một việc cần làm",
+              message: `${actorName} đã giao mục "${access.item.title}" trong thẻ "${card.title}" cho bạn.`,
+              boardId: list.boardId,
+              boardTitle: list.board.title,
+              cardId: card.id,
+              cardTitle: card.title,
+              listTitle: list.title,
+              dedupeKey,
+            },
+          });
+          createdNotifications.push(notif);
+        }
+      }
+    });
+
+    // 5. Trigger notifications realtime event AFTER transaction succeeds
+    for (const notif of createdNotifications) {
+      await triggerNotificationCreated(notif);
+    }
+
+    // 6. Trigger other realtime events after transaction succeeds
+    if (cardAssigneeAdded) {
+      await triggerCardMemberAssigned({
+        boardId,
         cardId: card.id,
-        cardTitle: card.title,
-        listTitle: list.title,
-        dedupeKey,
+        actorUserId: userId,
+        assignee: cardAssigneeAdded,
       });
     }
 
@@ -127,7 +235,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     });
 
     revalidatePath(`/board/${boardId}`);
-    return { data: item };
+    return { data: { item, cardMemberAdded } };
   } catch (error) {
     console.error("[ASSIGN_CHECKLIST_ITEM_ERROR]", error);
     return { error: "Cập nhật người phụ trách thất bại." };
