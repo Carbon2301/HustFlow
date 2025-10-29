@@ -578,21 +578,17 @@ export const Comments = ({
               </Popover>
             </div>
 
-            {!isReply && (
-              <>
-                <span>•</span>
-                <button
-                  type="button"
-                  onClick={() => {
-                    setEditingCommentId(null);
-                    setReplyingCommentId(comment.id);
-                  }}
-                  className="underline-offset-2 hover:underline"
-                >
-                  Trả lời
-                </button>
-              </>
-            )}
+            <span>•</span>
+            <button
+              type="button"
+              onClick={() => {
+                setEditingCommentId(null);
+                setReplyingCommentId(comment.id);
+              }}
+              className="underline-offset-2 hover:underline"
+            >
+              Trả lời
+            </button>
 
             {isOwner && (
               <>
@@ -651,14 +647,17 @@ export const Comments = ({
             </Popover>
           </div>
 
-          {isReplying && !isReply && (
+          {isReplying && (
             <CommentForm
               placeholder="Viết phản hồi..."
               initialValue={`${getMention(comment.userName)} `}
               submitLabel="Trả lời"
               isLoading={isCreating}
               onSubmit={(content) => {
-                onCreateComment(content, comment.id);
+                const actualParentId = isReply
+                  ? (comment as CardCommentWithReplies["replies"][number]).parentId
+                  : comment.id;
+                onCreateComment(content, actualParentId);
                 setReplyingCommentId(null);
               }}
               onCancel={() => setReplyingCommentId(null)}
