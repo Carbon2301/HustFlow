@@ -17,6 +17,7 @@ import { Activity } from "./activity";
 import { Comments } from "./comments";
 import { CardRealtimeSync } from "./card-realtime-sync";
 import { Checklists } from "./checklists";
+import { Attachments } from "./attachments";
 
 export const CardModal = () => {
   const id = useCardModal((state) => state.id);
@@ -86,6 +87,11 @@ export const CardModal = () => {
               : (
                   <>
                     <Description data={cardData} />
+                    <Attachments
+                      cardId={cardData.id}
+                      boardId={cardData.list.boardId}
+                      items={cardData.attachments ?? []}
+                    />
                     <Checklists
                       cardId={cardData.id}
                       boardId={cardData.list.boardId}

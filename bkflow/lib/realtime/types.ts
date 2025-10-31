@@ -1,4 +1,4 @@
-import type { BoardMemberRole, NOTIFICATION_TYPE } from "@prisma/client";
+import type { AttachmentType, BoardMemberRole, NOTIFICATION_TYPE } from "@prisma/client";
 
 export type RealtimeActor = {
   userId: string;
@@ -198,6 +198,34 @@ export type CardDeletedPayload = {
   cardId: string;
   actorUserId: string;
   deletedAt: string;
+};
+
+export type AttachmentPayload = {
+  eventId: string;
+  boardId: string;
+  cardId: string;
+  attachmentId: string;
+  attachmentType: AttachmentType;
+  actorUserId: string;
+  timestamp: string;
+  createdAt?: string;
+  updatedAt?: string;
+  deletedAt?: string;
+  invalidate: RealtimeQueryInvalidation[];
+};
+
+export type AttachmentCreatedPayload = AttachmentPayload;
+export type AttachmentUpdatedPayload = AttachmentPayload;
+export type AttachmentDeletedPayload = AttachmentPayload;
+
+export type AttachmentReorderedPayload = {
+  eventId: string;
+  boardId: string;
+  cardId: string;
+  attachmentType: AttachmentType;
+  actorUserId: string;
+  timestamp: string;
+  invalidate: RealtimeQueryInvalidation[];
 };
 
 export type MemberUpdatedPayload = {
@@ -403,6 +431,10 @@ export type RealtimeEventPayloads = {
   "card.moved": CardMovedPayload;
   "card.created": CardCreatedPayload;
   "card.deleted": CardDeletedPayload;
+  "attachment.created": AttachmentCreatedPayload;
+  "attachment.updated": AttachmentUpdatedPayload;
+  "attachment.deleted": AttachmentDeletedPayload;
+  "attachment.reordered": AttachmentReorderedPayload;
   "member.updated": MemberUpdatedPayload;
   "board.updated": BoardUpdatedPayload;
   "board.deleted": BoardDeletedPayload;

@@ -3,7 +3,6 @@
 import { useState } from "react";
 import { BoardMember } from "@prisma/client";
 import type { DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
-import { GripVertical } from "lucide-react";
 
 import { Input } from "@/components/ui/input";
 import { cn } from "@/lib/utils";
@@ -19,6 +18,7 @@ interface ChecklistItemProps {
   isMutating: boolean;
   isTogglePending: boolean;
   dragHandleProps: DraggableProvidedDragHandleProps | null | undefined;
+  isDragging?: boolean;
   onAssign: (itemId: string, assigneeId: string | null) => void;
   onDelete: (itemId: string) => void;
   onRename: (itemId: string, title: string) => void;
@@ -32,6 +32,7 @@ export const ChecklistItem = ({
   isMutating,
   isTogglePending,
   dragHandleProps,
+  isDragging = false,
   onAssign,
   onDelete,
   onRename,
@@ -61,14 +62,6 @@ export const ChecklistItem = ({
   return (
     <div className="group flex w-full items-start justify-between gap-x-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-neutral-50">
       <div className="flex min-w-0 flex-1 items-start gap-x-2.5">
-        <button
-          type="button"
-          {...dragHandleProps}
-          className="mt-1 rounded p-0.5 text-neutral-300 transition hover:bg-neutral-100 hover:text-neutral-500 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
-          aria-label="Kéo để sắp xếp mục công việc"
-        >
-          <GripVertical className="h-4 w-4" />
-        </button>
         <input
           type="checkbox"
           checked={item.isCompleted}
@@ -99,19 +92,31 @@ export const ChecklistItem = ({
               aria-label="Đổi tên mục công việc"
             />
           ) : (
-            <button
-              type="button"
+            <div
+              role="button"
+              tabIndex={0}
+              {...dragHandleProps}
+              style={{
+                cursor: isDragging ? "grabbing" : "pointer",
+              }}
               onClick={() => {
                 setTitle(item.title);
                 setIsEditing(true);
               }}
+              onKeyDown={(e) => {
+                if (e.key === "Enter" || e.key === " ") {
+                  e.preventDefault();
+                  setTitle(item.title);
+                  setIsEditing(true);
+                }
+              }}
               className={cn(
-                "block w-full rounded px-1 py-0.5 text-left text-sm leading-relaxed text-neutral-700 break-words focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300",
+                "block w-full rounded px-1 py-0.5 text-left text-sm leading-relaxed text-neutral-700 break-words focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 select-none",
                 item.isCompleted && "text-neutral-400 line-through",
               )}
             >
               {item.title}
-            </button>
+            </div>
           )}
           {item.dueDate && (
             <div className="mt-1 flex">

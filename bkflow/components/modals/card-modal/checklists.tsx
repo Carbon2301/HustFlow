@@ -497,6 +497,7 @@ export const Checklists = ({
                                 item={item}
                                 boardMembers={boardMembers}
                                 dragHandleProps={provided.dragHandleProps}
+                                isDragging={snapshot.isDragging}
                                 isMutating={pendingItemIds.has(item.id)}
                                 isTogglePending={pendingToggleItemIds.has(item.id)}
                                 onAssign={handleAssignItem}

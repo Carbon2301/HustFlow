@@ -46,6 +46,19 @@ export async function GET(
             createdAt: "asc",
           },
         },
+        attachments: {
+          orderBy: [
+            {
+              type: "asc",
+            },
+            {
+              order: "asc",
+            },
+            {
+              createdAt: "desc",
+            },
+          ],
+        },
         checklists: {
           include: {
             items: {

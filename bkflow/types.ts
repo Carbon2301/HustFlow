@@ -1,4 +1,4 @@
-import { BoardMember, Card, List, Prisma, Label, CardLabel, Checklist, ChecklistItem } from "@prisma/client";
+import { BoardMember, Card, CardAttachment, List, Prisma, Label, CardLabel, Checklist, ChecklistItem } from "@prisma/client";
 
 export type ChecklistItemWithAssignee = ChecklistItem & {
   assignee: BoardMember | null;
@@ -25,6 +25,7 @@ export type ListWithCards = List & { cards: CardWithAssignees[] };
 
 export type CardWithList = Card & {
   list: List;
+  attachments: CardAttachment[];
   assignees: Prisma.CardAssigneeGetPayload<{
     include: {
       boardMember: true;

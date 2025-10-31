@@ -23,23 +23,23 @@ model Board {
   imageUserName String @db.Text
   imageLinkHTML String @db.Text
 
-  lists         List[]
-  members       BoardMember[]
-  labels        Label[]
+  lists   List[]
+  members BoardMember[]
+  labels  Label[]
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model List {
-  id        String @id @default(uuid())
-  title     String
-  order     Int
+  id    String @id @default(uuid())
+  title String
+  order Int
 
-  boardId   String
-  board     Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  boardId String
+  board   Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
 
-  cards     Card[]
+  cards Card[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -48,41 +48,67 @@ model List {
 }
 
 model Card {
-  id          String @id @default(uuid())
-  title       String
-  order       Int
-  description String? @db.Text
-  dueDate     DateTime?
-  isCompleted Boolean @default(false)
-  reminder    String?
+  id            String    @id @default(uuid())
+  title         String
+  order         Int
+  description   String?   @db.Text
+  dueDate       DateTime?
+  isCompleted   Boolean   @default(false)
+  reminder      String?
   reminderSetAt DateTime?
 
   listId      String
-  list        List  @relation(fields: [listId], references: [id], onDelete: Cascade)
+  list        List             @relation(fields: [listId], references: [id], onDelete: Cascade)
   assignees   CardAssignee[]
   comments    CardComment[]
   labels      CardLabel[]
   checklists  Checklist[]
+  attachments CardAttachment[]
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([listId])
 }
 
+model CardAttachment {
+  id String @id @default(uuid())
+
+  cardId String
+  card   Card   @relation(fields: [cardId], references: [id], onDelete: Cascade)
+
+  type     AttachmentType
+  order    Int            @default(0)
+  name     String
+  url      String         @db.Text
+  fileKey  String?
+  fileSize Int?
+  mimeType String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@index([cardId])
+}
+
+enum AttachmentType {
+  LINK
+  FILE
+}
+
 model CardComment {
-  id        String @id @default(uuid())
-  cardId    String
-  card      Card   @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  id     String @id @default(uuid())
+  cardId String
+  card   Card   @relation(fields: [cardId], references: [id], onDelete: Cascade)
 
   userId    String
   userName  String @db.Text
   userImage String @db.Text
   content   String @db.Text
 
-  parentId  String?
-  parent    CardComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
-  replies   CardComment[] @relation("CommentReplies")
+  parentId String?
+  parent   CardComment?  @relation("CommentReplies", fields: [parentId], references: [id], onDelete: Cascade)
+  replies  CardComment[] @relation("CommentReplies")
 
   reactions CardCommentReaction[]
 
@@ -99,8 +125,8 @@ model CardCommentReaction {
   commentId String
   comment   CardComment @relation(fields: [commentId], references: [id], onDelete: Cascade)
 
-  userId    String
-  emoji     String
+  userId String
+  emoji  String
 
   createdAt DateTime @default(now())
 
@@ -119,32 +145,32 @@ enum NOTIFICATION_TYPE {
 }
 
 model Notification {
-  id              String            @id @default(uuid())
+  id              String @id @default(uuid())
   orgId           String
   recipientUserId String
 
-  actorUserId     String?
-  actorName       String?           @db.Text
-  actorImage      String?           @db.Text
+  actorUserId String?
+  actorName   String? @db.Text
+  actorImage  String? @db.Text
 
-  type            NOTIFICATION_TYPE
-  title           String
-  message         String            @db.Text
+  type    NOTIFICATION_TYPE
+  title   String
+  message String            @db.Text
 
-  boardId         String?
-  boardTitle      String?           @db.Text
-  cardId          String?
-  cardTitle       String?           @db.Text
-  listTitle       String?           @db.Text
-  commentId       String?
-  dueDate         DateTime?
-  triggerTime     DateTime?
-  reminderLabel   String?
-  dedupeKey       String?
+  boardId       String?
+  boardTitle    String?   @db.Text
+  cardId        String?
+  cardTitle     String?   @db.Text
+  listTitle     String?   @db.Text
+  commentId     String?
+  dueDate       DateTime?
+  triggerTime   DateTime?
+  reminderLabel String?
+  dedupeKey     String?
 
-  readAt          DateTime?
-  createdAt       DateTime          @default(now())
-  updatedAt       DateTime          @updatedAt
+  readAt    DateTime?
+  createdAt DateTime  @default(now())
+  updatedAt DateTime  @updatedAt
 
   @@index([recipientUserId, orgId, readAt, createdAt])
   @@index([orgId])
@@ -156,17 +182,17 @@ model Notification {
 }
 
 model BoardMember {
-  id        String @id @default(uuid())
-  boardId   String
-  board     Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  id      String @id @default(uuid())
+  boardId String
+  board   Board  @relation(fields: [boardId], references: [id], onDelete: Cascade)
 
   userId    String
-  userName  String @db.Text
-  userImage String @db.Text
-  userEmail String? @db.Text
+  userName  String          @db.Text
+  userImage String          @db.Text
+  userEmail String?         @db.Text
   role      BoardMemberRole @default(MEMBER)
 
-  assignees CardAssignee[]
+  assignees      CardAssignee[]
   checklistItems ChecklistItem[]
 
   createdAt DateTime @default(now())
@@ -189,8 +215,8 @@ model CardAssignee {
   boardMemberId String
   boardMember   BoardMember @relation(fields: [boardMemberId], references: [id], onDelete: Cascade)
 
-  createdAt     DateTime @default(now())
-  updatedAt     DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@unique([cardId, boardMemberId])
   @@index([cardId])
@@ -212,7 +238,7 @@ enum ENTITY_TYPE {
 }
 
 model AuditLog {
-  id          String  @id @default(uuid())
+  id          String      @id @default(uuid())
   orgId       String
   cardId      String?
   action      ACTION
@@ -220,41 +246,41 @@ model AuditLog {
   entityType  ENTITY_TYPE
   entityTitle String
   userId      String
-  userImage   String @db.Text
-  userName    String @db.Text
+  userImage   String      @db.Text
+  userName    String      @db.Text
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([cardId])
 }
 
 model OrgLimit {
-  id          String @id @default(uuid())
-  orgId       String @unique
-  count       Int @default(0)
+  id    String @id @default(uuid())
+  orgId String @unique
+  count Int    @default(0)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime  @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
 
 model OrgSubscription {
-  id                String @id @default(uuid())
-  orgId             String @unique
+  id    String @id @default(uuid())
+  orgId String @unique
 
-  stripeCustomerId  String? @unique @map(name: "stripe_customer_id")
-  stripeSubscriptionId String? @unique @map(name: "stripe_subscription_id")
-  stripePriceId        String? @map(name: "stripe_price_id")
+  stripeCustomerId       String?   @unique @map(name: "stripe_customer_id")
+  stripeSubscriptionId   String?   @unique @map(name: "stripe_subscription_id")
+  stripePriceId          String?   @map(name: "stripe_price_id")
   stripeCurrentPeriodEnd DateTime? @map(name: "stripe_current_period_end")
 }
 
 model Label {
-  id        String @id @default(uuid())
-  boardId   String
-  board     Board @relation(fields: [boardId], references: [id], onDelete: Cascade)
-  title     String
-  color     String
-  cards     CardLabel[]
+  id      String      @id @default(uuid())
+  boardId String
+  board   Board       @relation(fields: [boardId], references: [id], onDelete: Cascade)
+  title   String
+  color   String
+  cards   CardLabel[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -263,11 +289,11 @@ model Label {
 }
 
 model CardLabel {
-  id        String @id @default(uuid())
-  cardId    String
-  card      Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  labelId   String
-  label     Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
+  id      String @id @default(uuid())
+  cardId  String
+  card    Card   @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  labelId String
+  label   Label  @relation(fields: [labelId], references: [id], onDelete: Cascade)
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -278,12 +304,12 @@ model CardLabel {
 }
 
 model Checklist {
-  id        String @id @default(uuid())
-  cardId    String
-  card      Card @relation(fields: [cardId], references: [id], onDelete: Cascade)
-  title     String
-  order     Int @default(0)
-  items     ChecklistItem[]
+  id     String          @id @default(uuid())
+  cardId String
+  card   Card            @relation(fields: [cardId], references: [id], onDelete: Cascade)
+  title  String
+  order  Int             @default(0)
+  items  ChecklistItem[]
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -292,18 +318,18 @@ model Checklist {
 }
 
 model ChecklistItem {
-  id          String @id @default(uuid())
+  id          String       @id @default(uuid())
   checklistId String
-  checklist   Checklist @relation(fields: [checklistId], references: [id], onDelete: Cascade)
+  checklist   Checklist    @relation(fields: [checklistId], references: [id], onDelete: Cascade)
   title       String
-  isCompleted Boolean @default(false)
+  isCompleted Boolean      @default(false)
   order       Int
   dueDate     DateTime?
   assigneeId  String?
   assignee    BoardMember? @relation(fields: [assigneeId], references: [id], onDelete: SetNull)
 
-  createdAt   DateTime @default(now())
-  updatedAt   DateTime @updatedAt
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 
   @@index([checklistId])
   @@index([assigneeId])

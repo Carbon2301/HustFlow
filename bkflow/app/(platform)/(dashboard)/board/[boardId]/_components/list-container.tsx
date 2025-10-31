@@ -37,6 +37,7 @@ import type {
   ChecklistItemPayload,
   ChecklistPayload,
   CardLabelPayload,
+  AttachmentReorderedPayload,
   LabelPayload,
   ListCreatedPayload,
   ListDeletedPayload,
@@ -393,6 +394,20 @@ export const ListContainer = ({
     router.refresh();
   }, [boardId, cardModal.id, cardModal.isOpen, currentUserId, processBoardEvent, queryClient, router]);
 
+  const handleAttachmentReordered = useCallback((payload: AttachmentReorderedPayload) => {
+    if (payload.boardId !== boardId || !processBoardEvent(payload.eventId)) {
+      return;
+    }
+
+    if (payload.actorUserId === currentUserId) {
+      return;
+    }
+
+    if (cardModal.isOpen && cardModal.id === payload.cardId) {
+      queryClient.invalidateQueries({ queryKey: ["card", payload.cardId] });
+    }
+  }, [boardId, cardModal.id, cardModal.isOpen, currentUserId, processBoardEvent, queryClient]);
+
   useRealtimeChannel({
     channelName,
     event: REALTIME_EVENTS.CARD_COMMENT_COUNT_UPDATED,
@@ -656,6 +671,13 @@ export const ListContainer = ({
     channelName,
     event: REALTIME_EVENTS.CARD_LABEL_DETACHED,
     onEvent: handleLabelSync,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.ATTACHMENT_REORDERED,
+    onEvent: handleAttachmentReordered,
     enabled,
   });
 

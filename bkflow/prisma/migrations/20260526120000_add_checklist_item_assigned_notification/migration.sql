@@ -1,0 +1,2 @@
+-- This migration directory was present without a migration.sql file.
+-- Keep it as a no-op so Prisma can read the full migration history.

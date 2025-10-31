@@ -20,6 +20,9 @@ import type {
   CardMemberUnassignedPayload,
   CardDeletedPayload,
   CardUpdatedPayload,
+  AttachmentCreatedPayload,
+  AttachmentDeletedPayload,
+  AttachmentUpdatedPayload,
   ReactionCreatedPayload,
   ReactionDeletedPayload,
   ReactionUpdatedPayload,
@@ -35,7 +38,10 @@ type CardCommentRealtimePayload =
   | ReactionDeletedPayload
   | CardUpdatedPayload
   | CardMemberAssignedPayload
-  | CardMemberUnassignedPayload;
+  | CardMemberUnassignedPayload
+  | AttachmentCreatedPayload
+  | AttachmentUpdatedPayload
+  | AttachmentDeletedPayload;
 
 export const CardRealtimeSync = ({
   cardId,
@@ -158,6 +164,27 @@ export const CardRealtimeSync = ({
   useRealtimeChannel({
     channelName,
     event: REALTIME_EVENTS.CARD_MEMBER_UNASSIGNED,
+    onEvent: handleRealtimeEvent,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.ATTACHMENT_CREATED,
+    onEvent: handleRealtimeEvent,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.ATTACHMENT_UPDATED,
+    onEvent: handleRealtimeEvent,
+    enabled,
+  });
+
+  useRealtimeChannel({
+    channelName,
+    event: REALTIME_EVENTS.ATTACHMENT_DELETED,
     onEvent: handleRealtimeEvent,
     enabled,
   });
