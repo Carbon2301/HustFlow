@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 import { useState, useEffect } from "react";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { 
   Plus, 
@@ -27,6 +27,11 @@ import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getDueDateStatus } from "@/components/due-date-badge";
 import {
+  formatDateTimeLocalInput,
+  getDateTimezoneOffset,
+  parseDateTimeLocalInput,
+} from "@/lib/date-utils";
+import {
   Avatar,
   AvatarFallback,
   AvatarImage,
@@ -45,15 +50,6 @@ interface MetadataProps {
   data: CardWithList;
 }
 
-const toDateTimeLocalValue = (date?: Date | string | null) => {
-  if (!date) {
-    return "";
-  }
-  const parsedDate = new Date(date);
-  const timezoneOffset = parsedDate.getTimezoneOffset() * 60_000;
-  return new Date(parsedDate.getTime() - timezoneOffset).toISOString().slice(0, 16);
-};
-
 const getInitials = (name: string) => {
   const words = name.trim().split(/\s+/).filter(Boolean);
   const initials = words.slice(0, 2).map((word) => word[0]).join("");
@@ -65,19 +61,22 @@ export const Metadata = ({
 }: MetadataProps) => {
   const params = useParams();
   const boardId = params.boardId as string;
+  const router = useRouter();
   const queryClient = useQueryClient();
 
   const [searchQuery, setSearchQuery] = useState("");
-  const [dueDateValue, setDueDateValue] = useState(toDateTimeLocalValue(data.dueDate));
+  const [startDateValue, setStartDateValue] = useState(formatDateTimeLocalInput(data.startDate));
+  const [dueDateValue, setDueDateValue] = useState(formatDateTimeLocalInput(data.dueDate));
   const [reminderValue, setReminderValue] = useState(data.reminder || "none");
 
   const [isDateOpen, setIsDateOpen] = useState(false);
   const [isMemberOpen, setIsMemberOpen] = useState(false);
 
   useEffect(() => {
-    setDueDateValue(toDateTimeLocalValue(data.dueDate));
+    setStartDateValue(formatDateTimeLocalInput(data.startDate));
+    setDueDateValue(formatDateTimeLocalInput(data.dueDate));
     setReminderValue(data.reminder || "none");
-  }, [data.dueDate, data.reminder]);
+  }, [data.startDate, data.dueDate, data.reminder]);
 
   const { execute: executeUpdateCard, isLoading: isLoadingUpdate } = useAction(updateCard, {
     onSuccess: (updatedCard) => {
@@ -87,6 +86,7 @@ export const Metadata = ({
       queryClient.invalidateQueries({
         queryKey: ["card-logs", updatedCard.id],
       });
+      router.refresh();
       
       if (updatedCard.isCompleted !== data.isCompleted) {
         toast.success(
@@ -95,7 +95,7 @@ export const Metadata = ({
             : "Đã bỏ đánh dấu hoàn thành thẻ"
         );
       } else {
-        toast.success("Đã cập nhật ngày đến hạn");
+        toast.success("Đã cập nhật lịch biểu");
       }
       setIsDateOpen(false);
     },
@@ -134,32 +134,123 @@ export const Metadata = ({
     },
   });
 
-  const updateDueDate = (dueDate: Date | null, isCompleted = data.isCompleted, reminder = reminderValue) => {
+  const updateDateRange = ({
+    startDate,
+    dueDate,
+    isCompleted,
+    reminder,
+  }: {
+    startDate?: Date | null;
+    dueDate?: Date | null;
+    isCompleted?: boolean;
+    reminder?: string | null;
+  }) => {
     const boardId = params.boardId as string;
+
+    if (
+      startDate === undefined &&
+      dueDate === undefined &&
+      (isCompleted === undefined || isCompleted === data.isCompleted) &&
+      (reminder === undefined || reminder === (data.reminder || "none"))
+    ) {
+      return;
+    }
+
+    const nextIsCompleted = dueDate === undefined
+      ? isCompleted
+      : (dueDate ? (isCompleted ?? data.isCompleted) : false);
+    const nextReminder = dueDate === undefined
+      ? reminder
+      : (dueDate ? (reminder ?? reminderValue) : null);
+
     executeUpdateCard({
       id: data.id,
       boardId,
-      dueDate,
-      isCompleted,
-      reminder: dueDate ? reminder : null,
+      ...(startDate !== undefined ? { startDate } : {}),
+      ...(dueDate !== undefined ? { dueDate } : {}),
+      dueDateTimezoneOffset: dueDate
+        ? getDateTimezoneOffset(dueDate)
+        : startDate
+          ? getDateTimezoneOffset(startDate)
+          : undefined,
+      ...(nextIsCompleted !== undefined ? { isCompleted: nextIsCompleted } : {}),
+      ...(nextReminder !== undefined ? { reminder: nextReminder } : {}),
     });
+  };
+
+  const updateDueDate = (
+    dueDate: Date | null,
+    isCompleted = data.isCompleted,
+    reminder = reminderValue,
+  ) => {
+    updateDateRange({ dueDate, isCompleted, reminder });
+  };
+
+  const updateStartDate = (startDate: Date | null) => {
+    if (
+      (startDate === null && !data.startDate) ||
+      (startDate && data.startDate && startDate.getTime() === new Date(data.startDate).getTime())
+    ) {
+      return;
+    }
+
+    updateDateRange({ startDate });
   };
 
   const onDateSubmit = (event: React.FormEvent<HTMLFormElement>) => {
     event.preventDefault();
     const formData = new FormData(event.currentTarget);
+    const startValue = formData.get("startDate") as string;
     const value = formData.get("dueDate") as string;
     const reminder = formData.get("reminder") as string;
 
-    if (!value) {
-      updateDueDate(null);
+    const parsedStartDate = startValue
+      ? parseDateTimeLocalInput(startValue)
+      : null;
+    const parsedDueDate = value
+      ? parseDateTimeLocalInput(value)
+      : null;
+
+    const normReminder = reminder === "none" || !reminder ? "none" : reminder;
+    const normOldReminder = data.reminder === "none" || !data.reminder ? "none" : data.reminder;
+
+    const startDateChanged = (parsedStartDate?.getTime() ?? null) !== (data.startDate ? new Date(data.startDate).getTime() : null);
+    const dueDateChanged = (parsedDueDate?.getTime() ?? null) !== (data.dueDate ? new Date(data.dueDate).getTime() : null);
+    const reminderChanged = normReminder !== normOldReminder;
+
+    if (!startDateChanged && !dueDateChanged && !reminderChanged) {
+      setIsDateOpen(false);
       return;
     }
 
-    if (reminder && reminder !== "none") {
+    if (startValue && !parsedStartDate) {
+      toast.error("Ngày bắt đầu không hợp lệ.");
+      return;
+    }
+
+    if (value && !parsedDueDate) {
+      toast.error("Ngày hết hạn không hợp lệ.");
+      return;
+    }
+
+    if (
+      parsedStartDate &&
+      parsedDueDate &&
+      parsedStartDate.getTime() > parsedDueDate.getTime()
+    ) {
+      toast.error("Ngày bắt đầu phải trước hoặc bằng ngày hết hạn.");
+      return;
+    }
+
+    if (!parsedDueDate && reminder && reminder !== "none") {
+      toast.error("Vui lòng đặt ngày hết hạn trước khi thiết lập nhắc nhở.");
+      return;
+    }
+
+    if (parsedDueDate && reminder && reminder !== "none") {
       const offsetMinutes = parseInt(reminder, 10);
-      if (!isNaN(offsetMinutes)) {
-        const dueDateTime = new Date(value).getTime();
+      if (!Number.isNaN(offsetMinutes)) {
+        const dueDateTime = parsedDueDate.getTime();
         const triggerTime = dueDateTime - offsetMinutes * 60 * 1000;
         const now = Date.now();
 
@@ -182,7 +273,12 @@ export const Metadata = ({
       }
     }
 
-    updateDueDate(new Date(value), data.isCompleted, reminder);
+    updateDateRange({
+      startDate: parsedStartDate,
+      dueDate: parsedDueDate,
+      isCompleted: data.isCompleted,
+      reminder,
+    });
   };
 
   const onToggleComplete = (event: React.ChangeEvent<HTMLInputElement>) => {
@@ -220,14 +316,26 @@ export const Metadata = ({
   });
 
   const hasAssignees = data.assignees && data.assignees.length > 0;
+  const hasStartDate = !!data.startDate;
   const hasDueDate = !!data.dueDate;
+  const hasDateRange = hasStartDate || hasDueDate;
   const hasLabels = data.labels && data.labels.length > 0;
+  const canSetReminder = !!dueDateValue;
 
-  // Format dynamic badge for due date
   const status = data.dueDate ? getDueDateStatus(data.dueDate) : "normal";
   const formattedDate = data.dueDate 
     ? format(new Date(data.dueDate), "H:mm d 'thg' M", { locale: vi }) 
     : "";
+  const formattedStartDate = data.startDate
+    ? format(new Date(data.startDate), "H:mm d 'thg' M", { locale: vi })
+    : "";
+  const dateSummary = hasStartDate && hasDueDate
+    ? `Bắt đầu ${formattedStartDate} - Hết hạn ${formattedDate}`
+    : hasStartDate
+      ? `Bắt đầu ${formattedStartDate}`
+      : hasDueDate
+        ? `Hết hạn ${formattedDate}`
+        : "";
 
   const showActionButtonRow = true;
 
@@ -236,8 +344,8 @@ export const Metadata = ({
       {/* 1. Action Button Row */}
       {showActionButtonRow && (
         <div className="flex flex-wrap items-center gap-2 mt-1">
-          {/* Ngày Button (Only shown when no due date is set) */}
-          {!hasDueDate && (
+          {/* Ngày Button (Only shown when no schedule is set) */}
+          {!hasDateRange && (
             <Popover open={isDateOpen} onOpenChange={setIsDateOpen}>
               <PopoverTrigger asChild>
                 <button
@@ -250,7 +358,7 @@ export const Metadata = ({
               </PopoverTrigger>
               <PopoverContent align="start" className="w-[300px] p-3 rounded-xl border border-neutral-200 shadow-xl bg-white z-[9999]" sideOffset={6}>
                 <div className="relative pb-2.5 mb-3 border-b border-neutral-100 flex items-center justify-between">
-                  <span className="text-sm font-semibold text-neutral-700 mx-auto">Ngày đến hạn</span>
+                  <span className="text-sm font-semibold text-neutral-700 mx-auto">Ngày</span>
                   <button 
                     type="button" 
                     onClick={() => setIsDateOpen(false)}
@@ -262,13 +370,33 @@ export const Metadata = ({
                 <form onSubmit={onDateSubmit} className="space-y-4">
                   <div className="flex flex-col gap-y-1">
                     <span className="text-[11px] font-bold text-neutral-500 uppercase">
+                      Ngày và giờ bắt đầu
+                    </span>
+                    <input
+                      name="startDate"
+                      aria-label="Ngày và giờ bắt đầu"
+                      type="datetime-local"
+                      value={startDateValue}
+                      onChange={(event) => setStartDateValue(event.target.value)}
+                      disabled={isLoadingUpdate}
+                      className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-700 shadow-xs outline-none transition focus:border-violet-500 focus:ring-1 focus:ring-violet-200"
+                    />
+                  </div>
+                  <div className="flex flex-col gap-y-1">
+                    <span className="text-[11px] font-bold text-neutral-500 uppercase">
                       Ngày và giờ hết hạn
                     </span>
                     <input
                       name="dueDate"
+                      aria-label="Ngày và giờ hết hạn"
                       type="datetime-local"
                       value={dueDateValue}
-                      onChange={(event) => setDueDateValue(event.target.value)}
+                      onChange={(event) => {
+                        setDueDateValue(event.target.value);
+                        if (!event.target.value) {
+                          setReminderValue("none");
+                        }
+                      }}
                       disabled={isLoadingUpdate}
                       className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-700 shadow-xs outline-none transition focus:border-violet-500 focus:ring-1 focus:ring-violet-200"
                     />
@@ -280,13 +408,14 @@ export const Metadata = ({
                     </span>
                     <select
                       name="reminder"
+                      aria-label="Thiết lập nhắc nhở"
                       value={reminderValue}
                       onChange={(event) => setReminderValue(event.target.value)}
-                      disabled={isLoadingUpdate}
-                      className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-2.5 text-sm text-neutral-700 shadow-xs outline-none transition focus:border-violet-500 focus:ring-1 focus:ring-violet-200 cursor-pointer"
+                      disabled={isLoadingUpdate || !canSetReminder}
+                      className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-2.5 text-sm text-neutral-700 shadow-xs outline-none transition focus:border-violet-500 focus:ring-1 focus:ring-violet-200 disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:text-neutral-400 cursor-pointer"
                     >
                       <option value="none">Không có</option>
-                      <option value="0">Vào ngày thời điểm hết hạn</option>
+                      <option value="0">Vào thời điểm hết hạn</option>
                       <option value="5">5 phút trước</option>
                       <option value="10">10 phút trước</option>
                       <option value="15">15 phút trước</option>
@@ -583,44 +712,44 @@ export const Metadata = ({
           </div>
         )}
 
-        {/* Column B: Ngày hết hạn / Trạng thái Hoàn thành */}
-        {hasDueDate ? (
+        {/* Column C: Ngày */}
+        {hasDateRange && (
           <div className="flex flex-col gap-y-1.5">
             <span className="text-xs font-semibold text-neutral-600 pl-0.5">
-              Ngày hết hạn
+              Ngày
             </span>
             <div className="flex items-center gap-x-2">
-              {/* Complete checkbox with Hint */}
-              <Hint description={data.isCompleted ? "Đánh dấu chưa hoàn thành" : "Đánh dấu hoàn thành"} side="bottom">
-                <input
-                  type="checkbox"
-                  checked={data.isCompleted}
-                  onChange={onToggleComplete}
-                  disabled={isLoadingUpdate}
-                  className="h-4.5 w-4.5 rounded-sm border-neutral-300 accent-violet-600 cursor-pointer shadow-xs"
-                />
-              </Hint>
+              {hasDueDate && (
+                <Hint description={data.isCompleted ? "Đánh dấu chưa hoàn thành" : "Đánh dấu hoàn thành"} side="bottom">
+                  <input
+                    type="checkbox"
+                    checked={data.isCompleted}
+                    onChange={onToggleComplete}
+                    disabled={isLoadingUpdate}
+                    className="h-4.5 w-4.5 rounded-sm border-neutral-300 accent-violet-600 cursor-pointer shadow-xs"
+                    aria-label={data.isCompleted ? "Đánh dấu chưa hoàn thành" : "Đánh dấu hoàn thành"}
+                  />
+                </Hint>
+              )}
 
-              {/* Popover trigger button showing formatted date, badge, and caret */}
               <Popover open={isDateOpen} onOpenChange={setIsDateOpen}>
                 <PopoverTrigger asChild>
                   <button
                     type="button"
-                    className="inline-flex h-8 items-center gap-x-1.5 rounded-lg border border-neutral-200 bg-neutral-50/50 hover:bg-neutral-50 active:bg-neutral-100 px-3 text-xs font-medium text-neutral-700 cursor-pointer transition-colors shadow-xs"
+                    className="inline-flex h-8 max-w-full items-center gap-x-1.5 rounded-lg border border-neutral-200 bg-neutral-50/50 hover:bg-neutral-50 active:bg-neutral-100 px-3 text-xs font-medium text-neutral-700 cursor-pointer transition-colors shadow-xs"
                   >
-                    <span>{formattedDate}</span>
+                    <span className="truncate">{dateSummary}</span>
                     
-                    {/* Badge next to it */}
                     {data.isCompleted ? (
-                      <span className="bg-emerald-600 text-white px-1.5 py-0.5 rounded text-[10px] font-bold">
+                      <span className="shrink-0 bg-emerald-600 text-white px-1.5 py-0.5 rounded text-[10px] font-bold">
                         Hoàn thành
                       </span>
                     ) : status === "overdue" ? (
-                      <span className="bg-red-600 text-white px-1.5 py-0.5 rounded text-[10px] font-bold">
+                      <span className="shrink-0 bg-red-600 text-white px-1.5 py-0.5 rounded text-[10px] font-bold">
                         Quá hạn
                       </span>
                     ) : status === "warning" ? (
-                      <span className="bg-yellow-500 text-white px-1.5 py-0.5 rounded text-[10px] font-bold">
+                      <span className="shrink-0 bg-yellow-500 text-white px-1.5 py-0.5 rounded text-[10px] font-bold">
                         Sắp hết hạn
                       </span>
                     ) : null}
@@ -630,7 +759,7 @@ export const Metadata = ({
                 </PopoverTrigger>
                 <PopoverContent align="start" className="w-[300px] p-3 rounded-xl border border-neutral-200 shadow-xl bg-white z-[9999]" sideOffset={6}>
                   <div className="relative pb-2.5 mb-3 border-b border-neutral-100 flex items-center justify-between">
-                    <span className="text-sm font-semibold text-neutral-700 mx-auto">Ngày đến hạn</span>
+                    <span className="text-sm font-semibold text-neutral-700 mx-auto">Ngày</span>
                     <button 
                       type="button" 
                       onClick={() => setIsDateOpen(false)}
@@ -642,13 +771,33 @@ export const Metadata = ({
                   <form onSubmit={onDateSubmit} className="space-y-4">
                     <div className="flex flex-col gap-y-1">
                       <span className="text-[11px] font-bold text-neutral-500 uppercase">
+                        Ngày và giờ bắt đầu
+                      </span>
+                      <input
+                        name="startDate"
+                        aria-label="Ngày và giờ bắt đầu"
+                        type="datetime-local"
+                        value={startDateValue}
+                        onChange={(event) => setStartDateValue(event.target.value)}
+                        disabled={isLoadingUpdate}
+                        className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-700 shadow-xs outline-none transition focus:border-violet-500 focus:ring-1 focus:ring-violet-200"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-y-1">
+                      <span className="text-[11px] font-bold text-neutral-500 uppercase">
                         Ngày và giờ hết hạn
                       </span>
                       <input
                         name="dueDate"
+                        aria-label="Ngày và giờ hết hạn"
                         type="datetime-local"
                         value={dueDateValue}
-                        onChange={(event) => setDueDateValue(event.target.value)}
+                        onChange={(event) => {
+                          setDueDateValue(event.target.value);
+                          if (!event.target.value) {
+                            setReminderValue("none");
+                          }
+                        }}
                         disabled={isLoadingUpdate}
                         className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-700 shadow-xs outline-none transition focus:border-violet-500 focus:ring-1 focus:ring-violet-200"
                       />
@@ -660,13 +809,14 @@ export const Metadata = ({
                       </span>
                       <select
                         name="reminder"
+                        aria-label="Thiết lập nhắc nhở"
                         value={reminderValue}
                         onChange={(event) => setReminderValue(event.target.value)}
-                        disabled={isLoadingUpdate}
-                        className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-2.5 text-sm text-neutral-700 shadow-xs outline-none transition focus:border-violet-500 focus:ring-1 focus:ring-violet-200 cursor-pointer"
+                        disabled={isLoadingUpdate || !canSetReminder}
+                        className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-2.5 text-sm text-neutral-700 shadow-xs outline-none transition focus:border-violet-500 focus:ring-1 focus:ring-violet-200 disabled:cursor-not-allowed disabled:bg-neutral-50 disabled:text-neutral-400 cursor-pointer"
                       >
                         <option value="none">Không có</option>
-                        <option value="0">Vào ngày thời điểm hết hạn</option>
+                        <option value="0">Vào thời điểm hết hạn</option>
                         <option value="5">5 phút trước</option>
                         <option value="10">10 phút trước</option>
                         <option value="15">15 phút trước</option>
@@ -689,47 +839,36 @@ export const Metadata = ({
                       >
                         Lưu
                       </Button>
-                      <Button
-                        type="button"
-                        size="sm"
-                        variant="ghost"
-                        disabled={isLoadingUpdate}
-                        onClick={() => updateDueDate(null)}
-                        className="h-8 rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 text-xs px-3"
-                      >
-                        Xóa
-                      </Button>
+                      {hasStartDate && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          disabled={isLoadingUpdate}
+                          onClick={() => updateStartDate(null)}
+                          className="h-8 rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 text-xs px-3"
+                          aria-label="Xóa ngày bắt đầu"
+                        >
+                          Xóa bắt đầu
+                        </Button>
+                      )}
+                      {hasDueDate && (
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          disabled={isLoadingUpdate}
+                          onClick={() => updateDueDate(null)}
+                          className="h-8 rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700 text-xs px-3"
+                          aria-label="Xóa ngày hết hạn"
+                        >
+                          Xóa hết hạn
+                        </Button>
+                      )}
                     </div>
                   </form>
                 </PopoverContent>
               </Popover>
-            </div>
-          </div>
-        ) : (
-          /* Column C: Trạng thái (Hoàn thành) - shown when card has no due date */
-          <div className="flex flex-col gap-y-1.5">
-            <span className="text-xs font-semibold text-neutral-600 pl-0.5">
-              Hoàn thành
-            </span>
-            <div className="flex items-center gap-x-2 h-8">
-              <Hint description={data.isCompleted ? "Đánh dấu chưa hoàn thành" : "Đánh dấu hoàn thành"} side="bottom">
-                <input
-                  type="checkbox"
-                  checked={data.isCompleted}
-                  onChange={onToggleComplete}
-                  disabled={isLoadingUpdate}
-                  className="h-4.5 w-4.5 rounded-sm border-neutral-300 accent-violet-600 cursor-pointer shadow-xs"
-                />
-              </Hint>
-              {data.isCompleted ? (
-                <span className="bg-emerald-600 text-white px-1.5 py-0.5 rounded text-[10px] font-bold">
-                  Hoàn thành
-                </span>
-              ) : (
-                <span className="text-xs text-neutral-400 font-medium">
-                  Chưa hoàn thành
-                </span>
-              )}
             </div>
           </div>
         )}

@@ -12,34 +12,34 @@ import { updateCard } from "@/actions/update-card";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DueDateBadge } from "@/components/due-date-badge";
+import {
+  formatDateTimeLocalInput,
+  getDateTimezoneOffset,
+  parseDateTimeLocalInput,
+} from "@/lib/date-utils";
 
 interface DueDateProps {
   data: CardWithList;
 }
-
-const toDateTimeLocalValue = (date?: Date | string | null) => {
-  if (!date) {
-    return "";
-  }
-
-  const parsedDate = new Date(date);
-  const timezoneOffset = parsedDate.getTimezoneOffset() * 60_000;
-
-  return new Date(parsedDate.getTime() - timezoneOffset).toISOString().slice(0, 16);
-};
 
 export const DueDate = ({
   data,
 }: DueDateProps) => {
   const params = useParams();
   const queryClient = useQueryClient();
-  const [dueDateValue, setDueDateValue] = useState(toDateTimeLocalValue(data.dueDate));
+  const [startDateValue, setStartDateValue] = useState(
+    formatDateTimeLocalInput(data.startDate),
+  );
+  const [dueDateValue, setDueDateValue] = useState(
+    formatDateTimeLocalInput(data.dueDate),
+  );
   const [reminderValue, setReminderValue] = useState(data.reminder || "none");
 
   useEffect(() => {
-    setDueDateValue(toDateTimeLocalValue(data.dueDate));
+    setStartDateValue(formatDateTimeLocalInput(data.startDate));
+    setDueDateValue(formatDateTimeLocalInput(data.dueDate));
     setReminderValue(data.reminder || "none");
-  }, [data.dueDate, data.reminder]);
+  }, [data.startDate, data.dueDate, data.reminder]);
 
   const { execute, isLoading } = useAction(updateCard, {
     onSuccess: (data) => {
@@ -49,50 +49,111 @@ export const DueDate = ({
       queryClient.invalidateQueries({
         queryKey: ["card-logs", data.id],
       });
-      toast.success("Đã cập nhật ngày đến hạn");
+      toast.success("Đã cập nhật ngày");
     },
     onError: (error) => {
       toast.error(error);
     },
   });
 
-  const updateDueDate = (dueDate: Date | null, isCompleted = data.isCompleted, reminder = reminderValue) => {
+  const updateDateRange = ({
+    startDate,
+    dueDate,
+    isCompleted = data.isCompleted,
+    reminder = reminderValue,
+  }: {
+    startDate?: Date | null;
+    dueDate?: Date | null;
+    isCompleted?: boolean;
+    reminder?: string | null;
+  }) => {
     const boardId = params.boardId as string;
 
     execute({
       id: data.id,
       boardId,
-      dueDate,
-      isCompleted: dueDate ? isCompleted : false,
-      reminder: dueDate ? reminder : null,
+      ...(startDate !== undefined ? { startDate } : {}),
+      ...(dueDate !== undefined ? { dueDate } : {}),
+      dueDateTimezoneOffset: dueDate
+        ? getDateTimezoneOffset(dueDate)
+        : startDate
+          ? getDateTimezoneOffset(startDate)
+          : undefined,
+      isCompleted: dueDate === undefined
+        ? isCompleted
+        : (dueDate ? isCompleted : false),
+      reminder: dueDate === undefined
+        ? reminder
+        : (dueDate ? reminder : null),
     });
   };
 
+  const updateDueDate = (
+    dueDate: Date | null,
+    isCompleted = data.isCompleted,
+    reminder = reminderValue,
+  ) => {
+    updateDateRange({ dueDate, isCompleted, reminder });
+  };
+
   const onSubmit = (formData: FormData) => {
+    const startValue = formData.get("startDate") as string;
     const value = formData.get("dueDate") as string;
     const reminder = formData.get("reminder") as string;
-    const currentFormatted = toDateTimeLocalValue(data.dueDate);
+    const currentStartFormatted = formatDateTimeLocalInput(data.startDate);
+    const currentDueFormatted = formatDateTimeLocalInput(data.dueDate);
     const currentReminder = data.reminder || "none";
 
-    if (value === currentFormatted && reminder === currentReminder) {
+    if (
+      startValue === currentStartFormatted &&
+      value === currentDueFormatted &&
+      reminder === currentReminder
+    ) {
       return;
     }
 
-    if (!value) {
-      updateDueDate(null);
+    const parsedStartDate = startValue
+      ? parseDateTimeLocalInput(startValue)
+      : null;
+    const parsedDueDate = value
+      ? parseDateTimeLocalInput(value)
+      : null;
+
+    if (startValue && !parsedStartDate) {
+      toast.error("Ngày bắt đầu không hợp lệ.");
       return;
     }
 
-    // Layer 1: block if trigger time is already past at save time
-    if (reminder && reminder !== "none") {
+    if (value && !parsedDueDate) {
+      toast.error("Ngày hết hạn không hợp lệ.");
+      return;
+    }
+
+    if (
+      parsedStartDate &&
+      parsedDueDate &&
+      parsedStartDate.getTime() > parsedDueDate.getTime()
+    ) {
+      toast.error("Ngày bắt đầu phải trước hoặc bằng ngày hết hạn.");
+      return;
+    }
+
+    if (!parsedDueDate && reminder && reminder !== "none") {
+      toast.error("Vui lòng đặt ngày hết hạn trước khi thiết lập nhắc nhở.");
+      return;
+    }
+
+    if (parsedDueDate && reminder && reminder !== "none") {
       const offsetMinutes = parseInt(reminder, 10);
-      if (!isNaN(offsetMinutes)) {
-        const dueDateTime = new Date(value).getTime();
+
+      if (!Number.isNaN(offsetMinutes)) {
+        const dueDateTime = parsedDueDate.getTime();
         const triggerTime = dueDateTime - offsetMinutes * 60 * 1000;
         const now = Date.now();
 
         if (triggerTime < now) {
           const minutesUntilDue = Math.floor((dueDateTime - now) / 60_000);
+
           if (minutesUntilDue <= 0) {
             toast.error("Thẻ đã hết hạn. Vui lòng cập nhật ngày hết hạn trước.");
           } else {
@@ -101,16 +162,23 @@ export const DueDate = ({
               if (mins >= 60) return `${Math.floor(mins / 60)} giờ`;
               return `${mins} phút`;
             };
+
             toast.error(
-              `Thời gian nhắc nhở không hợp lệ. Thẻ chỉ còn ${humanize(minutesUntilDue)} — hãy chọn mốc nhắc ngắn hơn.`
+              `Thời gian nhắc nhở không hợp lệ. Thẻ chỉ còn ${humanize(minutesUntilDue)}; hãy chọn mốc nhắc ngắn hơn.`,
             );
           }
+
           return;
         }
       }
     }
 
-    updateDueDate(new Date(value), data.isCompleted, reminder);
+    updateDateRange({
+      startDate: parsedStartDate,
+      dueDate: parsedDueDate,
+      isCompleted: data.isCompleted,
+      reminder,
+    });
   };
 
   const onToggleComplete = (checked: boolean) => {
@@ -128,7 +196,7 @@ export const DueDate = ({
       </div>
       <div className="w-full min-w-0">
         <p className="font-semibold text-base text-neutral-800 mb-2.5">
-          Ngày đến hạn
+          Ngày
         </p>
         <div className="flex flex-wrap items-center gap-2.5">
           {data.dueDate && (
@@ -152,6 +220,20 @@ export const DueDate = ({
           <form action={onSubmit} className="flex flex-wrap items-end gap-3 w-full mt-2">
             <div className="flex flex-col gap-y-1.5">
               <span className="text-xs font-semibold text-neutral-500">
+                Ngày và giờ bắt đầu
+              </span>
+              <input
+                name="startDate"
+                type="datetime-local"
+                value={startDateValue}
+                onChange={(event) => setStartDateValue(event.target.value)}
+                disabled={isLoading}
+                className="h-9 rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-violet-400 focus:ring-1 focus:ring-violet-200"
+              />
+            </div>
+
+            <div className="flex flex-col gap-y-1.5">
+              <span className="text-xs font-semibold text-neutral-500">
                 Ngày và giờ hết hạn
               </span>
               <input
@@ -163,7 +245,7 @@ export const DueDate = ({
                 className="h-9 rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-violet-400 focus:ring-1 focus:ring-violet-200"
               />
             </div>
-            
+
             <div className="flex flex-col gap-y-1.5 min-w-[180px]">
               <span className="text-xs font-semibold text-neutral-500">
                 Thiết lập nhắc nhở
@@ -176,7 +258,7 @@ export const DueDate = ({
                 className="h-9 rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-700 shadow-sm outline-none transition focus:border-violet-400 focus:ring-1 focus:ring-violet-200 cursor-pointer"
               >
                 <option value="none">Không có</option>
-                <option value="0">Vào ngày thời điểm hết hạn</option>
+                <option value="0">Vào thời điểm hết hạn</option>
                 <option value="5">5 phút trước</option>
                 <option value="10">10 phút trước</option>
                 <option value="15">15 phút trước</option>
@@ -207,7 +289,7 @@ export const DueDate = ({
                   disabled={isLoading}
                   onClick={() => updateDueDate(null)}
                   className="h-9 w-9 rounded-lg text-neutral-400 hover:bg-neutral-100 hover:text-neutral-700"
-                  aria-label="Xóa ngày đến hạn"
+                  aria-label="Xóa ngày hết hạn"
                 >
                   <X className="h-4 w-4" />
                 </Button>

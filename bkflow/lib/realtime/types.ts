@@ -23,6 +23,7 @@ export type RealtimeQueryInvalidation =
 export type CardUpdatedField =
   | "title"
   | "description"
+  | "startDate"
   | "dueDate"
   | "isCompleted"
   | "reminder"

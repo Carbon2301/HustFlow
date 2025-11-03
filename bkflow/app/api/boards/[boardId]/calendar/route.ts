@@ -1,0 +1,254 @@
+import { auth } from "@clerk/nextjs/server";
+import { NextRequest, NextResponse } from "next/server";
+
+import { db } from "@/lib/db";
+import { requireBoardMember } from "@/lib/permissions";
+import type { BoardCalendarItem, BoardCalendarResponse } from "@/types";
+
+const MAX_RANGE_DAYS = 370;
+const DAY_IN_MS = 24 * 60 * 60 * 1000;
+
+const parseRequiredDateParam = (
+  searchParams: URLSearchParams,
+  key: "from" | "to",
+) => {
+  const value = searchParams.get(key);
+
+  if (!value) {
+    return {
+      error: `Missing required "${key}" query parameter.`,
+      date: null,
+    };
+  }
+
+  const date = new Date(value);
+
+  if (Number.isNaN(date.getTime())) {
+    return {
+      error: `Invalid "${key}" query parameter. Use an ISO date string.`,
+      date: null,
+    };
+  }
+
+  return {
+    error: null,
+    date,
+  };
+};
+
+const getEffectiveStartTime = (item: BoardCalendarItem) => {
+  const effectiveDate = item.startDate ?? item.dueDate;
+  return effectiveDate ? new Date(effectiveDate).getTime() : 0;
+};
+
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ boardId: string }> },
+) {
+  try {
+    const { boardId } = await params;
+    const { userId, orgId } = await auth();
+
+    if (!userId || !orgId) {
+      return new NextResponse("Unauthorized", { status: 401 });
+    }
+
+    const fromResult = parseRequiredDateParam(
+      request.nextUrl.searchParams,
+      "from",
+    );
+    const toResult = parseRequiredDateParam(
+      request.nextUrl.searchParams,
+      "to",
+    );
+
+    if (fromResult.error) {
+      return NextResponse.json({ error: fromResult.error }, { status: 400 });
+    }
+
+    if (toResult.error) {
+      return NextResponse.json({ error: toResult.error }, { status: 400 });
+    }
+
+    const from = fromResult.date;
+    const to = toResult.date;
+
+    if (!from || !to) {
+      return NextResponse.json(
+        { error: "Invalid calendar date range." },
+        { status: 400 },
+      );
+    }
+
+    if (from.getTime() > to.getTime()) {
+      return NextResponse.json(
+        { error: '"from" must be before or equal to "to".' },
+        { status: 400 },
+      );
+    }
+
+    if (to.getTime() - from.getTime() > MAX_RANGE_DAYS * DAY_IN_MS) {
+      return NextResponse.json(
+        { error: `Calendar range cannot exceed ${MAX_RANGE_DAYS} days.` },
+        { status: 400 },
+      );
+    }
+
+    const permission = await requireBoardMember({ boardId, orgId, userId });
+
+    if (permission.error) {
+      return new NextResponse(permission.error, { status: 403 });
+    }
+
+    const cards = await db.card.findMany({
+      where: {
+        list: {
+          board: {
+            id: boardId,
+            orgId,
+          },
+        },
+        OR: [
+          {
+            dueDate: {
+              gte: from,
+              lte: to,
+            },
+          },
+          {
+            startDate: {
+              gte: from,
+              lte: to,
+            },
+          },
+          {
+            AND: [
+              {
+                startDate: {
+                  not: null,
+                  lte: to,
+                },
+              },
+              {
+                dueDate: {
+                  not: null,
+                  gte: from,
+                },
+              },
+            ],
+          },
+        ],
+      },
+      select: {
+        id: true,
+        title: true,
+        order: true,
+        startDate: true,
+        dueDate: true,
+        isCompleted: true,
+        reminder: true,
+        listId: true,
+        list: {
+          select: {
+            title: true,
+            order: true,
+          },
+        },
+        labels: {
+          select: {
+            label: {
+              select: {
+                id: true,
+                title: true,
+                color: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: "asc",
+          },
+        },
+        assignees: {
+          select: {
+            id: true,
+            boardMemberId: true,
+            boardMember: {
+              select: {
+                userId: true,
+                userName: true,
+                userImage: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: "asc",
+          },
+        },
+        _count: {
+          select: {
+            comments: true,
+          },
+        },
+      },
+    });
+
+    const items: BoardCalendarItem[] = cards
+      .map((card) => ({
+        item: {
+          type: "card" as const,
+          id: `card:${card.id}`,
+          cardId: card.id,
+          boardId,
+          listId: card.listId,
+          listTitle: card.list.title,
+          title: card.title,
+          startDate: card.startDate?.toISOString() ?? null,
+          dueDate: card.dueDate?.toISOString() ?? null,
+          isCompleted: card.isCompleted,
+          reminder: card.reminder,
+          labels: card.labels.map(({ label }) => ({
+            id: label.id,
+            title: label.title,
+            color: label.color,
+          })),
+          assignees: card.assignees.map((assignee) => ({
+            id: assignee.id,
+            boardMemberId: assignee.boardMemberId,
+            userId: assignee.boardMember.userId,
+            userName: assignee.boardMember.userName,
+            userImage: assignee.boardMember.userImage,
+          })),
+          commentCount: card._count.comments,
+        },
+        listOrder: card.list.order,
+        cardOrder: card.order,
+      }))
+      .sort((left, right) => {
+        const startDelta =
+          getEffectiveStartTime(left.item) - getEffectiveStartTime(right.item);
+
+        if (startDelta !== 0) {
+          return startDelta;
+        }
+
+        if (left.item.isCompleted !== right.item.isCompleted) {
+          return left.item.isCompleted ? 1 : -1;
+        }
+
+        return left.listOrder - right.listOrder || left.cardOrder - right.cardOrder;
+      })
+      .map(({ item }) => item);
+
+    const response: BoardCalendarResponse = {
+      boardId,
+      from: from.toISOString(),
+      to: to.toISOString(),
+      items,
+    };
+
+    return NextResponse.json(response);
+  } catch (error) {
+    console.error("[BOARD_CALENDAR_GET_ERROR]", error);
+    return new NextResponse("Internal Error", { status: 500 });
+  }
+}

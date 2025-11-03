@@ -170,9 +170,10 @@ export const CardItem = ({
               {hasFooter && (
                 <div className="flex min-h-7 flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
                   <div className="flex items-center gap-x-1.5 flex-wrap gap-y-1">
-                    {data.dueDate && (
+                    {(data.dueDate || data.startDate) && (
                       <DueDateBadge
                         dueDate={data.dueDate}
+                        startDate={data.startDate}
                         isCompleted={data.isCompleted}
                         isCard
                       />

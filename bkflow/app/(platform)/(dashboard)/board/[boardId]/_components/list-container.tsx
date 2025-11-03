@@ -14,6 +14,11 @@ import { updateListOrder } from "@/actions/update-list-order";
 import { updateCardOrder } from "@/actions/update-card-order";
 import { useRealtimeChannel } from "@/hooks/use-realtime-channel";
 import { useCardModal } from "@/hooks/use-card-modal";
+import {
+  getEndOfTomorrow,
+  getStartOfTomorrow,
+  isOverdue,
+} from "@/lib/date-utils";
 import { realtimeChannels } from "@/lib/realtime/channels";
 import { isRealtimeClientConfigured } from "@/lib/realtime/client";
 import { REALTIME_EVENTS } from "@/lib/realtime/events";
@@ -120,7 +125,7 @@ const cardMatchesFilters = (
 
       if (card.dueDate) {
         const dueDate = new Date(card.dueDate);
-        const isPast = dueDate.getTime() < now.getTime();
+        const isPast = isOverdue(dueDate, now);
 
         if (filterType === "overdue" && isPast && !card.isCompleted) {
           match = true;
@@ -134,11 +139,10 @@ const cardMatchesFilters = (
         }
 
         if (filterType === "tomorrow") {
-          const endOfTomorrow = new Date(now);
-          endOfTomorrow.setDate(now.getDate() + 1);
-          endOfTomorrow.setHours(23, 59, 59, 999);
+          const startOfTomorrow = getStartOfTomorrow(now);
+          const endOfTomorrow = getEndOfTomorrow(now);
 
-          if (dueDate.getTime() >= now.getTime() && dueDate.getTime() <= endOfTomorrow.getTime()) {
+          if (dueDate.getTime() >= startOfTomorrow.getTime() && dueDate.getTime() <= endOfTomorrow.getTime()) {
             match = true;
           }
         }

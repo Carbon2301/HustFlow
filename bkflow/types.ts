@@ -57,3 +57,37 @@ export type CardCommentWithReplies = Prisma.CardCommentGetPayload<{
     };
   };
 }>;
+
+export type BoardCalendarItem = {
+  type: "card";
+  id: string;
+  cardId: string;
+  boardId: string;
+  listId: string;
+  listTitle: string;
+  title: string;
+  startDate: string | null;
+  dueDate: string | null;
+  isCompleted: boolean;
+  reminder: string | null;
+  labels: {
+    id: string;
+    title: string;
+    color: string;
+  }[];
+  assignees: {
+    id: string;
+    boardMemberId: string;
+    userId: string;
+    userName: string;
+    userImage: string;
+  }[];
+  commentCount: number;
+};
+
+export type BoardCalendarResponse = {
+  boardId: string;
+  from: string;
+  to: string;
+  items: BoardCalendarItem[];
+};
