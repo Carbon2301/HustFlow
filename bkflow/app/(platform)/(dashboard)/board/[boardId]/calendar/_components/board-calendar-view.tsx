@@ -4,6 +4,7 @@ import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   addMonths,
+  addWeeks,
   eachDayOfInterval,
   endOfWeek,
   format,
@@ -13,6 +14,7 @@ import {
   startOfMonth,
   startOfWeek,
   subMonths,
+  subWeeks,
 } from "date-fns";
 import { vi } from "date-fns/locale";
 import {
@@ -36,6 +38,7 @@ interface BoardCalendarViewProps {
   boardId: string;
 }
 
+type ViewMode = "month" | "week";
 type CalendarOccurrenceKind = "single" | "start" | "due" | "range";
 
 type CalendarOccurrence = {
@@ -46,14 +49,27 @@ type CalendarOccurrence = {
 };
 
 const WEEK_DAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
-const MAX_VISIBLE_DESKTOP = 3;
-const MAX_VISIBLE_MOBILE = 2;
+const MONTH_VISIBLE_DESKTOP = 3;
+const MONTH_VISIBLE_MOBILE = 2;
+const WEEK_VISIBLE_DESKTOP = 8;
+const WEEK_VISIBLE_MOBILE = 4;
 
-const getVisibleGridRange = (monthDate: Date) => {
-  const monthStart = startOfMonth(monthDate);
+const getMonthGridRange = (anchorDate: Date) => {
+  const monthStart = startOfMonth(anchorDate);
   const from = startOfWeek(monthStart, { weekStartsOn: 1 });
-  const monthEnd = new Date(monthDate.getFullYear(), monthDate.getMonth() + 1, 0);
+  const monthEnd = new Date(anchorDate.getFullYear(), anchorDate.getMonth() + 1, 0);
   const to = endOfWeek(monthEnd, { weekStartsOn: 1 });
+
+  return {
+    fromIso: from.toISOString(),
+    toIso: to.toISOString(),
+    days: eachDayOfInterval({ start: from, end: to }),
+  };
+};
+
+const getWeekGridRange = (anchorDate: Date) => {
+  const from = startOfWeek(anchorDate, { weekStartsOn: 1 });
+  const to = endOfWeek(anchorDate, { weekStartsOn: 1 });
 
   return {
     fromIso: from.toISOString(),
@@ -167,15 +183,18 @@ const getOccurrences = (items: BoardCalendarItem[]) =>
 
 export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
   const cardModal = useCardModal();
-  const [currentMonth, setCurrentMonth] = useState(() => startOfMonth(new Date()));
+  const [viewMode, setViewMode] = useState<ViewMode>("month");
+  const [anchorDate, setAnchorDate] = useState(() => new Date());
   const [expandedDayKey, setExpandedDayKey] = useState<string | null>(null);
   const { fromIso, toIso, days } = useMemo(
-    () => getVisibleGridRange(currentMonth),
-    [currentMonth],
+    () => viewMode === "month"
+      ? getMonthGridRange(anchorDate)
+      : getWeekGridRange(anchorDate),
+    [anchorDate, viewMode],
   );
 
   const query = useQuery<BoardCalendarResponse>({
-    queryKey: ["board-calendar", boardId, fromIso, toIso],
+    queryKey: ["board-calendar", boardId, viewMode, fromIso, toIso],
     queryFn: () =>
       fetcher(
         `/api/boards/${boardId}/calendar?from=${encodeURIComponent(fromIso)}&to=${encodeURIComponent(toIso)}`,
@@ -205,23 +224,34 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
       return acc;
     }, {});
   }, [occurrences]);
-  const expandedDayItems = expandedDayKey ? occurrencesByDay[expandedDayKey] ?? [] : [];
-  const rangeLabel = `${format(new Date(fromIso), "dd/MM/yyyy", { locale: vi })} - ${format(new Date(toIso), "dd/MM/yyyy", { locale: vi })}`;
-  const monthLabel = format(currentMonth, "'Tháng' M, yyyy", { locale: vi });
 
-  const goToPreviousMonth = () => {
+  const expandedDayItems = expandedDayKey ? occurrencesByDay[expandedDayKey] ?? [] : [];
+  const monthLabel = format(anchorDate, "'Tháng' M, yyyy", { locale: vi });
+  const weekLabel = `Tuần ${format(new Date(fromIso), "dd/MM/yyyy", { locale: vi })} - ${format(new Date(toIso), "dd/MM/yyyy", { locale: vi })}`;
+  const rangeLabel = `${format(new Date(fromIso), "dd/MM/yyyy", { locale: vi })} - ${format(new Date(toIso), "dd/MM/yyyy", { locale: vi })}`;
+  const titleLabel = viewMode === "month" ? monthLabel : weekLabel;
+  const currentMonth = startOfMonth(anchorDate);
+  const maxVisibleDesktop = viewMode === "month" ? MONTH_VISIBLE_DESKTOP : WEEK_VISIBLE_DESKTOP;
+  const maxVisibleMobile = viewMode === "month" ? MONTH_VISIBLE_MOBILE : WEEK_VISIBLE_MOBILE;
+
+  const goToPrevious = () => {
     setExpandedDayKey(null);
-    setCurrentMonth((value) => subMonths(value, 1));
+    setAnchorDate((value) => viewMode === "month" ? subMonths(value, 1) : subWeeks(value, 1));
   };
 
-  const goToNextMonth = () => {
+  const goToNext = () => {
     setExpandedDayKey(null);
-    setCurrentMonth((value) => addMonths(value, 1));
+    setAnchorDate((value) => viewMode === "month" ? addMonths(value, 1) : addWeeks(value, 1));
   };
 
   const goToToday = () => {
     setExpandedDayKey(null);
-    setCurrentMonth(startOfMonth(new Date()));
+    setAnchorDate(new Date());
+  };
+
+  const changeViewMode = (mode: ViewMode) => {
+    setExpandedDayKey(null);
+    setViewMode(mode);
   };
 
   const renderOccurrence = (
@@ -257,9 +287,75 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
     </button>
   );
 
+  const renderCalendarDay = (day: Date, index: number) => {
+    const dayKey = getDayKey(day);
+    const dayOccurrences = occurrencesByDay[dayKey] ?? [];
+    const desktopOverflow = Math.max(dayOccurrences.length - maxVisibleDesktop, 0);
+    const mobileOverflow = Math.max(dayOccurrences.length - maxVisibleMobile, 0);
+
+    return (
+      <div
+        key={dayKey}
+        className={cn(
+          "overflow-hidden border-neutral-200 bg-white p-1.5 md:p-2",
+          viewMode === "month" && "min-h-[104px] border-r border-b last:border-r-0 sm:min-h-[132px]",
+          viewMode === "week" && "min-h-[132px] rounded-lg border md:min-h-[360px]",
+          viewMode === "week" && index > 0 && "mt-2 md:mt-0",
+          viewMode === "month" && !isSameMonth(day, currentMonth) && "bg-neutral-50/80 text-neutral-400",
+        )}
+      >
+        <div className="mb-1 flex h-7 items-center justify-between gap-x-2">
+          <div className="flex min-w-0 items-center gap-x-1.5">
+            {viewMode === "week" && (
+              <span className="truncate text-[11px] font-semibold uppercase text-neutral-500">
+                {WEEK_DAYS[index]}
+              </span>
+            )}
+            <span
+              className={cn(
+                "flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-semibold text-neutral-600",
+                viewMode === "month" && !isSameMonth(day, currentMonth) && "text-neutral-400",
+                isToday(day) && "bg-violet-600 text-white",
+              )}
+            >
+              {viewMode === "week" ? format(day, "dd/MM") : format(day, "d")}
+            </span>
+          </div>
+        </div>
+
+        <div className="space-y-1">
+          {dayOccurrences.slice(0, maxVisibleDesktop).map((occurrence, occurrenceIndex) =>
+            renderOccurrence(
+              occurrence,
+              occurrenceIndex >= maxVisibleMobile ? "hidden sm:flex" : undefined,
+            ),
+          )}
+          {mobileOverflow > 0 && (
+            <button
+              type="button"
+              onClick={() => setExpandedDayKey(dayKey)}
+              className="flex h-6 w-full items-center rounded-md px-1.5 text-left text-[11px] font-semibold text-neutral-500 transition hover:bg-neutral-100 sm:hidden"
+            >
+              +{mobileOverflow} thẻ
+            </button>
+          )}
+          {desktopOverflow > 0 && (
+            <button
+              type="button"
+              onClick={() => setExpandedDayKey(dayKey)}
+              className="hidden h-6 w-full items-center rounded-md px-1.5 text-left text-[11px] font-semibold text-neutral-500 transition hover:bg-neutral-100 sm:flex"
+            >
+              +{desktopOverflow} thẻ
+            </button>
+          )}
+        </div>
+      </div>
+    );
+  };
+
   return (
     <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-white/20 bg-white/95 shadow-xl backdrop-blur">
-      <div className="flex shrink-0 flex-col gap-3 border-b border-neutral-200 px-4 py-4 md:flex-row md:items-center md:justify-between">
+      <div className="flex shrink-0 flex-col gap-3 border-b border-neutral-200 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
           <div className="flex items-center gap-x-2">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700">
@@ -267,7 +363,7 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
             </div>
             <div className="min-w-0">
               <h1 className="truncate text-lg font-semibold text-neutral-900">
-                {monthLabel}
+                {titleLabel}
               </h1>
               <p className="truncate text-xs text-neutral-500">
                 {rangeLabel}
@@ -276,31 +372,49 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
           </div>
         </div>
 
-        <div className="flex flex-col gap-2 md:items-end">
-          <div className="flex h-8 shrink-0 items-center rounded-lg border border-neutral-200 bg-white p-0.5 shadow-sm">
-            <button
-              type="button"
-              onClick={goToPreviousMonth}
-              className="flex h-7 w-7 items-center justify-center rounded-md text-neutral-600 transition hover:bg-neutral-100"
-              aria-label="Tháng trước"
-            >
-              <ChevronLeft className="h-4 w-4" />
-            </button>
-            <button
-              type="button"
-              onClick={goToToday}
-              className="h-7 rounded-md px-2 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-100"
-            >
-              Hôm nay
-            </button>
-            <button
-              type="button"
-              onClick={goToNextMonth}
-              className="flex h-7 w-7 items-center justify-center rounded-md text-neutral-600 transition hover:bg-neutral-100"
-              aria-label="Tháng sau"
-            >
-              <ChevronRight className="h-4 w-4" />
-            </button>
+        <div className="flex flex-col gap-2 lg:items-end">
+          <div className="flex flex-wrap items-center gap-2">
+            <div className="flex h-8 shrink-0 items-center rounded-lg border border-neutral-200 bg-white p-0.5 shadow-sm">
+              {(["month", "week"] as const).map((mode) => (
+                <button
+                  key={mode}
+                  type="button"
+                  onClick={() => changeViewMode(mode)}
+                  className={cn(
+                    "h-7 rounded-md px-3 text-xs font-semibold text-neutral-600 transition hover:bg-neutral-100",
+                    viewMode === mode && "bg-violet-600 text-white shadow-sm hover:bg-violet-600",
+                  )}
+                >
+                  {mode === "month" ? "Tháng" : "Tuần"}
+                </button>
+              ))}
+            </div>
+
+            <div className="flex h-8 shrink-0 items-center rounded-lg border border-neutral-200 bg-white p-0.5 shadow-sm">
+              <button
+                type="button"
+                onClick={goToPrevious}
+                className="flex h-7 w-7 items-center justify-center rounded-md text-neutral-600 transition hover:bg-neutral-100"
+                aria-label={viewMode === "month" ? "Tháng trước" : "Tuần trước"}
+              >
+                <ChevronLeft className="h-4 w-4" />
+              </button>
+              <button
+                type="button"
+                onClick={goToToday}
+                className="h-7 rounded-md px-2 text-xs font-semibold text-neutral-700 transition hover:bg-neutral-100"
+              >
+                Hôm nay
+              </button>
+              <button
+                type="button"
+                onClick={goToNext}
+                className="flex h-7 w-7 items-center justify-center rounded-md text-neutral-600 transition hover:bg-neutral-100"
+                aria-label={viewMode === "month" ? "Tháng sau" : "Tuần sau"}
+              >
+                <ChevronRight className="h-4 w-4" />
+              </button>
+            </div>
           </div>
 
           <div className="grid w-full grid-cols-3 gap-2 text-xs text-neutral-600 md:w-[300px]">
@@ -325,25 +439,37 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
       </div>
 
       <div className="min-h-0 flex-1 overflow-y-auto p-3 md:p-4">
-        <div className="grid grid-cols-7 rounded-t-lg border border-b-0 border-neutral-200 bg-neutral-50">
-          {WEEK_DAYS.map((day) => (
-            <div
-              key={day}
-              className="border-r border-neutral-200 px-1.5 py-2 text-center text-[11px] font-semibold uppercase text-neutral-500 last:border-r-0"
-            >
-              {day}
-            </div>
-          ))}
-        </div>
+        {viewMode === "month" && (
+          <div className="grid grid-cols-7 rounded-t-lg border border-b-0 border-neutral-200 bg-neutral-50">
+            {WEEK_DAYS.map((day) => (
+              <div
+                key={day}
+                className="border-r border-neutral-200 px-1.5 py-2 text-center text-[11px] font-semibold uppercase text-neutral-500 last:border-r-0"
+              >
+                {day}
+              </div>
+            ))}
+          </div>
+        )}
 
         {query.isLoading && (
-          <div className="grid grid-cols-7 rounded-b-lg border border-neutral-200">
-            {days.map((day) => (
+          <div
+            className={cn(
+              viewMode === "month" && "grid grid-cols-7 rounded-b-lg border border-neutral-200",
+              viewMode === "week" && "grid grid-cols-1 gap-2 md:grid-cols-7",
+            )}
+          >
+            {days.map((day, index) => (
               <div
                 key={day.toISOString()}
-                className="min-h-[104px] border-r border-b border-neutral-200 p-1.5 last:border-r-0 sm:min-h-[132px] md:p-2"
+                className={cn(
+                  "border-neutral-200 p-1.5 md:p-2",
+                  viewMode === "month" && "min-h-[104px] border-r border-b last:border-r-0 sm:min-h-[132px]",
+                  viewMode === "week" && "min-h-[132px] rounded-lg border md:min-h-[360px]",
+                  viewMode === "week" && index > 0 && "mt-2 md:mt-0",
+                )}
               >
-                <Skeleton className="mb-3 h-4 w-6 rounded bg-neutral-100" />
+                <Skeleton className="mb-3 h-4 w-12 rounded bg-neutral-100" />
                 <Skeleton className="mb-1.5 h-7 rounded-md bg-neutral-100" />
                 <Skeleton className="h-7 rounded-md bg-neutral-100" />
               </div>
@@ -363,62 +489,13 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
 
         {query.isSuccess && (
           <>
-            <div className="grid grid-cols-7 rounded-b-lg border border-neutral-200 bg-white">
-              {days.map((day) => {
-                const dayKey = getDayKey(day);
-                const dayOccurrences = occurrencesByDay[dayKey] ?? [];
-                const desktopOverflow = Math.max(dayOccurrences.length - MAX_VISIBLE_DESKTOP, 0);
-                const mobileOverflow = Math.max(dayOccurrences.length - MAX_VISIBLE_MOBILE, 0);
-
-                return (
-                  <div
-                    key={dayKey}
-                    className={cn(
-                      "min-h-[104px] overflow-hidden border-r border-b border-neutral-200 bg-white p-1.5 last:border-r-0 sm:min-h-[132px] md:p-2",
-                      !isSameMonth(day, currentMonth) && "bg-neutral-50/80 text-neutral-400",
-                    )}
-                  >
-                    <div className="mb-1 flex h-6 items-center justify-between">
-                      <span
-                        className={cn(
-                          "flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-semibold text-neutral-600",
-                          !isSameMonth(day, currentMonth) && "text-neutral-400",
-                          isToday(day) && "bg-violet-600 text-white",
-                        )}
-                      >
-                        {format(day, "d")}
-                      </span>
-                    </div>
-
-                    <div className="space-y-1">
-                      {dayOccurrences.slice(0, MAX_VISIBLE_DESKTOP).map((occurrence, index) =>
-                        renderOccurrence(
-                          occurrence,
-                          index >= MAX_VISIBLE_MOBILE ? "hidden sm:flex" : undefined,
-                        ),
-                      )}
-                      {mobileOverflow > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setExpandedDayKey(dayKey)}
-                          className="flex h-6 w-full items-center rounded-md px-1.5 text-left text-[11px] font-semibold text-neutral-500 transition hover:bg-neutral-100 sm:hidden"
-                        >
-                          +{mobileOverflow} thẻ
-                        </button>
-                      )}
-                      {desktopOverflow > 0 && (
-                        <button
-                          type="button"
-                          onClick={() => setExpandedDayKey(dayKey)}
-                          className="hidden h-6 w-full items-center rounded-md px-1.5 text-left text-[11px] font-semibold text-neutral-500 transition hover:bg-neutral-100 sm:flex"
-                        >
-                          +{desktopOverflow} thẻ
-                        </button>
-                      )}
-                    </div>
-                  </div>
-                );
-              })}
+            <div
+              className={cn(
+                viewMode === "month" && "grid grid-cols-7 rounded-b-lg border border-neutral-200 bg-white",
+                viewMode === "week" && "grid grid-cols-1 gap-2 md:grid-cols-7",
+              )}
+            >
+              {days.map((day, index) => renderCalendarDay(day, index))}
             </div>
 
             {items.length === 0 && (
@@ -428,7 +505,7 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
                   Chưa có thẻ nào trong khoảng thời gian này.
                 </p>
                 <p className="mt-1 max-w-md text-xs text-neutral-500">
-                  Các thẻ có ngày bắt đầu hoặc ngày hết hạn sẽ xuất hiện trong lưới tháng.
+                  Các thẻ có ngày bắt đầu hoặc ngày hết hạn sẽ xuất hiện trong lịch.
                 </p>
               </div>
             )}
