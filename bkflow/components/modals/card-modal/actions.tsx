@@ -11,6 +11,7 @@ import { Button } from "@/components/ui/button";
 import { deleteCard } from "@/actions/delete-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useCardModal } from "@/hooks/use-card-modal";
+import { useBoardCalendarInvalidation } from "@/hooks/use-board-calendar-invalidation";
 
 interface ActionsProps {
   data: CardWithList;
@@ -20,7 +21,9 @@ export const Actions = ({
   data,
 }: ActionsProps) => {
   const params = useParams();
+  const boardId = params.boardId as string;
   const cardModal = useCardModal();
+  const invalidateBoardCalendar = useBoardCalendarInvalidation(boardId);
 
   const {
     execute: executeCopyCard,
@@ -28,6 +31,7 @@ export const Actions = ({
   } = useAction(copyCard, {
     onSuccess: (data) => {
       toast.success(`Đã sao chép thẻ "${data.title}"`);
+      invalidateBoardCalendar();
       cardModal.onClose();
     },
     onError: (error) => {
@@ -41,6 +45,7 @@ export const Actions = ({
   } = useAction(deleteCard, {
     onSuccess: (data) => {
       toast.success(`Đã xóa thẻ "${data.title}"`);
+      invalidateBoardCalendar();
       cardModal.onClose();
     },
     onError: (error) => {
@@ -49,8 +54,6 @@ export const Actions = ({
   });
 
   const onCopy = () => {
-    const boardId = params.boardId as string;
-
     executeCopyCard({
       id: data.id,
       boardId,
@@ -58,8 +61,6 @@ export const Actions = ({
   };
 
   const onDelete = () => {
-    const boardId = params.boardId as string;
-
     executeDeleteCard({
       id: data.id,
       boardId,

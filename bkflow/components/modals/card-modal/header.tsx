@@ -11,6 +11,7 @@ import { useAction } from "@/hooks/use-action";
 import { updateCard } from "@/actions/update-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { FormInput } from "@/components/form/form-input";
+import { useBoardCalendarInvalidation } from "@/hooks/use-board-calendar-invalidation";
 
 interface HeaderProps {
   data: CardWithList;
@@ -21,6 +22,8 @@ export const Header = ({
 }: HeaderProps) => {
   const queryClient = useQueryClient();
   const params = useParams();
+  const boardId = params.boardId as string;
+  const invalidateBoardCalendar = useBoardCalendarInvalidation(boardId);
 
   const { execute } = useAction(updateCard, {
     onSuccess: (data) => {
@@ -33,6 +36,7 @@ export const Header = ({
       });
 
       toast.success(`Đã đổi tên thành "${data.title}"`);
+      invalidateBoardCalendar();
       setTitle(data.title);
     },
     onError: (error) => {
@@ -50,7 +54,6 @@ export const Header = ({
 
   const onSubmit = (formData: FormData) => {
     const title = formData.get("title") as string;
-    const boardId = params.boardId as string;
 
     if (title === data.title) {
       return;

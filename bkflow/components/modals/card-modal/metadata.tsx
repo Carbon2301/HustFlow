@@ -45,6 +45,7 @@ import { Hint } from "@/components/hint";
 import { LabelPopover } from "./label-popover";
 import { getColorName } from "@/lib/utils";
 import { ChecklistPopover } from "./checklist-popover";
+import { useBoardCalendarInvalidation } from "@/hooks/use-board-calendar-invalidation";
 
 interface MetadataProps {
   data: CardWithList;
@@ -63,6 +64,7 @@ export const Metadata = ({
   const boardId = params.boardId as string;
   const router = useRouter();
   const queryClient = useQueryClient();
+  const invalidateBoardCalendar = useBoardCalendarInvalidation(boardId);
 
   const [searchQuery, setSearchQuery] = useState("");
   const [startDateValue, setStartDateValue] = useState(formatDateTimeLocalInput(data.startDate));
@@ -86,6 +88,7 @@ export const Metadata = ({
       queryClient.invalidateQueries({
         queryKey: ["card-logs", updatedCard.id],
       });
+      invalidateBoardCalendar();
       router.refresh();
       
       if (updatedCard.isCompleted !== data.isCompleted) {
@@ -106,6 +109,7 @@ export const Metadata = ({
 
   const { execute: executeAssign, isLoading: isLoadingAssign } = useAction(assignCardMember, {
     onSuccess: (assigned) => {
+      invalidateBoardCalendar();
       queryClient.invalidateQueries({
         queryKey: ["card", data.id],
       });
@@ -121,6 +125,7 @@ export const Metadata = ({
 
   const { execute: executeUnassign, isLoading: isLoadingUnassign } = useAction(unassignCardMember, {
     onSuccess: (unassigned) => {
+      invalidateBoardCalendar();
       queryClient.invalidateQueries({
         queryKey: ["card", data.id],
       });

@@ -1,6 +1,6 @@
 "use client";
 
-import { useMemo, useState } from "react";
+import { useCallback, useMemo, useState, type MouseEvent } from "react";
 import { useQuery } from "@tanstack/react-query";
 import {
   addMonths,
@@ -32,6 +32,11 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { fetcher } from "@/lib/fetcher";
 import { cn } from "@/lib/utils";
 import { useCardModal } from "@/hooks/use-card-modal";
+import { useRealtimeChannel } from "@/hooks/use-realtime-channel";
+import { realtimeChannels } from "@/lib/realtime/channels";
+import { isRealtimeClientConfigured } from "@/lib/realtime/client";
+import { REALTIME_EVENTS } from "@/lib/realtime/events";
+import { useBoardCalendarInvalidation } from "@/hooks/use-board-calendar-invalidation";
 import type { BoardCalendarItem, BoardCalendarResponse } from "@/types";
 
 interface BoardCalendarViewProps {
@@ -46,6 +51,10 @@ type CalendarOccurrence = {
   kind: CalendarOccurrenceKind;
   date: Date;
   item: BoardCalendarItem;
+};
+
+type BoardCalendarRealtimePayload = {
+  boardId: string;
 };
 
 const WEEK_DAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
@@ -183,6 +192,7 @@ const getOccurrences = (items: BoardCalendarItem[]) =>
 
 export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
   const cardModal = useCardModal();
+  const invalidateBoardCalendar = useBoardCalendarInvalidation(boardId);
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [anchorDate, setAnchorDate] = useState(() => new Date());
   const [expandedDayKey, setExpandedDayKey] = useState<string | null>(null);
@@ -199,6 +209,101 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
       fetcher(
         `/api/boards/${boardId}/calendar?from=${encodeURIComponent(fromIso)}&to=${encodeURIComponent(toIso)}`,
       ),
+  });
+
+  const realtimeChannelName = realtimeChannels.board(boardId);
+  const realtimeEnabled = isRealtimeClientConfigured();
+  const handleCalendarRealtime = useCallback((payload: BoardCalendarRealtimePayload) => {
+    if (payload.boardId !== boardId) {
+      return;
+    }
+
+    invalidateBoardCalendar();
+  }, [boardId, invalidateBoardCalendar]);
+
+  useRealtimeChannel({
+    channelName: realtimeChannelName,
+    event: REALTIME_EVENTS.CARD_CREATED,
+    onEvent: handleCalendarRealtime,
+    enabled: realtimeEnabled,
+  });
+  useRealtimeChannel({
+    channelName: realtimeChannelName,
+    event: REALTIME_EVENTS.CARD_UPDATED,
+    onEvent: handleCalendarRealtime,
+    enabled: realtimeEnabled,
+  });
+  useRealtimeChannel({
+    channelName: realtimeChannelName,
+    event: REALTIME_EVENTS.CARD_DELETED,
+    onEvent: handleCalendarRealtime,
+    enabled: realtimeEnabled,
+  });
+  useRealtimeChannel({
+    channelName: realtimeChannelName,
+    event: REALTIME_EVENTS.CARD_MOVED,
+    onEvent: handleCalendarRealtime,
+    enabled: realtimeEnabled,
+  });
+  useRealtimeChannel({
+    channelName: realtimeChannelName,
+    event: REALTIME_EVENTS.CARD_REORDERED,
+    onEvent: handleCalendarRealtime,
+    enabled: realtimeEnabled,
+  });
+  useRealtimeChannel({
+    channelName: realtimeChannelName,
+    event: REALTIME_EVENTS.CARD_COMMENT_COUNT_UPDATED,
+    onEvent: handleCalendarRealtime,
+    enabled: realtimeEnabled,
+  });
+  useRealtimeChannel({
+    channelName: realtimeChannelName,
+    event: REALTIME_EVENTS.CARD_MEMBER_ASSIGNED,
+    onEvent: handleCalendarRealtime,
+    enabled: realtimeEnabled,
+  });
+  useRealtimeChannel({
+    channelName: realtimeChannelName,
+    event: REALTIME_EVENTS.CARD_MEMBER_UNASSIGNED,
+    onEvent: handleCalendarRealtime,
+    enabled: realtimeEnabled,
+  });
+  useRealtimeChannel({
+    channelName: realtimeChannelName,
+    event: REALTIME_EVENTS.CARD_LABEL_ATTACHED,
+    onEvent: handleCalendarRealtime,
+    enabled: realtimeEnabled,
+  });
+  useRealtimeChannel({
+    channelName: realtimeChannelName,
+    event: REALTIME_EVENTS.CARD_LABEL_DETACHED,
+    onEvent: handleCalendarRealtime,
+    enabled: realtimeEnabled,
+  });
+  useRealtimeChannel({
+    channelName: realtimeChannelName,
+    event: REALTIME_EVENTS.LABEL_UPDATED,
+    onEvent: handleCalendarRealtime,
+    enabled: realtimeEnabled,
+  });
+  useRealtimeChannel({
+    channelName: realtimeChannelName,
+    event: REALTIME_EVENTS.LABEL_DELETED,
+    onEvent: handleCalendarRealtime,
+    enabled: realtimeEnabled,
+  });
+  useRealtimeChannel({
+    channelName: realtimeChannelName,
+    event: REALTIME_EVENTS.LIST_UPDATED,
+    onEvent: handleCalendarRealtime,
+    enabled: realtimeEnabled,
+  });
+  useRealtimeChannel({
+    channelName: realtimeChannelName,
+    event: REALTIME_EVENTS.LIST_DELETED,
+    onEvent: handleCalendarRealtime,
+    enabled: realtimeEnabled,
   });
 
   const responseItems = query.data?.items;
@@ -226,6 +331,7 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
   }, [occurrences]);
 
   const expandedDayItems = expandedDayKey ? occurrencesByDay[expandedDayKey] ?? [] : [];
+
   const monthLabel = format(anchorDate, "'Tháng' M, yyyy", { locale: vi });
   const weekLabel = `Tuần ${format(new Date(fromIso), "dd/MM/yyyy", { locale: vi })} - ${format(new Date(toIso), "dd/MM/yyyy", { locale: vi })}`;
   const rangeLabel = `${format(new Date(fromIso), "dd/MM/yyyy", { locale: vi })} - ${format(new Date(toIso), "dd/MM/yyyy", { locale: vi })}`;
@@ -254,6 +360,15 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
     setViewMode(mode);
   };
 
+  const openCalendarCard = useCallback((
+    cardId: string,
+    event?: MouseEvent<HTMLButtonElement>,
+  ) => {
+    event?.stopPropagation();
+    setExpandedDayKey(null);
+    cardModal.onOpen(cardId);
+  }, [cardModal]);
+
   const renderOccurrence = (
     occurrence: CalendarOccurrence,
     className?: string,
@@ -261,8 +376,9 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
     <button
       key={occurrence.id}
       type="button"
-      onClick={() => cardModal.onOpen(occurrence.item.cardId)}
+      onClick={(event) => openCalendarCard(occurrence.item.cardId, event)}
       title={`${occurrence.item.title} - ${occurrence.item.listTitle}`}
+      aria-label={`Mở thẻ ${occurrence.item.title}`}
       className={cn(
         "group/event flex h-7 w-full min-w-0 items-center gap-x-1 rounded-md border px-1.5 text-left text-[11px] font-medium leading-none transition",
         getOccurrenceTone(occurrence),
@@ -334,6 +450,7 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
             <button
               type="button"
               onClick={() => setExpandedDayKey(dayKey)}
+              aria-label={`Xem thêm ${mobileOverflow} thẻ trong ngày ${format(day, "dd/MM/yyyy")}`}
               className="flex h-6 w-full items-center rounded-md px-1.5 text-left text-[11px] font-semibold text-neutral-500 transition hover:bg-neutral-100 sm:hidden"
             >
               +{mobileOverflow} thẻ
@@ -343,6 +460,7 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
             <button
               type="button"
               onClick={() => setExpandedDayKey(dayKey)}
+              aria-label={`Xem thêm ${desktopOverflow} thẻ trong ngày ${format(day, "dd/MM/yyyy")}`}
               className="hidden h-6 w-full items-center rounded-md px-1.5 text-left text-[11px] font-semibold text-neutral-500 transition hover:bg-neutral-100 sm:flex"
             >
               +{desktopOverflow} thẻ
@@ -529,7 +647,9 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
                     <button
                       key={`expanded:${occurrence.id}`}
                       type="button"
-                      onClick={() => cardModal.onOpen(occurrence.item.cardId)}
+                      onClick={(event) => openCalendarCard(occurrence.item.cardId, event)}
+                      title={`${occurrence.item.title} - ${occurrence.item.listTitle}`}
+                      aria-label={`Mở thẻ ${occurrence.item.title}`}
                       className="flex min-w-0 items-start gap-x-2 rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-left transition hover:border-violet-200 hover:bg-violet-50"
                     >
                       <div className={cn(

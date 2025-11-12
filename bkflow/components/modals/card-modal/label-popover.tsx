@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo, useEffect } from "react";
+import { useState, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { 
@@ -26,7 +26,7 @@ import {
 } from "@/components/ui/popover";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { cn } from "@/lib/utils";
+import { useBoardCalendarInvalidation } from "@/hooks/use-board-calendar-invalidation";
 
 const LABEL_COLORS = [
   // Hàng 1
@@ -63,6 +63,7 @@ export const LabelPopover = ({
   align = "start",
 }: LabelPopoverProps) => {
   const queryClient = useQueryClient();
+  const invalidateBoardCalendar = useBoardCalendarInvalidation(boardId);
 
   const [isOpen, setIsOpen] = useState(false);
   const [screen, setScreen] = useState<"select" | "create" | "edit">("select");
@@ -94,6 +95,7 @@ export const LabelPopover = ({
     queryClient.invalidateQueries({
       queryKey: ["card-logs", cardId],
     });
+    invalidateBoardCalendar();
   };
 
   // Actions
