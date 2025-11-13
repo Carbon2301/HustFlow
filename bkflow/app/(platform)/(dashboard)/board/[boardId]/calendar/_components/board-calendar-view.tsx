@@ -1,7 +1,7 @@
 "use client";
 
-import { useCallback, useMemo, useState, type MouseEvent } from "react";
-import { useQuery } from "@tanstack/react-query";
+import { useCallback, useMemo, useRef, useState, type DragEvent, type MouseEvent } from "react";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
 import {
   addMonths,
   addWeeks,
@@ -27,11 +27,15 @@ import {
   MessageSquare,
   UsersRound,
 } from "lucide-react";
+import { toast } from "sonner";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import { fetcher } from "@/lib/fetcher";
 import { cn } from "@/lib/utils";
+import { getDateTimezoneOffset } from "@/lib/date-utils";
 import { useCardModal } from "@/hooks/use-card-modal";
+import { useAction } from "@/hooks/use-action";
+import { updateCard } from "@/actions/update-card";
 import { useRealtimeChannel } from "@/hooks/use-realtime-channel";
 import { realtimeChannels } from "@/lib/realtime/channels";
 import { isRealtimeClientConfigured } from "@/lib/realtime/client";
@@ -55,6 +59,10 @@ type CalendarOccurrence = {
 
 type BoardCalendarRealtimePayload = {
   boardId: string;
+};
+
+type CalendarDragPayload = {
+  occurrenceId: string;
 };
 
 const WEEK_DAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
@@ -117,6 +125,43 @@ const getOccurrenceLabel = (occurrence: CalendarOccurrence) => {
   }
 
   return "Lịch";
+};
+
+const copyDateToDay = (sourceDate: Date, targetDay: Date) => {
+  const nextDate = new Date(sourceDate);
+  nextDate.setFullYear(
+    targetDay.getFullYear(),
+    targetDay.getMonth(),
+    targetDay.getDate(),
+  );
+
+  return nextDate;
+};
+
+const getReminderError = (dueDate: Date, reminder: string | null) => {
+  if (!reminder || reminder === "none") {
+    return null;
+  }
+
+  const offsetMinutes = parseInt(reminder, 10);
+
+  if (Number.isNaN(offsetMinutes)) {
+    return "Mốc nhắc nhở không hợp lệ.";
+  }
+
+  const triggerTime = dueDate.getTime() - offsetMinutes * 60_000;
+
+  if (triggerTime >= Date.now()) {
+    return null;
+  }
+
+  const minutesUntilDue = Math.floor((dueDate.getTime() - Date.now()) / 60_000);
+
+  if (minutesUntilDue <= 0) {
+    return "Thẻ đã hết hạn. Vui lòng kéo ngày hết hạn sang thời điểm hợp lệ.";
+  }
+
+  return "Thời gian nhắc nhở đã ở trong quá khứ. Hãy kéo ngày hết hạn xa hơn hoặc đổi mốc nhắc nhở.";
 };
 
 const isOverdue = (item: BoardCalendarItem) => {
@@ -192,10 +237,14 @@ const getOccurrences = (items: BoardCalendarItem[]) =>
 
 export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
   const cardModal = useCardModal();
+  const queryClient = useQueryClient();
   const invalidateBoardCalendar = useBoardCalendarInvalidation(boardId);
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [anchorDate, setAnchorDate] = useState(() => new Date());
   const [expandedDayKey, setExpandedDayKey] = useState<string | null>(null);
+  const [draggingOccurrenceId, setDraggingOccurrenceId] = useState<string | null>(null);
+  const [dragOverDayKey, setDragOverDayKey] = useState<string | null>(null);
+  const suppressClickRef = useRef(false);
   const { fromIso, toIso, days } = useMemo(
     () => viewMode === "month"
       ? getMonthGridRange(anchorDate)
@@ -309,6 +358,13 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
   const responseItems = query.data?.items;
   const items = useMemo(() => responseItems ?? [], [responseItems]);
   const occurrences = useMemo(() => getOccurrences(items), [items]);
+  const occurrencesById = useMemo(() => {
+    return occurrences.reduce<Record<string, CalendarOccurrence>>((acc, occurrence) => {
+      acc[occurrence.id] = occurrence;
+
+      return acc;
+    }, {});
+  }, [occurrences]);
   const occurrencesByDay = useMemo(() => {
     return occurrences.reduce<Record<string, CalendarOccurrence[]>>((acc, occurrence) => {
       const key = getDayKey(occurrence.date);
@@ -340,6 +396,24 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
   const maxVisibleDesktop = viewMode === "month" ? MONTH_VISIBLE_DESKTOP : WEEK_VISIBLE_DESKTOP;
   const maxVisibleMobile = viewMode === "month" ? MONTH_VISIBLE_MOBILE : WEEK_VISIBLE_MOBILE;
 
+  const { execute: executeUpdateCard, isLoading: isUpdatingCardDate } = useAction(updateCard, {
+    onSuccess: (data) => {
+      toast.success("Đã cập nhật ngày");
+      setExpandedDayKey(null);
+      invalidateBoardCalendar();
+      queryClient.invalidateQueries({ queryKey: ["card", data.id] });
+      queryClient.invalidateQueries({ queryKey: ["card-logs", data.id] });
+    },
+    onError: (error) => {
+      toast.error(error);
+      invalidateBoardCalendar();
+    },
+    onComplete: () => {
+      setDraggingOccurrenceId(null);
+      setDragOverDayKey(null);
+    },
+  });
+
   const goToPrevious = () => {
     setExpandedDayKey(null);
     setAnchorDate((value) => viewMode === "month" ? subMonths(value, 1) : subWeeks(value, 1));
@@ -365,9 +439,175 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
     event?: MouseEvent<HTMLButtonElement>,
   ) => {
     event?.stopPropagation();
+    if (suppressClickRef.current) {
+      return;
+    }
+
     setExpandedDayKey(null);
     cardModal.onOpen(cardId);
   }, [cardModal]);
+
+  const handleOccurrenceDragStart = (
+    event: DragEvent<HTMLButtonElement>,
+    occurrence: CalendarOccurrence,
+  ) => {
+    if (isUpdatingCardDate) {
+      event.preventDefault();
+      return;
+    }
+
+    const payload: CalendarDragPayload = {
+      occurrenceId: occurrence.id,
+    };
+
+    suppressClickRef.current = true;
+    setDraggingOccurrenceId(occurrence.id);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("application/json", JSON.stringify(payload));
+    event.dataTransfer.setData("text/plain", occurrence.id);
+  };
+
+  const handleOccurrenceDragEnd = () => {
+    setDraggingOccurrenceId(null);
+    setDragOverDayKey(null);
+    window.setTimeout(() => {
+      suppressClickRef.current = false;
+    }, 0);
+  };
+
+  const getDraggedOccurrence = (event: DragEvent<HTMLElement>) => {
+    const payloadValue = event.dataTransfer.getData("application/json");
+
+    if (payloadValue) {
+      try {
+        const payload = JSON.parse(payloadValue) as Partial<CalendarDragPayload>;
+
+        if (payload.occurrenceId) {
+          return occurrencesById[payload.occurrenceId] ?? null;
+        }
+      } catch {
+        return null;
+      }
+    }
+
+    const fallbackId = event.dataTransfer.getData("text/plain");
+
+    return fallbackId ? occurrencesById[fallbackId] ?? null : null;
+  };
+
+  const updateOccurrenceDate = (occurrence: CalendarOccurrence, targetDay: Date) => {
+    const { item } = occurrence;
+    const currentStartDate = parseCalendarDate(item.startDate);
+    const currentDueDate = parseCalendarDate(item.dueDate);
+    const targetDayKey = getDayKey(targetDay);
+    const sourceDayKey = getDayKey(occurrence.date);
+
+    if (targetDayKey === sourceDayKey) {
+      handleOccurrenceDragEnd();
+      return;
+    }
+
+    let nextStartDate: Date | undefined;
+    let nextDueDate: Date | undefined;
+    let shouldUpdateDueDate = false;
+
+    if (occurrence.kind === "start") {
+      if (!currentStartDate) {
+        toast.error("Không tìm thấy ngày bắt đầu của thẻ.");
+        handleOccurrenceDragEnd();
+        return;
+      }
+
+      nextStartDate = copyDateToDay(currentStartDate, targetDay);
+    } else if (occurrence.kind === "due") {
+      if (!currentDueDate) {
+        toast.error("Không tìm thấy ngày hết hạn của thẻ.");
+        handleOccurrenceDragEnd();
+        return;
+      }
+
+      nextDueDate = copyDateToDay(currentDueDate, targetDay);
+      shouldUpdateDueDate = true;
+    } else if (currentStartDate && currentDueDate && isSameDay(currentStartDate, currentDueDate)) {
+      nextStartDate = copyDateToDay(currentStartDate, targetDay);
+      nextDueDate = copyDateToDay(currentDueDate, targetDay);
+      shouldUpdateDueDate = true;
+    } else if (currentDueDate) {
+      nextDueDate = copyDateToDay(currentDueDate, targetDay);
+      shouldUpdateDueDate = true;
+    } else if (currentStartDate) {
+      nextStartDate = copyDateToDay(currentStartDate, targetDay);
+    } else {
+      toast.error("Không tìm thấy ngày của thẻ.");
+      handleOccurrenceDragEnd();
+      return;
+    }
+
+    const effectiveStartDate = nextStartDate ?? currentStartDate;
+    const effectiveDueDate = nextDueDate ?? currentDueDate;
+
+    if (
+      effectiveStartDate &&
+      effectiveDueDate &&
+      effectiveStartDate.getTime() > effectiveDueDate.getTime()
+    ) {
+      toast.error("Ngày bắt đầu phải trước hoặc bằng ngày hết hạn.");
+      invalidateBoardCalendar();
+      handleOccurrenceDragEnd();
+      return;
+    }
+
+    if (nextDueDate) {
+      const reminderError = getReminderError(nextDueDate, item.reminder);
+
+      if (reminderError) {
+        toast.error(reminderError);
+        invalidateBoardCalendar();
+        handleOccurrenceDragEnd();
+        return;
+      }
+    }
+
+    executeUpdateCard({
+      id: item.cardId,
+      boardId,
+      ...(nextStartDate !== undefined ? { startDate: nextStartDate } : {}),
+      ...(nextDueDate !== undefined ? { dueDate: nextDueDate } : {}),
+      dueDateTimezoneOffset: nextDueDate
+        ? getDateTimezoneOffset(nextDueDate)
+        : nextStartDate
+          ? getDateTimezoneOffset(nextStartDate)
+          : undefined,
+      ...(shouldUpdateDueDate ? { isCompleted: item.isCompleted } : {}),
+      ...(shouldUpdateDueDate && item.reminder !== null ? { reminder: item.reminder } : {}),
+    });
+  };
+
+  const handleDayDragOver = (event: DragEvent<HTMLDivElement>, dayKey: string) => {
+    if (!draggingOccurrenceId) {
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+    setDragOverDayKey(dayKey);
+  };
+
+  const handleDayDrop = (event: DragEvent<HTMLDivElement>, day: Date) => {
+    event.preventDefault();
+    suppressClickRef.current = true;
+
+    const occurrence = getDraggedOccurrence(event);
+
+    if (!occurrence) {
+      toast.error("Không thể xác định thẻ đang kéo.");
+      invalidateBoardCalendar();
+      handleOccurrenceDragEnd();
+      return;
+    }
+
+    updateOccurrenceDate(occurrence, day);
+  };
 
   const renderOccurrence = (
     occurrence: CalendarOccurrence,
@@ -376,12 +616,17 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
     <button
       key={occurrence.id}
       type="button"
+      draggable={!isUpdatingCardDate}
+      onDragStart={(event) => handleOccurrenceDragStart(event, occurrence)}
+      onDragEnd={handleOccurrenceDragEnd}
       onClick={(event) => openCalendarCard(occurrence.item.cardId, event)}
       title={`${occurrence.item.title} - ${occurrence.item.listTitle}`}
       aria-label={`Mở thẻ ${occurrence.item.title}`}
       className={cn(
-        "group/event flex h-7 w-full min-w-0 items-center gap-x-1 rounded-md border px-1.5 text-left text-[11px] font-medium leading-none transition",
+        "group/event flex h-7 w-full min-w-0 cursor-grab items-center gap-x-1 rounded-md border px-1.5 text-left text-[11px] font-medium leading-none transition active:cursor-grabbing",
         getOccurrenceTone(occurrence),
+        draggingOccurrenceId === occurrence.id && "opacity-60 ring-2 ring-violet-300",
+        isUpdatingCardDate && "cursor-wait opacity-70",
         className,
       )}
     >
@@ -412,12 +657,18 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
     return (
       <div
         key={dayKey}
+        onDragOver={(event) => handleDayDragOver(event, dayKey)}
+        onDragEnter={(event) => handleDayDragOver(event, dayKey)}
+        onDragLeave={() => setDragOverDayKey((value) => value === dayKey ? null : value)}
+        onDrop={(event) => handleDayDrop(event, day)}
         className={cn(
-          "overflow-hidden border-neutral-200 bg-white p-1.5 md:p-2",
+          "overflow-hidden border-neutral-200 bg-white p-1.5 transition-colors md:p-2",
           viewMode === "month" && "min-h-[104px] border-r border-b last:border-r-0 sm:min-h-[132px]",
           viewMode === "week" && "min-h-[132px] rounded-lg border md:min-h-[360px]",
           viewMode === "week" && index > 0 && "mt-2 md:mt-0",
           viewMode === "month" && !isSameMonth(day, currentMonth) && "bg-neutral-50/80 text-neutral-400",
+          draggingOccurrenceId && "ring-inset ring-violet-100",
+          dragOverDayKey === dayKey && "bg-violet-50 ring-2 ring-inset ring-violet-300",
         )}
       >
         <div className="mb-1 flex h-7 items-center justify-between gap-x-2">
