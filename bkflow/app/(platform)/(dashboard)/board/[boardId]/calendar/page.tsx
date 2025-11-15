@@ -1,6 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
+import { db } from "@/lib/db";
 import { requireBoardMember } from "@/lib/permissions";
 
 import { BoardCalendarView } from "./_components/board-calendar-view";
@@ -28,9 +29,26 @@ const BoardCalendarPage = async ({
     redirect(`/organization/${orgId}?error=${encodeURIComponent(errorMessage)}`);
   }
 
+  const lists = await db.list.findMany({
+    where: {
+      boardId,
+      board: {
+        orgId,
+      },
+    },
+    select: {
+      id: true,
+      title: true,
+      order: true,
+    },
+    orderBy: {
+      order: "asc",
+    },
+  });
+
   return (
     <div className="h-full p-4">
-      <BoardCalendarView boardId={boardId} />
+      <BoardCalendarView boardId={boardId} lists={lists} />
     </div>
   );
 };

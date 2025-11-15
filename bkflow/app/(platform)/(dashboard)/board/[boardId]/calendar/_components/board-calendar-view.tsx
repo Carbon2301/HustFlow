@@ -2,6 +2,7 @@
 
 import { useCallback, useMemo, useRef, useState, type DragEvent, type MouseEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useRouter } from "next/navigation";
 import {
   addMonths,
   addWeeks,
@@ -25,6 +26,7 @@ import {
   ChevronRight,
   Clock,
   MessageSquare,
+  Plus,
   UsersRound,
 } from "lucide-react";
 import { toast } from "sonner";
@@ -35,7 +37,17 @@ import { cn } from "@/lib/utils";
 import { getDateTimezoneOffset } from "@/lib/date-utils";
 import { useCardModal } from "@/hooks/use-card-modal";
 import { useAction } from "@/hooks/use-action";
+import { createCard } from "@/actions/create-card";
 import { updateCard } from "@/actions/update-card";
+import { Button } from "@/components/ui/button";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 import { useRealtimeChannel } from "@/hooks/use-realtime-channel";
 import { realtimeChannels } from "@/lib/realtime/channels";
 import { isRealtimeClientConfigured } from "@/lib/realtime/client";
@@ -45,7 +57,14 @@ import type { BoardCalendarItem, BoardCalendarResponse } from "@/types";
 
 interface BoardCalendarViewProps {
   boardId: string;
+  lists: BoardCalendarList[];
 }
+
+type BoardCalendarList = {
+  id: string;
+  title: string;
+  order: number;
+};
 
 type ViewMode = "month" | "week";
 type CalendarOccurrenceKind = "single" | "start" | "due" | "range";
@@ -70,6 +89,7 @@ const MONTH_VISIBLE_DESKTOP = 3;
 const MONTH_VISIBLE_MOBILE = 2;
 const WEEK_VISIBLE_DESKTOP = 8;
 const WEEK_VISIBLE_MOBILE = 4;
+const DEFAULT_CREATE_HOUR = 9;
 
 const getMonthGridRange = (anchorDate: Date) => {
   const monthStart = startOfMonth(anchorDate);
@@ -137,6 +157,17 @@ const copyDateToDay = (sourceDate: Date, targetDay: Date) => {
 
   return nextDate;
 };
+
+const getDefaultDueDateForDay = (day: Date) =>
+  new Date(
+    day.getFullYear(),
+    day.getMonth(),
+    day.getDate(),
+    DEFAULT_CREATE_HOUR,
+    0,
+    0,
+    0,
+  );
 
 const getReminderError = (dueDate: Date, reminder: string | null) => {
   if (!reminder || reminder === "none") {
@@ -235,7 +266,8 @@ const getOccurrences = (items: BoardCalendarItem[]) =>
     return acc;
   }, []);
 
-export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
+export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) => {
+  const router = useRouter();
   const cardModal = useCardModal();
   const queryClient = useQueryClient();
   const invalidateBoardCalendar = useBoardCalendarInvalidation(boardId);
@@ -244,6 +276,9 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
   const [expandedDayKey, setExpandedDayKey] = useState<string | null>(null);
   const [draggingOccurrenceId, setDraggingOccurrenceId] = useState<string | null>(null);
   const [dragOverDayKey, setDragOverDayKey] = useState<string | null>(null);
+  const [createDialogDay, setCreateDialogDay] = useState<Date | null>(null);
+  const [createTitle, setCreateTitle] = useState("");
+  const [createListId, setCreateListId] = useState(() => lists[0]?.id ?? "");
   const suppressClickRef = useRef(false);
   const { fromIso, toIso, days } = useMemo(
     () => viewMode === "month"
@@ -395,6 +430,9 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
   const currentMonth = startOfMonth(anchorDate);
   const maxVisibleDesktop = viewMode === "month" ? MONTH_VISIBLE_DESKTOP : WEEK_VISIBLE_DESKTOP;
   const maxVisibleMobile = viewMode === "month" ? MONTH_VISIBLE_MOBILE : WEEK_VISIBLE_MOBILE;
+  const selectedCreateDayLabel = createDialogDay
+    ? format(createDialogDay, "EEEE, dd/MM/yyyy", { locale: vi })
+    : "";
 
   const { execute: executeUpdateCard, isLoading: isUpdatingCardDate } = useAction(updateCard, {
     onSuccess: (data) => {
@@ -411,6 +449,22 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
     onComplete: () => {
       setDraggingOccurrenceId(null);
       setDragOverDayKey(null);
+    },
+  });
+
+  const { execute: executeCreateCard, fieldErrors: createFieldErrors, isLoading: isCreatingCard } = useAction(createCard, {
+    onSuccess: (data) => {
+      toast.success(`Đã tạo thẻ "${data.title}"`);
+      setCreateDialogDay(null);
+      setCreateTitle("");
+      invalidateBoardCalendar();
+      queryClient.invalidateQueries({ queryKey: ["card", data.id] });
+      router.refresh();
+      cardModal.onOpen(data.id);
+    },
+    onError: (error) => {
+      toast.error(error);
+      invalidateBoardCalendar();
     },
   });
 
@@ -432,6 +486,54 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
   const changeViewMode = (mode: ViewMode) => {
     setExpandedDayKey(null);
     setViewMode(mode);
+  };
+
+  const openCreateDialog = (day: Date, event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+
+    if (draggingOccurrenceId || isUpdatingCardDate || lists.length === 0) {
+      return;
+    }
+
+    setExpandedDayKey(null);
+    setCreateDialogDay(day);
+    setCreateTitle("");
+    setCreateListId((value) => value || lists[0]?.id || "");
+  };
+
+  const closeCreateDialog = (open: boolean) => {
+    if (open) {
+      return;
+    }
+
+    setCreateDialogDay(null);
+    setCreateTitle("");
+  };
+
+  const submitCreateCard = () => {
+    const title = createTitle.trim();
+
+    if (!title || title.length < 3) {
+      toast.error("Tiêu đề quá ngắn (tối thiểu 3 ký tự).");
+      return;
+    }
+
+    if (!createListId) {
+      toast.error("Vui lòng chọn danh sách đích.");
+      return;
+    }
+
+    if (!createDialogDay) {
+      toast.error("Không xác định được ngày tạo thẻ.");
+      return;
+    }
+
+    executeCreateCard({
+      title,
+      boardId,
+      listId: createListId,
+      dueDate: getDefaultDueDateForDay(createDialogDay),
+    });
   };
 
   const openCalendarCard = useCallback((
@@ -662,7 +764,7 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
         onDragLeave={() => setDragOverDayKey((value) => value === dayKey ? null : value)}
         onDrop={(event) => handleDayDrop(event, day)}
         className={cn(
-          "overflow-hidden border-neutral-200 bg-white p-1.5 transition-colors md:p-2",
+          "group/day overflow-hidden border-neutral-200 bg-white p-1.5 transition-colors md:p-2",
           viewMode === "month" && "min-h-[104px] border-r border-b last:border-r-0 sm:min-h-[132px]",
           viewMode === "week" && "min-h-[132px] rounded-lg border md:min-h-[360px]",
           viewMode === "week" && index > 0 && "mt-2 md:mt-0",
@@ -688,6 +790,19 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
               {viewMode === "week" ? format(day, "dd/MM") : format(day, "d")}
             </span>
           </div>
+          <button
+            type="button"
+            onClick={(event) => openCreateDialog(day, event)}
+            disabled={lists.length === 0 || isCreatingCard || isUpdatingCardDate}
+            title={lists.length === 0 ? "Tạo danh sách trước khi thêm thẻ từ lịch" : `Thêm thẻ vào ngày ${format(day, "dd/MM/yyyy")}`}
+            aria-label={lists.length === 0 ? "Tạo danh sách trước khi thêm thẻ từ lịch" : `Thêm thẻ vào ngày ${format(day, "dd/MM/yyyy")}`}
+            className={cn(
+              "flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-neutral-400 opacity-100 transition hover:bg-violet-50 hover:text-violet-700 focus-visible:bg-violet-50 focus-visible:text-violet-700 disabled:cursor-not-allowed disabled:opacity-30 md:opacity-0 md:group-hover/day:opacity-100 md:focus-visible:opacity-100",
+              isToday(day) && "text-violet-700",
+            )}
+          >
+            <Plus className="h-3.5 w-3.5" />
+          </button>
         </div>
 
         <div className="space-y-1">
@@ -723,6 +838,7 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
   };
 
   return (
+    <>
     <section className="flex h-full min-h-0 flex-col overflow-hidden rounded-lg border border-white/20 bg-white/95 shadow-xl backdrop-blur">
       <div className="flex shrink-0 flex-col gap-3 border-b border-neutral-200 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
         <div className="min-w-0">
@@ -943,5 +1059,83 @@ export const BoardCalendarView = ({ boardId }: BoardCalendarViewProps) => {
         )}
       </div>
     </section>
+    <Dialog open={!!createDialogDay} onOpenChange={closeCreateDialog}>
+      <DialogContent className="max-w-md">
+        <DialogHeader>
+          <DialogTitle>Thêm thẻ vào ngày {selectedCreateDayLabel}</DialogTitle>
+          <DialogDescription>
+            Thẻ mới sẽ có hạn lúc {String(DEFAULT_CREATE_HOUR).padStart(2, "0")}:00 theo giờ địa phương.
+          </DialogDescription>
+        </DialogHeader>
+
+        <form
+          className="space-y-4"
+          onSubmit={(event) => {
+            event.preventDefault();
+            submitCreateCard();
+          }}
+        >
+          <div className="space-y-1.5">
+            <label htmlFor="calendar-card-title" className="text-xs font-semibold text-neutral-600">
+              Tiêu đề
+            </label>
+            <input
+              id="calendar-card-title"
+              value={createTitle}
+              onChange={(event) => setCreateTitle(event.target.value)}
+              disabled={isCreatingCard}
+              autoFocus
+              placeholder="Nhập tiêu đề thẻ..."
+              className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-800 shadow-sm outline-none transition placeholder:text-neutral-400 focus:border-violet-400 focus:ring-1 focus:ring-violet-200 disabled:cursor-not-allowed disabled:bg-neutral-50"
+            />
+            {createFieldErrors?.title?.[0] && (
+              <p className="text-xs text-red-600">{createFieldErrors.title[0]}</p>
+            )}
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor="calendar-card-list" className="text-xs font-semibold text-neutral-600">
+              Danh sách
+            </label>
+            <select
+              id="calendar-card-list"
+              value={createListId}
+              onChange={(event) => setCreateListId(event.target.value)}
+              disabled={isCreatingCard || lists.length === 0}
+              className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-800 shadow-sm outline-none transition focus:border-violet-400 focus:ring-1 focus:ring-violet-200 disabled:cursor-not-allowed disabled:bg-neutral-50"
+            >
+              {lists.length === 0 ? (
+                <option value="">Tạo danh sách trước khi thêm thẻ từ lịch</option>
+              ) : (
+                lists.map((list) => (
+                  <option key={list.id} value={list.id}>
+                    {list.title}
+                  </option>
+                ))
+              )}
+            </select>
+          </div>
+
+          <DialogFooter className="mt-2">
+            <Button
+              type="button"
+              variant="outline"
+              disabled={isCreatingCard}
+              onClick={() => closeCreateDialog(false)}
+            >
+              Hủy
+            </Button>
+            <Button
+              type="submit"
+              variant="primary"
+              disabled={isCreatingCard || lists.length === 0}
+            >
+              Tạo thẻ
+            </Button>
+          </DialogFooter>
+        </form>
+      </DialogContent>
+    </Dialog>
+    </>
   );
 };
