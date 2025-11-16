@@ -21,11 +21,15 @@ import { vi } from "date-fns/locale";
 import {
   AlertCircle,
   CalendarDays,
+  CalendarX2,
   CheckCircle2,
   ChevronLeft,
   ChevronRight,
+  Circle,
   Clock,
+  ExternalLink,
   MessageSquare,
+  MoreHorizontal,
   Plus,
   UsersRound,
 } from "lucide-react";
@@ -48,6 +52,11 @@ import {
   DialogHeader,
   DialogTitle,
 } from "@/components/ui/dialog";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 import { useRealtimeChannel } from "@/hooks/use-realtime-channel";
 import { realtimeChannels } from "@/lib/realtime/channels";
 import { isRealtimeClientConfigured } from "@/lib/realtime/client";
@@ -280,6 +289,7 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
   const [createTitle, setCreateTitle] = useState("");
   const [createListId, setCreateListId] = useState(() => lists[0]?.id ?? "");
   const suppressClickRef = useRef(false);
+  const updateSuccessToastRef = useRef<string | null>(null);
   const { fromIso, toIso, days } = useMemo(
     () => viewMode === "month"
       ? getMonthGridRange(anchorDate)
@@ -436,13 +446,16 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
 
   const { execute: executeUpdateCard, isLoading: isUpdatingCardDate } = useAction(updateCard, {
     onSuccess: (data) => {
-      toast.success("Đã cập nhật ngày");
+      toast.success(updateSuccessToastRef.current ?? "Đã cập nhật ngày");
+      updateSuccessToastRef.current = null;
       setExpandedDayKey(null);
       invalidateBoardCalendar();
       queryClient.invalidateQueries({ queryKey: ["card", data.id] });
       queryClient.invalidateQueries({ queryKey: ["card-logs", data.id] });
+      router.refresh();
     },
     onError: (error) => {
+      updateSuccessToastRef.current = null;
       toast.error(error);
       invalidateBoardCalendar();
     },
@@ -549,8 +562,67 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
     cardModal.onOpen(cardId);
   }, [cardModal]);
 
+  const canClearStartDate = (occurrence: CalendarOccurrence) => (
+    occurrence.kind === "start" ||
+    occurrence.kind === "range" ||
+    (occurrence.kind === "single" && !!occurrence.item.startDate && !occurrence.item.dueDate)
+  );
+
+  const canClearDueDate = (occurrence: CalendarOccurrence) => (
+    occurrence.kind === "due" ||
+    occurrence.kind === "range" ||
+    (occurrence.kind === "single" && !!occurrence.item.dueDate)
+  );
+
+  const toggleCalendarCardComplete = (occurrence: CalendarOccurrence) => {
+    updateSuccessToastRef.current = occurrence.item.isCompleted
+      ? "Đã bỏ hoàn thành"
+      : "Đã đánh dấu hoàn thành";
+
+    executeUpdateCard({
+      id: occurrence.item.cardId,
+      boardId,
+      isCompleted: !occurrence.item.isCompleted,
+    });
+  };
+
+  const clearCalendarStartDate = (occurrence: CalendarOccurrence) => {
+    updateSuccessToastRef.current = "Đã xóa ngày bắt đầu";
+
+    executeUpdateCard({
+      id: occurrence.item.cardId,
+      boardId,
+      startDate: null,
+    });
+  };
+
+  const clearCalendarDueDate = (occurrence: CalendarOccurrence) => {
+    updateSuccessToastRef.current = "Đã xóa ngày hết hạn";
+
+    executeUpdateCard({
+      id: occurrence.item.cardId,
+      boardId,
+      dueDate: null,
+      reminder: null,
+      isCompleted: false,
+    });
+  };
+
+  const handleQuickActionClick = (
+    event: MouseEvent<HTMLButtonElement>,
+    action: () => void,
+  ) => {
+    event.preventDefault();
+    event.stopPropagation();
+    suppressClickRef.current = true;
+    action();
+    window.setTimeout(() => {
+      suppressClickRef.current = false;
+    }, 0);
+  };
+
   const handleOccurrenceDragStart = (
-    event: DragEvent<HTMLButtonElement>,
+    event: DragEvent<HTMLDivElement>,
     occurrence: CalendarOccurrence,
   ) => {
     if (isUpdatingCardDate) {
@@ -670,6 +742,8 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
       }
     }
 
+    updateSuccessToastRef.current = "Đã cập nhật ngày";
+
     executeUpdateCard({
       id: item.cardId,
       boardId,
@@ -711,19 +785,88 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
     updateOccurrenceDate(occurrence, day);
   };
 
+  const renderQuickActionsMenu = (occurrence: CalendarOccurrence) => (
+    <Popover>
+      <PopoverTrigger asChild>
+        <button
+          type="button"
+          onClick={(event) => {
+            event.stopPropagation();
+          }}
+          onPointerDown={(event) => event.stopPropagation()}
+          onDragStart={(event) => event.preventDefault()}
+          disabled={isUpdatingCardDate}
+          aria-label={`Mở thao tác nhanh cho thẻ ${occurrence.item.title}`}
+          className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-neutral-500 opacity-100 transition hover:bg-white/70 hover:text-neutral-900 focus-visible:bg-white/70 focus-visible:text-neutral-900 disabled:cursor-wait disabled:opacity-40 sm:opacity-0 sm:group-hover/event:opacity-100 sm:group-focus-within/event:opacity-100"
+        >
+          <MoreHorizontal className="h-3.5 w-3.5" />
+        </button>
+      </PopoverTrigger>
+      <PopoverContent
+        align="end"
+        sideOffset={6}
+        className="w-56 gap-1 p-1.5"
+        onClick={(event) => event.stopPropagation()}
+        onPointerDown={(event) => event.stopPropagation()}
+      >
+        <button
+          type="button"
+          disabled={isUpdatingCardDate}
+          onClick={(event) => handleQuickActionClick(event, () => cardModal.onOpen(occurrence.item.cardId))}
+          className="flex h-8 w-full items-center gap-x-2 rounded-md px-2 text-left text-xs font-medium text-neutral-700 transition hover:bg-neutral-100 disabled:cursor-wait disabled:opacity-50"
+        >
+          <ExternalLink className="h-3.5 w-3.5 text-neutral-500" />
+          Mở thẻ
+        </button>
+        <button
+          type="button"
+          disabled={isUpdatingCardDate}
+          onClick={(event) => handleQuickActionClick(event, () => toggleCalendarCardComplete(occurrence))}
+          className="flex h-8 w-full items-center gap-x-2 rounded-md px-2 text-left text-xs font-medium text-neutral-700 transition hover:bg-neutral-100 disabled:cursor-wait disabled:opacity-50"
+        >
+          {occurrence.item.isCompleted ? (
+            <Circle className="h-3.5 w-3.5 text-neutral-500" />
+          ) : (
+            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
+          )}
+          {occurrence.item.isCompleted ? "Bỏ hoàn thành" : "Đánh dấu hoàn thành"}
+        </button>
+        {canClearStartDate(occurrence) && (
+          <button
+            type="button"
+            disabled={isUpdatingCardDate}
+            onClick={(event) => handleQuickActionClick(event, () => clearCalendarStartDate(occurrence))}
+            className="flex h-8 w-full items-center gap-x-2 rounded-md px-2 text-left text-xs font-medium text-neutral-700 transition hover:bg-neutral-100 disabled:cursor-wait disabled:opacity-50"
+          >
+            <CalendarX2 className="h-3.5 w-3.5 text-sky-600" />
+            Xóa ngày bắt đầu
+          </button>
+        )}
+        {canClearDueDate(occurrence) && (
+          <button
+            type="button"
+            disabled={isUpdatingCardDate}
+            onClick={(event) => handleQuickActionClick(event, () => clearCalendarDueDate(occurrence))}
+            className="flex h-8 w-full items-center gap-x-2 rounded-md px-2 text-left text-xs font-medium text-neutral-700 transition hover:bg-neutral-100 disabled:cursor-wait disabled:opacity-50"
+          >
+            <CalendarX2 className="h-3.5 w-3.5 text-violet-600" />
+            Xóa ngày hết hạn
+          </button>
+        )}
+      </PopoverContent>
+    </Popover>
+  );
+
   const renderOccurrence = (
     occurrence: CalendarOccurrence,
     className?: string,
   ) => (
-    <button
+    <div
       key={occurrence.id}
-      type="button"
       draggable={!isUpdatingCardDate}
       onDragStart={(event) => handleOccurrenceDragStart(event, occurrence)}
       onDragEnd={handleOccurrenceDragEnd}
-      onClick={(event) => openCalendarCard(occurrence.item.cardId, event)}
       title={`${occurrence.item.title} - ${occurrence.item.listTitle}`}
-      aria-label={`Mở thẻ ${occurrence.item.title}`}
       className={cn(
         "group/event flex h-7 w-full min-w-0 cursor-grab items-center gap-x-1 rounded-md border px-1.5 text-left text-[11px] font-medium leading-none transition active:cursor-grabbing",
         getOccurrenceTone(occurrence),
@@ -732,7 +875,12 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
         className,
       )}
     >
-      <span className="flex min-w-0 flex-1 items-center gap-x-1">
+      <button
+        type="button"
+        onClick={(event) => openCalendarCard(occurrence.item.cardId, event)}
+        aria-label={`Mở thẻ ${occurrence.item.title}`}
+        className="flex h-full min-w-0 flex-1 items-center gap-x-1 text-left"
+      >
         {occurrence.item.labels[0] && (
           <span
             className="h-2 w-2 shrink-0 rounded-full"
@@ -743,11 +891,12 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
           {getOccurrenceLabel(occurrence)}
         </span>
         <span className="truncate">{occurrence.item.title}</span>
-      </span>
+      </button>
       {occurrence.item.isCompleted && (
         <CheckCircle2 className="h-3 w-3 shrink-0 opacity-80" />
       )}
-    </button>
+      {renderQuickActionsMenu(occurrence)}
+    </div>
   );
 
   const renderCalendarDay = (day: Date, index: number) => {
@@ -1011,46 +1160,51 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
                 </div>
                 <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
                   {expandedDayItems.map((occurrence) => (
-                    <button
+                    <div
                       key={`expanded:${occurrence.id}`}
-                      type="button"
-                      onClick={(event) => openCalendarCard(occurrence.item.cardId, event)}
                       title={`${occurrence.item.title} - ${occurrence.item.listTitle}`}
-                      aria-label={`Mở thẻ ${occurrence.item.title}`}
-                      className="flex min-w-0 items-start gap-x-2 rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-left transition hover:border-violet-200 hover:bg-violet-50"
+                      className="group/event flex min-w-0 items-start gap-x-2 rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-left transition hover:border-violet-200 hover:bg-violet-50"
                     >
-                      <div className={cn(
-                        "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border",
-                        getOccurrenceTone(occurrence),
-                      )}>
-                        {occurrence.item.isCompleted ? (
-                          <CheckCircle2 className="h-4 w-4" />
-                        ) : (
-                          <Clock className="h-4 w-4" />
-                        )}
-                      </div>
-                      <div className="min-w-0 flex-1">
-                        <p className="truncate text-sm font-semibold text-neutral-900">
-                          {occurrence.item.title}
-                        </p>
-                        <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-500">
-                          <span>{getOccurrenceLabel(occurrence)}</span>
-                          <span className="truncate">{occurrence.item.listTitle}</span>
-                          {occurrence.item.assignees.length > 0 && (
-                            <span className="inline-flex items-center gap-x-1">
-                              <UsersRound className="h-3.5 w-3.5" />
-                              {occurrence.item.assignees.length}
-                            </span>
-                          )}
-                          {occurrence.item.commentCount > 0 && (
-                            <span className="inline-flex items-center gap-x-1">
-                              <MessageSquare className="h-3.5 w-3.5" />
-                              {occurrence.item.commentCount}
-                            </span>
+                      <button
+                        type="button"
+                        onClick={(event) => openCalendarCard(occurrence.item.cardId, event)}
+                        aria-label={`Mở thẻ ${occurrence.item.title}`}
+                        className="flex min-w-0 flex-1 items-start gap-x-2 text-left"
+                      >
+                        <div className={cn(
+                          "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border",
+                          getOccurrenceTone(occurrence),
+                        )}>
+                          {occurrence.item.isCompleted ? (
+                            <CheckCircle2 className="h-4 w-4" />
+                          ) : (
+                            <Clock className="h-4 w-4" />
                           )}
                         </div>
-                      </div>
-                    </button>
+                        <div className="min-w-0 flex-1">
+                          <p className="truncate text-sm font-semibold text-neutral-900">
+                            {occurrence.item.title}
+                          </p>
+                          <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-500">
+                            <span>{getOccurrenceLabel(occurrence)}</span>
+                            <span className="truncate">{occurrence.item.listTitle}</span>
+                            {occurrence.item.assignees.length > 0 && (
+                              <span className="inline-flex items-center gap-x-1">
+                                <UsersRound className="h-3.5 w-3.5" />
+                                {occurrence.item.assignees.length}
+                              </span>
+                            )}
+                            {occurrence.item.commentCount > 0 && (
+                              <span className="inline-flex items-center gap-x-1">
+                                <MessageSquare className="h-3.5 w-3.5" />
+                                {occurrence.item.commentCount}
+                              </span>
+                            )}
+                          </div>
+                        </div>
+                      </button>
+                      {renderQuickActionsMenu(occurrence)}
+                    </div>
                   ))}
                 </div>
               </div>
