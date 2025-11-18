@@ -80,7 +80,7 @@ export const DueDateBadge = ({
 
   let displayString = "";
   if (hasStart && !hasDue) {
-    displayString = `Đã bắt đầu ${formatDateValue(startDate)}`;
+    displayString = `Bắt đầu: ${formatDateValue(startDate)}`;
   } else if (hasStart && hasDue) {
     displayString = `${formatDateValue(startDate)} - ${formatDateValue(dueDate)}`;
   } else if (hasDue) {

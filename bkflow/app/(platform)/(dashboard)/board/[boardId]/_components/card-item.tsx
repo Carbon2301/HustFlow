@@ -117,7 +117,7 @@ export const CardItem = ({
   const hasChecklistProgress = checklistTotalItems > 0;
   const isChecklistAllDone = hasChecklistProgress && checklistCompletedItems === checklistTotalItems;
 
-  const hasFooter = Boolean(data.dueDate) || data.isCompleted || data.assignees.length > 0
+  const hasFooter = Boolean(data.dueDate) || Boolean(data.startDate) || data.isCompleted || data.assignees.length > 0
     || Boolean(data._count && data._count.comments > 0) || hasChecklistProgress;
 
   return (

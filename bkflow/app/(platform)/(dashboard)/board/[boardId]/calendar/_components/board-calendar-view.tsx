@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState, type DragEvent, type MouseEvent } from "react";
+import { useCallback, useMemo, useRef, useState, type CSSProperties, type DragEvent, type MouseEvent } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import {
@@ -85,6 +85,26 @@ type CalendarOccurrence = {
   item: BoardCalendarItem;
 };
 
+type CalendarRange = {
+  id: string;
+  item: BoardCalendarItem;
+  startDate: Date;
+  endDate: Date;
+  startKey: string;
+  endKey: string;
+};
+
+type CalendarRangeSegment = {
+  id: string;
+  range: CalendarRange;
+  weekIndex: number;
+  startIndex: number;
+  endIndex: number;
+  lane: number;
+  isRangeStart: boolean;
+  isRangeEnd: boolean;
+};
+
 type BoardCalendarRealtimePayload = {
   boardId: string;
 };
@@ -96,6 +116,10 @@ type CalendarDragPayload = {
 const WEEK_DAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 const MONTH_VISIBLE_DESKTOP = 3;
 const MONTH_VISIBLE_MOBILE = 2;
+const MONTH_RANGE_LANES = 2;
+const WEEK_RANGE_LANES = 4;
+const RANGE_LANE_HEIGHT = 28;
+const RANGE_LANE_GAP = 4;
 const WEEK_VISIBLE_DESKTOP = 8;
 const WEEK_VISIBLE_MOBILE = 4;
 const DEFAULT_CREATE_HOUR = 9;
@@ -126,6 +150,12 @@ const getWeekGridRange = (anchorDate: Date) => {
 
 const getDayKey = (date: Date) => format(date, "yyyy-MM-dd");
 
+const getLocalDay = (date: Date) =>
+  new Date(date.getFullYear(), date.getMonth(), date.getDate());
+
+const compareDay = (left: Date, right: Date) =>
+  getLocalDay(left).getTime() - getLocalDay(right).getTime();
+
 const parseCalendarDate = (value: string | null) => {
   if (!value) {
     return null;
@@ -150,10 +180,47 @@ const getOccurrenceLabel = (occurrence: CalendarOccurrence) => {
   }
 
   if (occurrence.kind === "range") {
+    const start = parseCalendarDate(occurrence.item.startDate);
+    const due = parseCalendarDate(occurrence.item.dueDate);
+
+    if (start && due) {
+      return `${format(start, "dd/MM")} - ${format(due, "dd/MM")}`;
+    }
+
     return "Trong ngày";
   }
 
+  // Handles occurrence.kind === "single"
+  const start = parseCalendarDate(occurrence.item.startDate);
+  const due = parseCalendarDate(occurrence.item.dueDate);
+
+  if (start && !due) {
+    return "Bắt đầu";
+  }
+
+  if (!start && due) {
+    return "Hết hạn";
+  }
+
+  if (start && due) {
+    if (start.getTime() === due.getTime()) {
+      return "Trong ngày";
+    }
+    return `${format(start, "HH:mm")} - ${format(due, "HH:mm")}`;
+  }
+
   return "Lịch";
+};
+
+const getRangeLabel = (item: BoardCalendarItem) => {
+  const startDate = parseCalendarDate(item.startDate);
+  const dueDate = parseCalendarDate(item.dueDate);
+
+  if (!startDate || !dueDate) {
+    return item.title;
+  }
+
+  return `${item.title} - ${format(startDate, "dd/MM/yyyy", { locale: vi })} đến ${format(dueDate, "dd/MM/yyyy", { locale: vi })}`;
 };
 
 const copyDateToDay = (sourceDate: Date, targetDay: Date) => {
@@ -236,26 +303,14 @@ const getOccurrences = (items: BoardCalendarItem[]) =>
     if (startDate && dueDate) {
       if (isSameDay(startDate, dueDate)) {
         acc.push({
-          id: `${item.cardId}:range:${getDayKey(startDate)}`,
-          kind: "range",
+          id: `${item.cardId}:single:${getDayKey(startDate)}`,
+          kind: "single",
           date: startDate,
           item,
         });
         return acc;
       }
 
-      acc.push({
-        id: `${item.cardId}:start:${getDayKey(startDate)}`,
-        kind: "start",
-        date: startDate,
-        item,
-      });
-      acc.push({
-        id: `${item.cardId}:due:${getDayKey(dueDate)}`,
-        kind: "due",
-        date: dueDate,
-        item,
-      });
       return acc;
     }
 
@@ -274,6 +329,123 @@ const getOccurrences = (items: BoardCalendarItem[]) =>
 
     return acc;
   }, []);
+
+const getRanges = (items: BoardCalendarItem[]) =>
+  items.reduce<CalendarRange[]>((acc, item) => {
+    const startDate = parseCalendarDate(item.startDate);
+    const dueDate = parseCalendarDate(item.dueDate);
+
+    if (!startDate || !dueDate || isSameDay(startDate, dueDate)) {
+      return acc;
+    }
+
+    const orderedStart = compareDay(startDate, dueDate) <= 0 ? startDate : dueDate;
+    const orderedEnd = compareDay(startDate, dueDate) <= 0 ? dueDate : startDate;
+
+    acc.push({
+      id: `${item.cardId}:range:${getDayKey(orderedStart)}:${getDayKey(orderedEnd)}`,
+      item,
+      startDate: getLocalDay(orderedStart),
+      endDate: getLocalDay(orderedEnd),
+      startKey: getDayKey(orderedStart),
+      endKey: getDayKey(orderedEnd),
+    });
+
+    return acc;
+  }, []);
+
+const getWeekRows = (days: Date[]) => {
+  const rows: Date[][] = [];
+
+  for (let index = 0; index < days.length; index += 7) {
+    rows.push(days.slice(index, index + 7));
+  }
+
+  return rows;
+};
+
+const getRangeSegmentsForWeeks = (
+  ranges: CalendarRange[],
+  weekRows: Date[][],
+) =>
+  weekRows.map((weekDays, weekIndex) => {
+    const weekStart = getLocalDay(weekDays[0]);
+    const weekEnd = getLocalDay(weekDays[weekDays.length - 1]);
+    const segments = ranges.reduce<CalendarRangeSegment[]>((acc, range) => {
+      if (
+        compareDay(range.endDate, weekStart) < 0 ||
+        compareDay(range.startDate, weekEnd) > 0
+      ) {
+        return acc;
+      }
+
+      const segmentStart = compareDay(range.startDate, weekStart) < 0
+        ? weekStart
+        : range.startDate;
+      const segmentEnd = compareDay(range.endDate, weekEnd) > 0
+        ? weekEnd
+        : range.endDate;
+      const startIndex = weekDays.findIndex((day) => getDayKey(day) === getDayKey(segmentStart));
+      const endIndex = weekDays.findIndex((day) => getDayKey(day) === getDayKey(segmentEnd));
+
+      if (startIndex < 0 || endIndex < 0) {
+        return acc;
+      }
+
+      acc.push({
+        id: `${range.id}:week:${weekIndex}`,
+        range,
+        weekIndex,
+        startIndex,
+        endIndex,
+        lane: 0,
+        isRangeStart: getDayKey(segmentStart) === range.startKey,
+        isRangeEnd: getDayKey(segmentEnd) === range.endKey,
+      });
+
+      return acc;
+    }, []).sort((left, right) => (
+      left.startIndex - right.startIndex ||
+      right.endIndex - left.endIndex ||
+      left.range.item.title.localeCompare(right.range.item.title, "vi")
+    ));
+
+    const laneEnds: number[] = [];
+
+    return segments.map((segment) => {
+      const lane = laneEnds.findIndex((endIndex) => endIndex < segment.startIndex);
+      const nextLane = lane >= 0 ? lane : laneEnds.length;
+      laneEnds[nextLane] = segment.endIndex;
+
+      return {
+        ...segment,
+        lane: nextLane,
+      };
+    });
+  });
+
+const getRangeOccurrencesByDay = (ranges: CalendarRange[], days: Date[]) =>
+  days.reduce<Record<string, CalendarOccurrence[]>>((acc, day) => {
+    const dayKey = getDayKey(day);
+    const dayDate = getLocalDay(day);
+    const occurrences = ranges
+      .filter((range) => (
+        compareDay(range.startDate, dayDate) <= 0 &&
+        compareDay(range.endDate, dayDate) >= 0
+      ))
+      .map<CalendarOccurrence>((range) => ({
+        id: `${range.id}:day:${dayKey}`,
+        kind: "range",
+        date: day,
+        item: range.item,
+      }));
+
+    if (occurrences.length > 0) {
+      acc[dayKey] = occurrences;
+    }
+
+    return acc;
+  }, {});
 
 export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) => {
   const router = useRouter();
@@ -403,6 +575,16 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
   const responseItems = query.data?.items;
   const items = useMemo(() => responseItems ?? [], [responseItems]);
   const occurrences = useMemo(() => getOccurrences(items), [items]);
+  const ranges = useMemo(() => getRanges(items), [items]);
+  const weekRows = useMemo(() => getWeekRows(days), [days]);
+  const rangeSegmentsByWeek = useMemo(
+    () => getRangeSegmentsForWeeks(ranges, weekRows),
+    [ranges, weekRows],
+  );
+  const rangeOccurrencesByDay = useMemo(
+    () => getRangeOccurrencesByDay(ranges, days),
+    [ranges, days],
+  );
   const occurrencesById = useMemo(() => {
     return occurrences.reduce<Record<string, CalendarOccurrence>>((acc, occurrence) => {
       acc[occurrence.id] = occurrence;
@@ -431,7 +613,12 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
     }, {});
   }, [occurrences]);
 
-  const expandedDayItems = expandedDayKey ? occurrencesByDay[expandedDayKey] ?? [] : [];
+  const expandedDayItems = expandedDayKey
+    ? [
+      ...(rangeOccurrencesByDay[expandedDayKey] ?? []),
+      ...(occurrencesByDay[expandedDayKey] ?? []),
+    ]
+    : [];
 
   const monthLabel = format(anchorDate, "'Tháng' M, yyyy", { locale: vi });
   const weekLabel = `Tuần ${format(new Date(fromIso), "dd/MM/yyyy", { locale: vi })} - ${format(new Date(toIso), "dd/MM/yyyy", { locale: vi })}`;
@@ -565,7 +752,7 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
   const canClearStartDate = (occurrence: CalendarOccurrence) => (
     occurrence.kind === "start" ||
     occurrence.kind === "range" ||
-    (occurrence.kind === "single" && !!occurrence.item.startDate && !occurrence.item.dueDate)
+    (occurrence.kind === "single" && !!occurrence.item.startDate)
   );
 
   const canClearDueDate = (occurrence: CalendarOccurrence) => (
@@ -625,7 +812,7 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
     event: DragEvent<HTMLDivElement>,
     occurrence: CalendarOccurrence,
   ) => {
-    if (isUpdatingCardDate) {
+    if (isUpdatingCardDate || occurrence.kind === "range") {
       event.preventDefault();
       return;
     }
@@ -863,12 +1050,13 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
   ) => (
     <div
       key={occurrence.id}
-      draggable={!isUpdatingCardDate}
+      draggable={!isUpdatingCardDate && occurrence.kind !== "range"}
       onDragStart={(event) => handleOccurrenceDragStart(event, occurrence)}
       onDragEnd={handleOccurrenceDragEnd}
-      title={`${occurrence.item.title} - ${occurrence.item.listTitle}`}
+      title={occurrence.kind === "range" ? getRangeLabel(occurrence.item) : `${occurrence.item.title} - ${occurrence.item.listTitle}`}
       className={cn(
-        "group/event flex h-7 w-full min-w-0 cursor-grab items-center gap-x-1 rounded-md border px-1.5 text-left text-[11px] font-medium leading-none transition active:cursor-grabbing",
+        "group/event flex h-7 w-full min-w-0 items-center gap-x-1 rounded-md border px-1.5 text-left text-[11px] font-medium leading-none transition",
+        occurrence.kind === "range" ? "cursor-default" : "cursor-grab active:cursor-grabbing",
         getOccurrenceTone(occurrence),
         draggingOccurrenceId === occurrence.id && "opacity-60 ring-2 ring-violet-300",
         isUpdatingCardDate && "cursor-wait opacity-70",
@@ -899,11 +1087,155 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
     </div>
   );
 
+  const renderRangeSegment = (
+    segment: CalendarRangeSegment,
+    maxLanes: number,
+    mode: ViewMode,
+  ) => {
+    const isHidden = segment.lane >= maxLanes;
+
+    if (isHidden) {
+      return null;
+    }
+
+    const occurrence: CalendarOccurrence = {
+      id: segment.id,
+      kind: "range",
+      date: segment.range.startDate,
+      item: segment.range.item,
+    };
+    const leftPercent = (segment.startIndex / 7) * 100;
+    const widthPercent = ((segment.endIndex - segment.startIndex + 1) / 7) * 100;
+    const style: CSSProperties = {
+      left: `${leftPercent}%`,
+      width: `${widthPercent}%`,
+      top: 36 + segment.lane * (RANGE_LANE_HEIGHT + RANGE_LANE_GAP),
+    };
+
+    return (
+      <div
+        key={segment.id}
+        style={style}
+        title={getRangeLabel(segment.range.item)}
+        className={cn(
+          "group/event absolute z-10 h-7 min-w-0 px-0.5",
+          mode === "week" && "hidden md:block",
+        )}
+      >
+        <div
+          className={cn(
+            "flex h-full min-w-0 items-center gap-x-1 border px-1.5 text-left text-[11px] font-medium leading-none shadow-sm transition",
+            getOccurrenceTone(occurrence),
+            segment.isRangeStart ? "rounded-l-md" : "rounded-l-none border-l-0",
+            segment.isRangeEnd ? "rounded-r-md" : "rounded-r-none border-r-0",
+            isUpdatingCardDate && "cursor-wait opacity-70",
+          )}
+        >
+          <button
+            type="button"
+            onClick={(event) => openCalendarCard(segment.range.item.cardId, event)}
+            aria-label={`Mở thẻ ${segment.range.item.title}`}
+            className="flex h-full min-w-0 flex-1 items-center gap-x-1 text-left"
+          >
+            {segment.range.item.labels[0] && (
+              <span
+                className="h-2 w-2 shrink-0 rounded-full"
+                style={{ backgroundColor: segment.range.item.labels[0].color }}
+              />
+            )}
+            {!segment.isRangeStart && (
+              <span className="shrink-0 text-[10px] font-semibold opacity-70">↤</span>
+            )}
+            <span className="truncate">{segment.range.item.title}</span>
+            {!segment.isRangeEnd && (
+              <span className="shrink-0 text-[10px] font-semibold opacity-70">↦</span>
+            )}
+          </button>
+          {segment.range.item.isCompleted && (
+            <CheckCircle2 className="h-3 w-3 shrink-0 opacity-80" />
+          )}
+          {renderQuickActionsMenu(occurrence)}
+        </div>
+      </div>
+    );
+  };
+
+  const renderRangeOverflows = (
+    weekDays: Date[],
+    segments: CalendarRangeSegment[],
+    maxLanes: number,
+    mode: ViewMode,
+  ) => {
+    if (mode === "week" && typeof window !== "undefined" && window.innerWidth < 768) {
+      return null;
+    }
+
+    return weekDays.map((day, dayIndex) => {
+      const dayKey = getDayKey(day);
+      const rangeOverflowCount = segments.filter(
+        (segment) =>
+          segment.lane >= maxLanes &&
+          segment.startIndex <= dayIndex &&
+          segment.endIndex >= dayIndex
+      ).length;
+
+      if (rangeOverflowCount === 0) {
+        return null;
+      }
+
+      const leftPercent = (dayIndex / 7) * 100;
+      const widthPercent = (1 / 7) * 100;
+      const style: CSSProperties = {
+        left: `${leftPercent}%`,
+        width: `${widthPercent}%`,
+        top: 36 + maxLanes * (RANGE_LANE_HEIGHT + RANGE_LANE_GAP),
+      };
+
+      return (
+        <button
+          key={`range-overflow-${dayKey}`}
+          type="button"
+          style={style}
+          onClick={() => setExpandedDayKey(dayKey)}
+          className={cn(
+            "absolute z-10 h-7 px-0.5 focus:outline-none",
+            mode === "week" && "hidden md:block"
+          )}
+        >
+          <div className="flex h-full w-full items-center justify-center rounded-md bg-neutral-100 px-1.5 text-[11px] font-semibold text-neutral-500 hover:bg-neutral-200 transition">
+            +{rangeOverflowCount} dải
+          </div>
+        </button>
+      );
+    });
+  };
+
   const renderCalendarDay = (day: Date, index: number) => {
     const dayKey = getDayKey(day);
     const dayOccurrences = occurrencesByDay[dayKey] ?? [];
+    const dayRangeOccurrences = rangeOccurrencesByDay[dayKey] ?? [];
     const desktopOverflow = Math.max(dayOccurrences.length - maxVisibleDesktop, 0);
     const mobileOverflow = Math.max(dayOccurrences.length - maxVisibleMobile, 0);
+
+    const dayIndex = index % 7;
+    const weekIndex = Math.floor(index / 7);
+    const weekSegments = rangeSegmentsByWeek[weekIndex] ?? [];
+    const maxLanes = viewMode === "month" ? MONTH_RANGE_LANES : WEEK_RANGE_LANES;
+
+    const activeSegments = weekSegments.filter(
+      (s) => s.startIndex <= dayIndex && s.endIndex >= dayIndex
+    );
+    const hasRangeOverflow = activeSegments.some((s) => s.lane >= maxLanes);
+    const maxVisibleLane = activeSegments
+      .filter((s) => s.lane < maxLanes)
+      .reduce((max, s) => Math.max(max, s.lane), -1);
+
+    let pt = 0;
+    if (hasRangeOverflow) {
+      pt = 36 + maxLanes * (RANGE_LANE_HEIGHT + RANGE_LANE_GAP);
+    } else if (maxVisibleLane >= 0) {
+      pt = 36 + (maxVisibleLane + 1) * (RANGE_LANE_HEIGHT + RANGE_LANE_GAP);
+    }
 
     return (
       <div
@@ -914,7 +1246,8 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
         onDrop={(event) => handleDayDrop(event, day)}
         className={cn(
           "group/day overflow-hidden border-neutral-200 bg-white p-1.5 transition-colors md:p-2",
-          viewMode === "month" && "min-h-[104px] border-r border-b last:border-r-0 sm:min-h-[132px]",
+          viewMode === "month" && "min-h-[104px] border-r border-b sm:min-h-[132px]",
+          viewMode === "month" && index % 7 === 6 && "border-r-0",
           viewMode === "week" && "min-h-[132px] rounded-lg border md:min-h-[360px]",
           viewMode === "week" && index > 0 && "mt-2 md:mt-0",
           viewMode === "month" && !isSameMonth(day, currentMonth) && "bg-neutral-50/80 text-neutral-400",
@@ -954,7 +1287,20 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
           </button>
         </div>
 
-        <div className="space-y-1">
+        <div
+          style={
+            viewMode === "month"
+              ? (pt > 0 ? { paddingTop: `${pt}px` } : undefined)
+              : (pt > 0 ? { "--pt-desktop": `${pt}px` } as any : undefined)
+          }
+          className={cn(
+            "space-y-1",
+            viewMode === "week" && pt > 0 && "md:[padding-top:var(--pt-desktop)]",
+          )}
+        >
+          {viewMode === "week" && dayRangeOccurrences.map((occurrence) =>
+            renderOccurrence(occurrence, "md:hidden"),
+          )}
           {dayOccurrences.slice(0, maxVisibleDesktop).map((occurrence, occurrenceIndex) =>
             renderOccurrence(
               occurrence,
@@ -982,6 +1328,32 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
             </button>
           )}
         </div>
+      </div>
+    );
+  };
+
+  const renderCalendarWeekRow = (
+    weekDays: Date[],
+    weekIndex: number,
+    mode: ViewMode,
+  ) => {
+    const segments = rangeSegmentsByWeek[weekIndex] ?? [];
+    const maxLanes = mode === "month" ? MONTH_RANGE_LANES : WEEK_RANGE_LANES;
+
+    return (
+      <div
+        key={`week-row:${weekIndex}`}
+        className={cn(
+          "relative grid grid-cols-7 bg-white",
+          mode === "month" && weekIndex === weekRows.length - 1 && "rounded-b-lg",
+          mode === "week" && "grid-cols-1 gap-2 bg-transparent md:grid-cols-7",
+        )}
+      >
+        {weekDays.map((day, dayIndex) =>
+          renderCalendarDay(day, weekIndex * 7 + dayIndex),
+        )}
+        {segments.map((segment) => renderRangeSegment(segment, maxLanes, mode))}
+        {renderRangeOverflows(weekDays, segments, maxLanes, mode)}
       </div>
     );
   };
@@ -1123,14 +1495,15 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
 
         {query.isSuccess && (
           <>
-            <div
-              className={cn(
-                viewMode === "month" && "grid grid-cols-7 rounded-b-lg border border-neutral-200 bg-white",
-                viewMode === "week" && "grid grid-cols-1 gap-2 md:grid-cols-7",
-              )}
-            >
-              {days.map((day, index) => renderCalendarDay(day, index))}
-            </div>
+            {viewMode === "month" ? (
+              <div className="overflow-hidden rounded-b-lg border border-neutral-200 bg-white">
+                {weekRows.map((weekDays, weekIndex) =>
+                  renderCalendarWeekRow(weekDays, weekIndex, "month"),
+                )}
+              </div>
+            ) : (
+              renderCalendarWeekRow(weekRows[0] ?? days, 0, "week")
+            )}
 
             {items.length === 0 && (
               <div className="mt-3 flex min-h-[96px] flex-col items-center justify-center rounded-lg border border-dashed border-neutral-300 bg-neutral-50 px-4 text-center">
