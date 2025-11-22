@@ -1,6 +1,15 @@
 "use client";
 
-import { useCallback, useMemo, useRef, useState, type CSSProperties, type DragEvent, type MouseEvent } from "react";
+import {
+  useCallback,
+  useMemo,
+  useRef,
+  useState,
+  type CSSProperties,
+  type DragEvent,
+  type MouseEvent,
+  type PointerEvent,
+} from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import {
@@ -113,6 +122,19 @@ type CalendarDragPayload = {
   occurrenceId: string;
 };
 
+type CalendarResizeEdge = "start" | "end";
+
+type CalendarResizeState = {
+  edge: CalendarResizeEdge;
+  pointerId: number;
+  range: CalendarRange;
+  targetDayKey: string;
+};
+
+type CalendarMarkerListStyle = CSSProperties & {
+  "--pt-desktop"?: string;
+};
+
 const WEEK_DAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 const MONTH_VISIBLE_DESKTOP = 3;
 const MONTH_VISIBLE_MOBILE = 2;
@@ -123,6 +145,8 @@ const RANGE_LANE_GAP = 4;
 const WEEK_VISIBLE_DESKTOP = 8;
 const WEEK_VISIBLE_MOBILE = 4;
 const DEFAULT_CREATE_HOUR = 9;
+const DEFAULT_CREATE_TIME = `${String(DEFAULT_CREATE_HOUR).padStart(2, "0")}:00`;
+const TIME_INPUT_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
 
 const getMonthGridRange = (anchorDate: Date) => {
   const monthStart = startOfMonth(anchorDate);
@@ -150,6 +174,11 @@ const getWeekGridRange = (anchorDate: Date) => {
 
 const getDayKey = (date: Date) => format(date, "yyyy-MM-dd");
 
+const formatCalendarTime = (date: Date) => format(date, "HH:mm");
+
+const formatCalendarDateTime = (date: Date) =>
+  format(date, "dd/MM/yyyy HH:mm", { locale: vi });
+
 const getLocalDay = (date: Date) =>
   new Date(date.getFullYear(), date.getMonth(), date.getDate());
 
@@ -170,6 +199,55 @@ const parseCalendarDate = (value: string | null) => {
   return date;
 };
 
+const getCalendarItemTitle = (item: BoardCalendarItem) => {
+  const startDate = parseCalendarDate(item.startDate);
+  const dueDate = parseCalendarDate(item.dueDate);
+  const parts = [
+    item.title,
+    `Danh sách: ${item.listTitle}`,
+  ];
+
+  if (startDate) {
+    parts.push(`Bắt đầu: ${formatCalendarDateTime(startDate)}`);
+  }
+
+  if (dueDate) {
+    parts.push(`Hết hạn: ${formatCalendarDateTime(dueDate)}`);
+  }
+
+  if (item.isCompleted) {
+    parts.push("Trạng thái: Hoàn thành");
+  }
+
+  return parts.join("\n");
+};
+
+const getOccurrenceTimeLabel = (occurrence: CalendarOccurrence) => {
+  const startDate = parseCalendarDate(occurrence.item.startDate);
+  const dueDate = parseCalendarDate(occurrence.item.dueDate);
+
+  if (startDate && dueDate && isSameDay(startDate, dueDate)) {
+    const startTime = formatCalendarTime(startDate);
+    const dueTime = formatCalendarTime(dueDate);
+
+    return startTime === dueTime ? startTime : `${startTime}-${dueTime}`;
+  }
+
+  if (occurrence.item.startDate && !occurrence.item.dueDate && startDate) {
+    return formatCalendarTime(startDate);
+  }
+
+  if (occurrence.item.dueDate && dueDate) {
+    return formatCalendarTime(dueDate);
+  }
+
+  if (startDate) {
+    return formatCalendarTime(startDate);
+  }
+
+  return null;
+};
+
 const getOccurrenceLabel = (occurrence: CalendarOccurrence) => {
   if (occurrence.kind === "start") {
     return "Bắt đầu";
@@ -187,7 +265,7 @@ const getOccurrenceLabel = (occurrence: CalendarOccurrence) => {
       return `${format(start, "dd/MM")} - ${format(due, "dd/MM")}`;
     }
 
-    return "Trong ngày";
+    return null;
   }
 
   // Handles occurrence.kind === "single"
@@ -203,24 +281,10 @@ const getOccurrenceLabel = (occurrence: CalendarOccurrence) => {
   }
 
   if (start && due) {
-    if (start.getTime() === due.getTime()) {
-      return "Trong ngày";
-    }
-    return `${format(start, "HH:mm")} - ${format(due, "HH:mm")}`;
+    return null;
   }
 
   return "Lịch";
-};
-
-const getRangeLabel = (item: BoardCalendarItem) => {
-  const startDate = parseCalendarDate(item.startDate);
-  const dueDate = parseCalendarDate(item.dueDate);
-
-  if (!startDate || !dueDate) {
-    return item.title;
-  }
-
-  return `${item.title} - ${format(startDate, "dd/MM/yyyy", { locale: vi })} đến ${format(dueDate, "dd/MM/yyyy", { locale: vi })}`;
 };
 
 const copyDateToDay = (sourceDate: Date, targetDay: Date) => {
@@ -234,16 +298,32 @@ const copyDateToDay = (sourceDate: Date, targetDay: Date) => {
   return nextDate;
 };
 
-const getDefaultDueDateForDay = (day: Date) =>
+const getDateWithPreservedTime = (sourceDate: Date, targetDay: Date) =>
   new Date(
+    targetDay.getFullYear(),
+    targetDay.getMonth(),
+    targetDay.getDate(),
+    sourceDate.getHours(),
+    sourceDate.getMinutes(),
+    sourceDate.getSeconds(),
+    sourceDate.getMilliseconds(),
+  );
+
+const getDefaultDueDateForDay = (day: Date, timeValue = DEFAULT_CREATE_TIME) => {
+  const match = TIME_INPUT_PATTERN.exec(timeValue);
+  const hours = match ? Number(match[1]) : DEFAULT_CREATE_HOUR;
+  const minutes = match ? Number(match[2]) : 0;
+
+  return new Date(
     day.getFullYear(),
     day.getMonth(),
     day.getDate(),
-    DEFAULT_CREATE_HOUR,
-    0,
+    hours,
+    minutes,
     0,
     0,
   );
+};
 
 const getReminderError = (dueDate: Date, reminder: string | null) => {
   if (!reminder || reminder === "none") {
@@ -457,8 +537,10 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
   const [expandedDayKey, setExpandedDayKey] = useState<string | null>(null);
   const [draggingOccurrenceId, setDraggingOccurrenceId] = useState<string | null>(null);
   const [dragOverDayKey, setDragOverDayKey] = useState<string | null>(null);
+  const [resizingRange, setResizingRange] = useState<CalendarResizeState | null>(null);
   const [createDialogDay, setCreateDialogDay] = useState<Date | null>(null);
   const [createTitle, setCreateTitle] = useState("");
+  const [createTime, setCreateTime] = useState(DEFAULT_CREATE_TIME);
   const [createListId, setCreateListId] = useState(() => lists[0]?.id ?? "");
   const suppressClickRef = useRef(false);
   const updateSuccessToastRef = useRef<string | null>(null);
@@ -577,6 +659,13 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
   const occurrences = useMemo(() => getOccurrences(items), [items]);
   const ranges = useMemo(() => getRanges(items), [items]);
   const weekRows = useMemo(() => getWeekRows(days), [days]);
+  const daysByKey = useMemo(() => {
+    return days.reduce<Record<string, Date>>((acc, day) => {
+      acc[getDayKey(day)] = day;
+
+      return acc;
+    }, {});
+  }, [days]);
   const rangeSegmentsByWeek = useMemo(
     () => getRangeSegmentsForWeeks(ranges, weekRows),
     [ranges, weekRows],
@@ -649,6 +738,7 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
     onComplete: () => {
       setDraggingOccurrenceId(null);
       setDragOverDayKey(null);
+      resetRangeResize();
     },
   });
 
@@ -657,6 +747,7 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
       toast.success(`Đã tạo thẻ "${data.title}"`);
       setCreateDialogDay(null);
       setCreateTitle("");
+      setCreateTime(DEFAULT_CREATE_TIME);
       invalidateBoardCalendar();
       queryClient.invalidateQueries({ queryKey: ["card", data.id] });
       router.refresh();
@@ -691,13 +782,14 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
   const openCreateDialog = (day: Date, event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
 
-    if (draggingOccurrenceId || isUpdatingCardDate || lists.length === 0) {
+    if (draggingOccurrenceId || resizingRange || isUpdatingCardDate || lists.length === 0) {
       return;
     }
 
     setExpandedDayKey(null);
     setCreateDialogDay(day);
     setCreateTitle("");
+    setCreateTime(DEFAULT_CREATE_TIME);
     setCreateListId((value) => value || lists[0]?.id || "");
   };
 
@@ -708,6 +800,7 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
 
     setCreateDialogDay(null);
     setCreateTitle("");
+    setCreateTime(DEFAULT_CREATE_TIME);
   };
 
   const submitCreateCard = () => {
@@ -728,11 +821,16 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
       return;
     }
 
+    if (!TIME_INPUT_PATTERN.test(createTime)) {
+      toast.error("Giờ hết hạn không hợp lệ.");
+      return;
+    }
+
     executeCreateCard({
       title,
       boardId,
       listId: createListId,
-      dueDate: getDefaultDueDateForDay(createDialogDay),
+      dueDate: getDefaultDueDateForDay(createDialogDay, createTime),
     });
   };
 
@@ -972,6 +1070,164 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
     updateOccurrenceDate(occurrence, day);
   };
 
+  const getResizeTargetDayKey = (event: PointerEvent<HTMLElement>) => {
+    const element = document.elementFromPoint(event.clientX, event.clientY);
+    const dayElement = element?.closest<HTMLElement>("[data-calendar-day-key]");
+
+    return dayElement?.dataset.calendarDayKey ?? null;
+  };
+
+  const resetRangeResize = () => {
+    setResizingRange(null);
+    setDragOverDayKey(null);
+    window.setTimeout(() => {
+      suppressClickRef.current = false;
+    }, 0);
+  };
+
+  const handleRangeResizeStart = (
+    event: PointerEvent<HTMLButtonElement>,
+    range: CalendarRange,
+    edge: CalendarResizeEdge,
+  ) => {
+    if (isUpdatingCardDate || event.pointerType === "touch") {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    suppressClickRef.current = true;
+    setExpandedDayKey(null);
+    const targetDayKey = edge === "start" ? range.startKey : range.endKey;
+    setDragOverDayKey(targetDayKey);
+    setResizingRange({
+      edge,
+      pointerId: event.pointerId,
+      range,
+      targetDayKey,
+    });
+  };
+
+  const handleRangeResizeMove = (event: PointerEvent<HTMLButtonElement>) => {
+    if (!resizingRange || resizingRange.pointerId !== event.pointerId) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    const targetDayKey = getResizeTargetDayKey(event);
+
+    if (!targetDayKey || !daysByKey[targetDayKey]) {
+      return;
+    }
+
+    setDragOverDayKey(targetDayKey);
+    setResizingRange((value) => value
+      ? {
+        ...value,
+        targetDayKey,
+      }
+      : value);
+  };
+
+  const commitRangeResize = (
+    range: CalendarRange,
+    edge: CalendarResizeEdge,
+    targetDay: Date,
+  ) => {
+    const startDate = parseCalendarDate(range.item.startDate);
+    const dueDate = parseCalendarDate(range.item.dueDate);
+
+    if (!startDate || !dueDate) {
+      toast.error("Không tìm thấy khoảng thời gian của thẻ.");
+      resetRangeResize();
+      return;
+    }
+
+    if (edge === "start") {
+      const nextStartDate = getDateWithPreservedTime(startDate, targetDay);
+
+      if (nextStartDate.getTime() > dueDate.getTime()) {
+        toast.error("Ngày bắt đầu phải trước hoặc bằng ngày hết hạn.");
+        resetRangeResize();
+        return;
+      }
+
+      if (getDayKey(nextStartDate) === getDayKey(startDate)) {
+        resetRangeResize();
+        return;
+      }
+
+      updateSuccessToastRef.current = "Đã cập nhật khoảng thời gian";
+      executeUpdateCard({
+        id: range.item.cardId,
+        boardId,
+        startDate: nextStartDate,
+        dueDateTimezoneOffset: getDateTimezoneOffset(nextStartDate),
+      });
+      return;
+    }
+
+    const nextDueDate = getDateWithPreservedTime(dueDate, targetDay);
+
+    if (nextDueDate.getTime() < startDate.getTime()) {
+      toast.error("Ngày hết hạn phải sau hoặc bằng ngày bắt đầu.");
+      resetRangeResize();
+      return;
+    }
+
+    if (getDayKey(nextDueDate) === getDayKey(dueDate)) {
+      resetRangeResize();
+      return;
+    }
+
+    const reminderError = getReminderError(nextDueDate, range.item.reminder);
+
+    if (reminderError) {
+      toast.error(reminderError);
+      invalidateBoardCalendar();
+      resetRangeResize();
+      return;
+    }
+
+    updateSuccessToastRef.current = "Đã cập nhật khoảng thời gian";
+    executeUpdateCard({
+      id: range.item.cardId,
+      boardId,
+      dueDate: nextDueDate,
+      dueDateTimezoneOffset: getDateTimezoneOffset(nextDueDate),
+      isCompleted: range.item.isCompleted,
+      ...(range.item.reminder !== null ? { reminder: range.item.reminder } : {}),
+    });
+  };
+
+  const handleRangeResizeEnd = (event: PointerEvent<HTMLButtonElement>) => {
+    if (!resizingRange || resizingRange.pointerId !== event.pointerId) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    const targetDayKey = getResizeTargetDayKey(event) ?? resizingRange.targetDayKey;
+    const targetDay = daysByKey[targetDayKey];
+
+    if (!targetDay) {
+      resetRangeResize();
+      return;
+    }
+
+    commitRangeResize(resizingRange.range, resizingRange.edge, targetDay);
+  };
+
   const renderQuickActionsMenu = (occurrence: CalendarOccurrence) => (
     <Popover>
       <PopoverTrigger asChild>
@@ -1047,45 +1303,56 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
   const renderOccurrence = (
     occurrence: CalendarOccurrence,
     className?: string,
-  ) => (
-    <div
-      key={occurrence.id}
-      draggable={!isUpdatingCardDate && occurrence.kind !== "range"}
-      onDragStart={(event) => handleOccurrenceDragStart(event, occurrence)}
-      onDragEnd={handleOccurrenceDragEnd}
-      title={occurrence.kind === "range" ? getRangeLabel(occurrence.item) : `${occurrence.item.title} - ${occurrence.item.listTitle}`}
-      className={cn(
-        "group/event flex h-7 w-full min-w-0 items-center gap-x-1 rounded-md border px-1.5 text-left text-[11px] font-medium leading-none transition",
-        occurrence.kind === "range" ? "cursor-default" : "cursor-grab active:cursor-grabbing",
-        getOccurrenceTone(occurrence),
-        draggingOccurrenceId === occurrence.id && "opacity-60 ring-2 ring-violet-300",
-        isUpdatingCardDate && "cursor-wait opacity-70",
-        className,
-      )}
-    >
-      <button
-        type="button"
-        onClick={(event) => openCalendarCard(occurrence.item.cardId, event)}
-        aria-label={`Mở thẻ ${occurrence.item.title}`}
-        className="flex h-full min-w-0 flex-1 items-center gap-x-1 text-left"
-      >
-        {occurrence.item.labels[0] && (
-          <span
-            className="h-2 w-2 shrink-0 rounded-full"
-            style={{ backgroundColor: occurrence.item.labels[0].color }}
-          />
+  ) => {
+    const timeLabel = getOccurrenceTimeLabel(occurrence);
+
+    return (
+      <div
+        key={occurrence.id}
+        draggable={!isUpdatingCardDate && occurrence.kind !== "range"}
+        onDragStart={(event) => handleOccurrenceDragStart(event, occurrence)}
+        onDragEnd={handleOccurrenceDragEnd}
+        title={getCalendarItemTitle(occurrence.item)}
+        className={cn(
+          "group/event flex h-7 w-full min-w-0 items-center gap-x-1 rounded-md border px-1.5 text-left text-[11px] font-medium leading-none transition",
+          occurrence.kind === "range" ? "cursor-default" : "cursor-grab active:cursor-grabbing",
+          getOccurrenceTone(occurrence),
+          draggingOccurrenceId === occurrence.id && "opacity-60 ring-2 ring-violet-300",
+          isUpdatingCardDate && "cursor-wait opacity-70",
+          className,
         )}
-        <span className="hidden shrink-0 text-[10px] font-semibold uppercase tracking-wide opacity-70 md:inline">
-          {getOccurrenceLabel(occurrence)}
-        </span>
-        <span className="truncate">{occurrence.item.title}</span>
-      </button>
-      {occurrence.item.isCompleted && (
-        <CheckCircle2 className="h-3 w-3 shrink-0 opacity-80" />
-      )}
-      {renderQuickActionsMenu(occurrence)}
-    </div>
-  );
+      >
+        <button
+          type="button"
+          onClick={(event) => openCalendarCard(occurrence.item.cardId, event)}
+          aria-label={`Mở thẻ ${occurrence.item.title}`}
+          className="flex h-full min-w-0 flex-1 items-center gap-x-1 text-left"
+        >
+          {occurrence.item.labels[0] && (
+            <span
+              className="h-2 w-2 shrink-0 rounded-full"
+              style={{ backgroundColor: occurrence.item.labels[0].color }}
+            />
+          )}
+          {timeLabel && (
+            <span className="shrink-0 rounded bg-white/70 px-1 py-0.5 text-[10px] font-semibold tabular-nums opacity-90">
+              {timeLabel}
+            </span>
+          )}
+          {getOccurrenceLabel(occurrence) && (
+            <span className="hidden shrink-0 text-[10px] font-semibold uppercase tracking-wide opacity-70 md:inline">
+              {getOccurrenceLabel(occurrence)}
+            </span>
+          )}
+          <span className="truncate">{occurrence.item.title}</span>
+        </button>
+        {occurrence.item.isCompleted && (
+          <CheckCircle2 className="h-3 w-3 shrink-0 opacity-80" />
+        )}
+        {renderQuickActionsMenu(occurrence)}
+      </div>
+    );
+  };
 
   const renderRangeSegment = (
     segment: CalendarRangeSegment,
@@ -1111,26 +1378,55 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
       width: `${widthPercent}%`,
       top: 36 + segment.lane * (RANGE_LANE_HEIGHT + RANGE_LANE_GAP),
     };
+    const isResizingThisRange = resizingRange?.range.id === segment.range.id;
+    const startDate = parseCalendarDate(segment.range.item.startDate);
+    const dueDate = parseCalendarDate(segment.range.item.dueDate);
+    const startTimeLabel = (segment.isRangeStart && startDate) ? formatCalendarTime(startDate) : null;
+    const endTimeLabel = (segment.isRangeEnd && dueDate) ? formatCalendarTime(dueDate) : null;
 
     return (
       <div
         key={segment.id}
         style={style}
-        title={getRangeLabel(segment.range.item)}
+        title={getCalendarItemTitle(segment.range.item)}
         className={cn(
           "group/event absolute z-10 h-7 min-w-0 px-0.5",
           mode === "week" && "hidden md:block",
+          (resizingRange || draggingOccurrenceId) && "pointer-events-none",
         )}
       >
         <div
           className={cn(
-            "flex h-full min-w-0 items-center gap-x-1 border px-1.5 text-left text-[11px] font-medium leading-none shadow-sm transition",
+            "relative flex h-full min-w-0 items-center gap-x-1 border text-left text-[11px] font-medium leading-none shadow-sm transition",
             getOccurrenceTone(occurrence),
-            segment.isRangeStart ? "rounded-l-md" : "rounded-l-none border-l-0",
-            segment.isRangeEnd ? "rounded-r-md" : "rounded-r-none border-r-0",
+            segment.isRangeStart ? "rounded-l-md pl-3" : "rounded-l-none border-l-0 pl-1.5",
+            segment.isRangeEnd ? "rounded-r-md pr-3" : "rounded-r-none border-r-0 pr-1.5",
+            isResizingThisRange && "opacity-80 ring-2 ring-violet-300",
             isUpdatingCardDate && "cursor-wait opacity-70",
           )}
         >
+          {segment.isRangeStart && (
+            <button
+              type="button"
+              aria-label="Đổi ngày bắt đầu"
+              title="Đổi ngày bắt đầu"
+              disabled={isUpdatingCardDate}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+              onPointerDown={(event) => handleRangeResizeStart(event, segment.range, "start")}
+              onPointerMove={handleRangeResizeMove}
+              onPointerUp={handleRangeResizeEnd}
+              onPointerCancel={resetRangeResize}
+              className="absolute left-0 top-0 bottom-0 w-2.5 flex items-center justify-center cursor-ew-resize rounded-l-md hover:bg-neutral-500/10 active:bg-neutral-500/20 transition-colors focus-visible:outline-none disabled:cursor-wait md:flex hidden pointer-events-auto"
+            >
+              <div className="flex gap-[1px]">
+                <div className="h-3 w-[1px] bg-neutral-600/60 rounded-full" />
+                <div className="h-3 w-[1px] bg-neutral-600/60 rounded-full" />
+              </div>
+            </button>
+          )}
           <button
             type="button"
             onClick={(event) => openCalendarCard(segment.range.item.cardId, event)}
@@ -1146,7 +1442,17 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
             {!segment.isRangeStart && (
               <span className="shrink-0 text-[10px] font-semibold opacity-70">↤</span>
             )}
+            {startTimeLabel && (
+              <span className="shrink-0 rounded bg-white/70 px-1 py-0.5 text-[10px] font-semibold tabular-nums opacity-90">
+                {startTimeLabel}
+              </span>
+            )}
             <span className="truncate">{segment.range.item.title}</span>
+            {endTimeLabel && (
+              <span className="ml-auto shrink-0 rounded bg-white/70 px-1 py-0.5 text-[10px] font-semibold tabular-nums opacity-90">
+                {endTimeLabel}
+              </span>
+            )}
             {!segment.isRangeEnd && (
               <span className="shrink-0 text-[10px] font-semibold opacity-70">↦</span>
             )}
@@ -1155,6 +1461,28 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
             <CheckCircle2 className="h-3 w-3 shrink-0 opacity-80" />
           )}
           {renderQuickActionsMenu(occurrence)}
+          {segment.isRangeEnd && (
+            <button
+              type="button"
+              aria-label="Đổi ngày hết hạn"
+              title="Đổi ngày hết hạn"
+              disabled={isUpdatingCardDate}
+              onClick={(event) => {
+                event.preventDefault();
+                event.stopPropagation();
+              }}
+              onPointerDown={(event) => handleRangeResizeStart(event, segment.range, "end")}
+              onPointerMove={handleRangeResizeMove}
+              onPointerUp={handleRangeResizeEnd}
+              onPointerCancel={resetRangeResize}
+              className="absolute right-0 top-0 bottom-0 w-2.5 flex items-center justify-center cursor-ew-resize rounded-r-md hover:bg-neutral-500/10 active:bg-neutral-500/20 transition-colors focus-visible:outline-none disabled:cursor-wait md:flex hidden pointer-events-auto"
+            >
+              <div className="flex gap-[1px]">
+                <div className="h-3 w-[1px] bg-neutral-600/60 rounded-full" />
+                <div className="h-3 w-[1px] bg-neutral-600/60 rounded-full" />
+              </div>
+            </button>
+          )}
         </div>
       </div>
     );
@@ -1166,10 +1494,6 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
     maxLanes: number,
     mode: ViewMode,
   ) => {
-    if (mode === "week" && typeof window !== "undefined" && window.innerWidth < 768) {
-      return null;
-    }
-
     return weekDays.map((day, dayIndex) => {
       const dayKey = getDayKey(day);
       const rangeOverflowCount = segments.filter(
@@ -1237,9 +1561,16 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
       pt = 36 + (maxVisibleLane + 1) * (RANGE_LANE_HEIGHT + RANGE_LANE_GAP);
     }
 
+    const markerListStyle: CalendarMarkerListStyle | undefined = pt > 0
+      ? viewMode === "month"
+        ? { paddingTop: `${pt}px` }
+        : { "--pt-desktop": `${pt}px` }
+      : undefined;
+
     return (
       <div
         key={dayKey}
+        data-calendar-day-key={dayKey}
         onDragOver={(event) => handleDayDragOver(event, dayKey)}
         onDragEnter={(event) => handleDayDragOver(event, dayKey)}
         onDragLeave={() => setDragOverDayKey((value) => value === dayKey ? null : value)}
@@ -1252,6 +1583,7 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
           viewMode === "week" && index > 0 && "mt-2 md:mt-0",
           viewMode === "month" && !isSameMonth(day, currentMonth) && "bg-neutral-50/80 text-neutral-400",
           draggingOccurrenceId && "ring-inset ring-violet-100",
+          resizingRange && "cursor-ew-resize ring-inset ring-violet-100",
           dragOverDayKey === dayKey && "bg-violet-50 ring-2 ring-inset ring-violet-300",
         )}
       >
@@ -1275,7 +1607,7 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
           <button
             type="button"
             onClick={(event) => openCreateDialog(day, event)}
-            disabled={lists.length === 0 || isCreatingCard || isUpdatingCardDate}
+            disabled={!!resizingRange || lists.length === 0 || isCreatingCard || isUpdatingCardDate}
             title={lists.length === 0 ? "Tạo danh sách trước khi thêm thẻ từ lịch" : `Thêm thẻ vào ngày ${format(day, "dd/MM/yyyy")}`}
             aria-label={lists.length === 0 ? "Tạo danh sách trước khi thêm thẻ từ lịch" : `Thêm thẻ vào ngày ${format(day, "dd/MM/yyyy")}`}
             className={cn(
@@ -1288,11 +1620,7 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
         </div>
 
         <div
-          style={
-            viewMode === "month"
-              ? (pt > 0 ? { paddingTop: `${pt}px` } : undefined)
-              : (pt > 0 ? { "--pt-desktop": `${pt}px` } as any : undefined)
-          }
+          style={markerListStyle}
           className={cn(
             "space-y-1",
             viewMode === "week" && pt > 0 && "md:[padding-top:var(--pt-desktop)]",
@@ -1535,7 +1863,7 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
                   {expandedDayItems.map((occurrence) => (
                     <div
                       key={`expanded:${occurrence.id}`}
-                      title={`${occurrence.item.title} - ${occurrence.item.listTitle}`}
+                      title={getCalendarItemTitle(occurrence.item)}
                       className="group/event flex min-w-0 items-start gap-x-2 rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-left transition hover:border-violet-200 hover:bg-violet-50"
                     >
                       <button
@@ -1559,7 +1887,12 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
                             {occurrence.item.title}
                           </p>
                           <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-500">
-                            <span>{getOccurrenceLabel(occurrence)}</span>
+                            {getOccurrenceLabel(occurrence) && (
+                              <span>{getOccurrenceLabel(occurrence)}</span>
+                            )}
+                            {getOccurrenceTimeLabel(occurrence) && (
+                              <span>{getOccurrenceTimeLabel(occurrence)}</span>
+                            )}
                             <span className="truncate">{occurrence.item.listTitle}</span>
                             {occurrence.item.assignees.length > 0 && (
                               <span className="inline-flex items-center gap-x-1">
@@ -1591,7 +1924,7 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
         <DialogHeader>
           <DialogTitle>Thêm thẻ vào ngày {selectedCreateDayLabel}</DialogTitle>
           <DialogDescription>
-            Thẻ mới sẽ có hạn lúc {String(DEFAULT_CREATE_HOUR).padStart(2, "0")}:00 theo giờ địa phương.
+            Thẻ mới sẽ có hạn lúc {createTime || DEFAULT_CREATE_TIME} theo giờ địa phương.
           </DialogDescription>
         </DialogHeader>
 
@@ -1641,6 +1974,20 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
                 ))
               )}
             </select>
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor="calendar-card-time" className="text-xs font-semibold text-neutral-600">
+              Giờ hết hạn
+            </label>
+            <input
+              id="calendar-card-time"
+              type="time"
+              value={createTime}
+              onChange={(event) => setCreateTime(event.target.value)}
+              disabled={isCreatingCard}
+              className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-800 shadow-sm outline-none transition focus:border-violet-400 focus:ring-1 focus:ring-violet-200 disabled:cursor-not-allowed disabled:bg-neutral-50"
+            />
           </div>
 
           <DialogFooter className="mt-2">
