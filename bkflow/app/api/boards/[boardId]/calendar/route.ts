@@ -3,7 +3,12 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
 import { requireBoardMember } from "@/lib/permissions";
-import type { BoardCalendarItem, BoardCalendarResponse } from "@/types";
+import type {
+  BoardCalendarCardItem,
+  BoardCalendarChecklistItem,
+  BoardCalendarItem,
+  BoardCalendarResponse,
+} from "@/types";
 
 const MAX_RANGE_DAYS = 370;
 const DAY_IN_MS = 24 * 60 * 60 * 1000;
@@ -37,7 +42,10 @@ const parseRequiredDateParam = (
 };
 
 const getEffectiveStartTime = (item: BoardCalendarItem) => {
-  const effectiveDate = item.startDate ?? item.dueDate;
+  const effectiveDate = item.type === "card"
+    ? item.startDate ?? item.dueDate
+    : item.dueDate;
+
   return effectiveDate ? new Date(effectiveDate).getTime() : 0;
 };
 
@@ -100,129 +108,226 @@ export async function GET(
       return new NextResponse(permission.error, { status: 403 });
     }
 
-    const cards = await db.card.findMany({
-      where: {
-        list: {
-          board: {
-            id: boardId,
-            orgId,
+    const [cards, checklistItems] = await Promise.all([
+      db.card.findMany({
+        where: {
+          list: {
+            board: {
+              id: boardId,
+              orgId,
+            },
           },
+          OR: [
+            {
+              dueDate: {
+                gte: from,
+                lte: to,
+              },
+            },
+            {
+              startDate: {
+                gte: from,
+                lte: to,
+              },
+            },
+            {
+              AND: [
+                {
+                  startDate: {
+                    not: null,
+                    lte: to,
+                  },
+                },
+                {
+                  dueDate: {
+                    not: null,
+                    gte: from,
+                  },
+                },
+              ],
+            },
+          ],
         },
-        OR: [
-          {
-            dueDate: {
-              gte: from,
-              lte: to,
+        select: {
+          id: true,
+          title: true,
+          order: true,
+          startDate: true,
+          dueDate: true,
+          isCompleted: true,
+          reminder: true,
+          listId: true,
+          list: {
+            select: {
+              title: true,
+              order: true,
             },
           },
-          {
-            startDate: {
-              gte: from,
-              lte: to,
-            },
-          },
-          {
-            AND: [
-              {
-                startDate: {
-                  not: null,
-                  lte: to,
+          labels: {
+            select: {
+              label: {
+                select: {
+                  id: true,
+                  title: true,
+                  color: true,
                 },
               },
-              {
-                dueDate: {
-                  not: null,
-                  gte: from,
+            },
+            orderBy: {
+              createdAt: "asc",
+            },
+          },
+          assignees: {
+            select: {
+              id: true,
+              boardMemberId: true,
+              boardMember: {
+                select: {
+                  userId: true,
+                  userName: true,
+                  userImage: true,
                 },
               },
-            ],
+            },
+            orderBy: {
+              createdAt: "asc",
+            },
           },
-        ],
-      },
-      select: {
-        id: true,
-        title: true,
-        order: true,
-        startDate: true,
-        dueDate: true,
-        isCompleted: true,
-        reminder: true,
-        listId: true,
-        list: {
-          select: {
-            title: true,
-            order: true,
+          _count: {
+            select: {
+              comments: true,
+            },
           },
         },
-        labels: {
-          select: {
-            label: {
-              select: {
-                id: true,
-                title: true,
-                color: true,
+      }),
+      db.checklistItem.findMany({
+        where: {
+          dueDate: {
+            gte: from,
+            lte: to,
+          },
+          checklist: {
+            card: {
+              list: {
+                board: {
+                  id: boardId,
+                  orgId,
+                },
               },
             },
           },
-          orderBy: {
-            createdAt: "asc",
-          },
         },
-        assignees: {
-          select: {
-            id: true,
-            boardMemberId: true,
-            boardMember: {
-              select: {
-                userId: true,
-                userName: true,
-                userImage: true,
+        select: {
+          id: true,
+          title: true,
+          dueDate: true,
+          isCompleted: true,
+          order: true,
+          checklistId: true,
+          checklist: {
+            select: {
+              title: true,
+              order: true,
+              cardId: true,
+              card: {
+                select: {
+                  id: true,
+                  title: true,
+                  order: true,
+                  listId: true,
+                  list: {
+                    select: {
+                      title: true,
+                      order: true,
+                    },
+                  },
+                },
               },
             },
           },
-          orderBy: {
-            createdAt: "asc",
+          assignee: {
+            select: {
+              id: true,
+              userId: true,
+              userName: true,
+              userImage: true,
+            },
           },
         },
-        _count: {
-          select: {
-            comments: true,
-          },
-        },
-      },
+      }),
+    ]);
+
+    const cardItems = cards.map((card) => ({
+      item: {
+        type: "card" as const,
+        id: `card:${card.id}`,
+        cardId: card.id,
+        boardId,
+        listId: card.listId,
+        listTitle: card.list.title,
+        title: card.title,
+        startDate: card.startDate?.toISOString() ?? null,
+        dueDate: card.dueDate?.toISOString() ?? null,
+        isCompleted: card.isCompleted,
+        reminder: card.reminder,
+        labels: card.labels.map(({ label }) => ({
+          id: label.id,
+          title: label.title,
+          color: label.color,
+        })),
+        assignees: card.assignees.map((assignee) => ({
+          id: assignee.id,
+          boardMemberId: assignee.boardMemberId,
+          userId: assignee.boardMember.userId,
+          userName: assignee.boardMember.userName,
+          userImage: assignee.boardMember.userImage,
+        })),
+        commentCount: card._count.comments,
+      } satisfies BoardCalendarCardItem,
+      listOrder: card.list.order,
+      cardOrder: card.order,
+      checklistOrder: -1,
+      checklistItemOrder: -1,
+    }));
+
+    const checklistCalendarItems = checklistItems.flatMap((item) => {
+      if (!item.dueDate) {
+        return [];
+      }
+
+      return [{
+        item: {
+          type: "checklist-item" as const,
+          id: `checklist-item:${item.id}`,
+          checklistItemId: item.id,
+          checklistId: item.checklistId,
+          checklistTitle: item.checklist.title,
+          cardId: item.checklist.cardId,
+          cardTitle: item.checklist.card.title,
+          boardId,
+          listId: item.checklist.card.listId,
+          listTitle: item.checklist.card.list.title,
+          title: item.title,
+          dueDate: item.dueDate.toISOString(),
+          isCompleted: item.isCompleted,
+          assignee: item.assignee
+            ? {
+                id: item.assignee.id,
+                boardMemberId: item.assignee.id,
+                userId: item.assignee.userId,
+                userName: item.assignee.userName,
+                userImage: item.assignee.userImage,
+              }
+            : null,
+        } satisfies BoardCalendarChecklistItem,
+        listOrder: item.checklist.card.list.order,
+        cardOrder: item.checklist.card.order,
+        checklistOrder: item.checklist.order,
+        checklistItemOrder: item.order,
+      }];
     });
 
-    const items: BoardCalendarItem[] = cards
-      .map((card) => ({
-        item: {
-          type: "card" as const,
-          id: `card:${card.id}`,
-          cardId: card.id,
-          boardId,
-          listId: card.listId,
-          listTitle: card.list.title,
-          title: card.title,
-          startDate: card.startDate?.toISOString() ?? null,
-          dueDate: card.dueDate?.toISOString() ?? null,
-          isCompleted: card.isCompleted,
-          reminder: card.reminder,
-          labels: card.labels.map(({ label }) => ({
-            id: label.id,
-            title: label.title,
-            color: label.color,
-          })),
-          assignees: card.assignees.map((assignee) => ({
-            id: assignee.id,
-            boardMemberId: assignee.boardMemberId,
-            userId: assignee.boardMember.userId,
-            userName: assignee.boardMember.userName,
-            userImage: assignee.boardMember.userImage,
-          })),
-          commentCount: card._count.comments,
-        },
-        listOrder: card.list.order,
-        cardOrder: card.order,
-      }))
+    const items: BoardCalendarItem[] = [...cardItems, ...checklistCalendarItems]
       .sort((left, right) => {
         const startDelta =
           getEffectiveStartTime(left.item) - getEffectiveStartTime(right.item);
@@ -235,7 +340,14 @@ export async function GET(
           return left.item.isCompleted ? 1 : -1;
         }
 
-        return left.listOrder - right.listOrder || left.cardOrder - right.cardOrder;
+        if (left.item.type !== right.item.type) {
+          return left.item.type === "card" ? -1 : 1;
+        }
+
+        return left.listOrder - right.listOrder ||
+          left.cardOrder - right.cardOrder ||
+          left.checklistOrder - right.checklistOrder ||
+          left.checklistItemOrder - right.checklistItemOrder;
       })
       .map(({ item }) => item);
 

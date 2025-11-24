@@ -17,6 +17,7 @@ interface ChecklistItemProps {
   boardMembers: BoardMember[];
   isMutating: boolean;
   isTogglePending: boolean;
+  maxDueDate?: Date | string | null;
   dragHandleProps: DraggableProvidedDragHandleProps | null | undefined;
   isDragging?: boolean;
   onAssign: (itemId: string, assigneeId: string | null) => void;
@@ -31,6 +32,7 @@ export const ChecklistItem = ({
   boardMembers,
   isMutating,
   isTogglePending,
+  maxDueDate,
   dragHandleProps,
   isDragging = false,
   onAssign,
@@ -124,6 +126,7 @@ export const ChecklistItem = ({
                 dueDate={item.dueDate}
                 isCompleted={item.isCompleted}
                 isPending={isMutating}
+                maxDueDate={maxDueDate}
                 onChange={(dueDate) => onSetDueDate(item.id, dueDate)}
               />
             </div>
@@ -136,6 +139,7 @@ export const ChecklistItem = ({
             dueDate={item.dueDate}
             isCompleted={item.isCompleted}
             isPending={isMutating}
+            maxDueDate={maxDueDate}
             onChange={(dueDate) => onSetDueDate(item.id, dueDate)}
           />
         )}

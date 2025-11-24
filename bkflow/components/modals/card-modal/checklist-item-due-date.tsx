@@ -3,6 +3,7 @@
 import { useEffect, useState } from "react";
 import { format } from "date-fns";
 import { Clock, X } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { Hint } from "@/components/hint";
@@ -17,6 +18,7 @@ interface ChecklistItemDueDateProps {
   dueDate: Date | string | null;
   isCompleted: boolean;
   isPending: boolean;
+  maxDueDate?: Date | string | null;
   onChange: (dueDate: Date | null) => void;
 }
 
@@ -40,16 +42,27 @@ export const ChecklistItemDueDate = ({
   dueDate,
   isCompleted,
   isPending,
+  maxDueDate,
   onChange,
 }: ChecklistItemDueDateProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [value, setValue] = useState(toDateTimeLocalValue(dueDate));
+  const maxDate = maxDueDate ? new Date(maxDueDate) : null;
+  const validMaxDate = maxDate && !Number.isNaN(maxDate.getTime()) ? maxDate : null;
+  const maxValue = toDateTimeLocalValue(validMaxDate);
 
   useEffect(() => {
     setValue(toDateTimeLocalValue(dueDate));
   }, [dueDate]);
 
   const overdue = isChecklistItemOverdue(dueDate, isCompleted);
+  const getRangeError = () => {
+    if (!validMaxDate) {
+      return "Hạn checklist phải trước hoặc bằng hạn chót của thẻ.";
+    }
+
+    return `Hạn checklist phải trước hoặc bằng hạn chót của thẻ (${format(validMaxDate, "dd/MM/yyyy HH:mm")}).`;
+  };
 
   const save = () => {
     if (!value) {
@@ -61,6 +74,11 @@ export const ChecklistItemDueDate = ({
     const nextDate = new Date(value);
 
     if (Number.isNaN(nextDate.getTime())) {
+      return;
+    }
+
+    if (validMaxDate && nextDate.getTime() > validMaxDate.getTime()) {
+      toast.error(getRangeError());
       return;
     }
 
@@ -115,6 +133,7 @@ export const ChecklistItemDueDate = ({
           <input
             type="datetime-local"
             value={value}
+            max={maxValue || undefined}
             onChange={(event) => setValue(event.target.value)}
             disabled={isPending}
             className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-700 shadow-xs outline-none transition focus:border-violet-500 focus:ring-1 focus:ring-violet-200"

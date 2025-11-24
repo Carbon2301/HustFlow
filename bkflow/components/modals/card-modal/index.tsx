@@ -95,6 +95,7 @@ export const CardModal = () => {
                     <Checklists
                       cardId={cardData.id}
                       boardId={cardData.list.boardId}
+                      cardDueDate={cardData.dueDate}
                       boardMembers={cardData.boardMembers || []}
                       checklists={cardData.checklists || []}
                     />

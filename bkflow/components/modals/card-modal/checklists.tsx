@@ -39,6 +39,7 @@ type ChecklistWithItems = Checklist & {
 interface ChecklistsProps {
   cardId: string;
   boardId: string;
+  cardDueDate: Date | string | null;
   boardMembers: BoardMember[];
   checklists: ChecklistWithItems[];
 }
@@ -82,6 +83,7 @@ const getDestinationIndex = ({
 export const Checklists = ({
   cardId,
   boardId,
+  cardDueDate,
   boardMembers,
   checklists,
 }: ChecklistsProps) => {
@@ -190,7 +192,10 @@ export const Checklists = ({
 
   const { execute: executeSetDueDate } = useAction(setChecklistItemDueDate, {
     onSuccess: () => invalidateCard(true),
-    onError: (error) => toast.error(error),
+    onError: (error) => {
+      toast.error(error);
+      invalidateCard(false);
+    },
   });
 
   const { execute: executeAssignItem } = useAction(assignChecklistItem, {
@@ -233,6 +238,30 @@ export const Checklists = ({
   const boardMembersById = useMemo(() => {
     return new Map(boardMembers.map((member) => [member.id, member]));
   }, [boardMembers]);
+
+  const parentCardDueDate = useMemo(() => {
+    if (!cardDueDate) {
+      return null;
+    }
+
+    const parsedDate = new Date(cardDueDate);
+
+    return Number.isNaN(parsedDate.getTime()) ? null : parsedDate;
+  }, [cardDueDate]);
+
+  const getChecklistDueDateRangeError = () => {
+    if (!parentCardDueDate) {
+      return "Hạn checklist phải trước hoặc bằng hạn chót của thẻ.";
+    }
+
+    return `Hạn checklist phải trước hoặc bằng hạn chót của thẻ (${parentCardDueDate.toLocaleString("vi-VN", {
+      day: "2-digit",
+      month: "2-digit",
+      year: "numeric",
+      hour: "2-digit",
+      minute: "2-digit",
+    })}).`;
+  };
 
   const handleRenameChecklist = async (checklistId: string, title: string) => {
     setChecklistPending(checklistId, true);
@@ -292,6 +321,15 @@ export const Checklists = ({
   };
 
   const handleSetDueDate = async (itemId: string, dueDate: Date | null) => {
+    if (
+      dueDate &&
+      parentCardDueDate &&
+      dueDate.getTime() > parentCardDueDate.getTime()
+    ) {
+      toast.error(getChecklistDueDateRangeError());
+      return;
+    }
+
     setItemPending(itemId, true);
     updateLocalItem(itemId, (item) => ({ ...item, dueDate }));
 
@@ -500,6 +538,7 @@ export const Checklists = ({
                                 isDragging={snapshot.isDragging}
                                 isMutating={pendingItemIds.has(item.id)}
                                 isTogglePending={pendingToggleItemIds.has(item.id)}
+                                maxDueDate={parentCardDueDate}
                                 onAssign={handleAssignItem}
                                 onDelete={handleDeleteItem}
                                 onRename={handleRenameItem}

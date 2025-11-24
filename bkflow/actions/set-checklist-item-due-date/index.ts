@@ -16,6 +16,9 @@ import { InputType, ReturnType } from "./types";
 
 const formatDueDateForLog = (date: Date) => format(date, "dd/MM/yyyy HH:mm");
 
+const getChecklistDueDateRangeError = (cardDueDate: Date) =>
+  `Hạn checklist phải trước hoặc bằng hạn chót của thẻ (${formatDueDateForLog(cardDueDate)}).`;
+
 const handler = async (data: InputType): Promise<ReturnType> => {
   const { userId, orgId } = await auth();
 
@@ -43,6 +46,18 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
     if (currentTime === nextTime) {
       return { data: access.item };
+    }
+
+    const parentCardDueDate = access.item.checklist.card.dueDate;
+
+    if (
+      dueDate &&
+      parentCardDueDate &&
+      dueDate.getTime() > parentCardDueDate.getTime()
+    ) {
+      return {
+        error: getChecklistDueDateRangeError(parentCardDueDate),
+      };
     }
 
     const item = await db.checklistItem.update({

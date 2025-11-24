@@ -58,7 +58,7 @@ export type CardCommentWithReplies = Prisma.CardCommentGetPayload<{
   };
 }>;
 
-export type BoardCalendarItem = {
+export type BoardCalendarCardItem = {
   type: "card";
   id: string;
   cardId: string;
@@ -84,6 +84,31 @@ export type BoardCalendarItem = {
   }[];
   commentCount: number;
 };
+
+export type BoardCalendarChecklistItem = {
+  type: "checklist-item";
+  id: string;
+  checklistItemId: string;
+  checklistId: string;
+  checklistTitle: string;
+  cardId: string;
+  cardTitle: string;
+  boardId: string;
+  listId: string;
+  listTitle: string;
+  title: string;
+  dueDate: string;
+  isCompleted: boolean;
+  assignee: {
+    id: string;
+    boardMemberId: string;
+    userId: string;
+    userName: string;
+    userImage: string;
+  } | null;
+};
+
+export type BoardCalendarItem = BoardCalendarCardItem | BoardCalendarChecklistItem;
 
 export type BoardCalendarResponse = {
   boardId: string;
