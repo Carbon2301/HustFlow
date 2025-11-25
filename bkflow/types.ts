@@ -18,6 +18,7 @@ export type CardWithAssignees = Card & {
   }[];
   _count?: {
     comments: number;
+    attachments: number;
   };
 };
 

@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect } from "react";
+import { useEffect, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -23,6 +23,7 @@ export const CardModal = () => {
   const id = useCardModal((state) => state.id);
   const isOpen = useCardModal((state) => state.isOpen);
   const onClose = useCardModal((state) => state.onClose);
+  const [addAttachmentOpen, setAddAttachmentOpen] = useState(false);
 
   const { data: cardData, error, isError } = useQuery<CardWithList>({
     queryKey: ["card", id],
@@ -80,18 +81,22 @@ export const CardModal = () => {
             }
             {!cardData
               ? <Metadata.Skeleton />
-              : <Metadata data={cardData} />
+              : <Metadata data={cardData} onOpenAttachment={() => setAddAttachmentOpen(true)} />
             }
             {!cardData
               ? <Description.Skeleton />
               : (
                   <>
                     <Description data={cardData} />
-                    <Attachments
-                      cardId={cardData.id}
-                      boardId={cardData.list.boardId}
-                      items={cardData.attachments ?? []}
-                    />
+                    {((cardData.attachments ?? []).length > 0 || addAttachmentOpen) && (
+                      <Attachments
+                        cardId={cardData.id}
+                        boardId={cardData.list.boardId}
+                        items={cardData.attachments ?? []}
+                        openAdd={addAttachmentOpen}
+                        onOpenAddChange={setAddAttachmentOpen}
+                      />
+                    )}
                     <Checklists
                       cardId={cardData.id}
                       boardId={cardData.list.boardId}

@@ -1,10 +1,11 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BoardMember } from "@prisma/client";
 import type { DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 
 import { Input } from "@/components/ui/input";
+import { useCardModal } from "@/hooks/use-card-modal";
 import { cn } from "@/lib/utils";
 import { ChecklistItemWithAssignee } from "@/types";
 
@@ -41,8 +42,43 @@ export const ChecklistItem = ({
   onSetDueDate,
   onToggle,
 }: ChecklistItemProps) => {
+  const itemRef = useRef<HTMLDivElement>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isHighlighted, setIsHighlighted] = useState(false);
   const [title, setTitle] = useState(item.title);
+  const isModalOpen = useCardModal((state) => state.isOpen);
+  const targetChecklistItemId = useCardModal((state) => state.targetChecklistItemId);
+  const clearTargetChecklistItem = useCardModal((state) => state.clearTargetChecklistItem);
+
+  useEffect(() => {
+    if (!isModalOpen || targetChecklistItemId !== item.id) {
+      return;
+    }
+
+    const frameId = window.requestAnimationFrame(() => {
+      const element = itemRef.current;
+
+      if (!element) {
+        return;
+      }
+
+      element.scrollIntoView({ block: "center", behavior: "smooth" });
+      element.focus({ preventScroll: true });
+      setIsHighlighted(true);
+      clearTargetChecklistItem();
+    });
+    const timeoutId = window.setTimeout(() => setIsHighlighted(false), 2200);
+
+    return () => {
+      window.cancelAnimationFrame(frameId);
+      window.clearTimeout(timeoutId);
+    };
+  }, [
+    clearTargetChecklistItem,
+    isModalOpen,
+    item.id,
+    targetChecklistItemId,
+  ]);
 
   const cancelEditing = () => {
     setTitle(item.title);
@@ -62,7 +98,15 @@ export const ChecklistItem = ({
   };
 
   return (
-    <div className="group flex w-full items-start justify-between gap-x-2 rounded-lg px-2 py-1.5 transition-colors hover:bg-neutral-50">
+    <div
+      ref={itemRef}
+      data-checklist-item-id={item.id}
+      tabIndex={-1}
+      className={cn(
+        "group flex w-full items-start justify-between gap-x-2 rounded-lg px-2 py-1.5 transition-colors duration-200 hover:bg-neutral-50 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300",
+        isHighlighted && "bg-amber-50 ring-2 ring-amber-300 ring-inset hover:bg-amber-50",
+      )}
+    >
       <div className="flex min-w-0 flex-1 items-start gap-x-2.5">
         <input
           type="checkbox"

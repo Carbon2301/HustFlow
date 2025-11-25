@@ -4,7 +4,7 @@ import { useState, useRef } from "react";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { Draggable } from "@hello-pangea/dnd";
-import { AlignLeft, ExternalLink, Copy, Trash2, MessageSquare, CheckSquare } from "lucide-react";
+import { AlignLeft, ExternalLink, Copy, Trash2, MessageSquare, CheckSquare, Paperclip } from "lucide-react";
 
 import { useCardModal } from "@/hooks/use-card-modal";
 import { DueDateBadge } from "@/components/due-date-badge";
@@ -117,8 +117,11 @@ export const CardItem = ({
   const hasChecklistProgress = checklistTotalItems > 0;
   const isChecklistAllDone = hasChecklistProgress && checklistCompletedItems === checklistTotalItems;
 
+  const attachmentCount = data._count?.attachments ?? 0;
+  const hasAttachments = attachmentCount > 0;
+
   const hasFooter = Boolean(data.dueDate) || Boolean(data.startDate) || data.isCompleted || data.assignees.length > 0
-    || Boolean(data._count && data._count.comments > 0) || hasChecklistProgress;
+    || Boolean(data._count && data._count.comments > 0) || hasChecklistProgress || hasAttachments;
 
   return (
     <Draggable draggableId={data.id} index={index}>
@@ -191,6 +194,14 @@ export const CardItem = ({
                         <div className="flex items-center gap-x-1 text-xs text-neutral-400 hover:text-neutral-600 transition-colors py-0.5 px-1.5 rounded bg-neutral-50 hover:bg-neutral-100/70 border border-neutral-100">
                           <MessageSquare className="h-3.5 w-3.5 text-neutral-400 flex-shrink-0" />
                           <span className="font-semibold text-neutral-500 leading-none">{data._count.comments}</span>
+                        </div>
+                      </Hint>
+                    )}
+                    {hasAttachments && (
+                      <Hint description={`${attachmentCount} tệp đính kèm`} side="bottom">
+                        <div className="flex items-center gap-x-1 text-xs text-neutral-400 hover:text-neutral-600 transition-colors py-0.5 px-1.5 rounded bg-neutral-50 hover:bg-neutral-100/70 border border-neutral-100">
+                          <Paperclip className="h-3.5 w-3.5 text-neutral-400 flex-shrink-0" />
+                          <span className="font-semibold text-neutral-500 leading-none">{attachmentCount}</span>
                         </div>
                       </Hint>
                     )}

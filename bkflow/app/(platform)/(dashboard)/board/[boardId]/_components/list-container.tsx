@@ -433,6 +433,7 @@ export const ListContainer = ({
                   ...card,
                   _count: {
                     ...card._count,
+                    attachments: card._count?.attachments ?? 0,
                     comments: Math.max(
                       (card._count?.comments || 0) + payload.delta,
                       0,

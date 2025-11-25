@@ -15,7 +15,8 @@ import {
   Check, 
   Search,
   Tag,
-  CheckSquare
+  CheckSquare,
+  Paperclip
 } from "lucide-react";
 
 import { CardWithList } from "@/types";
@@ -49,6 +50,7 @@ import { useBoardCalendarInvalidation } from "@/hooks/use-board-calendar-invalid
 
 interface MetadataProps {
   data: CardWithList;
+  onOpenAttachment?: () => void;
 }
 
 const getInitials = (name: string) => {
@@ -59,6 +61,7 @@ const getInitials = (name: string) => {
 
 export const Metadata = ({
   data,
+  onOpenAttachment,
 }: MetadataProps) => {
   const params = useParams();
   const boardId = params.boardId as string;
@@ -559,6 +562,16 @@ export const Metadata = ({
               Việc cần làm
             </button>
           </ChecklistPopover>
+
+          {/* Tệp đính kèm Button */}
+          <button
+            type="button"
+            onClick={onOpenAttachment}
+            className="rounded-lg border border-neutral-200 bg-white hover:bg-neutral-50 active:bg-neutral-100 text-neutral-600 px-3 py-1.5 flex items-center gap-x-1.5 text-xs font-semibold shadow-xs cursor-pointer transition-colors h-8"
+          >
+            <Paperclip className="h-3.5 w-3.5 text-neutral-500" />
+            Đính kèm
+          </button>
         </div>
       )}
 

@@ -58,6 +58,7 @@ const BoardIdPage = async ({
           _count: {
             select: {
               comments: true,
+              attachments: true,
             },
           },
           checklists: {

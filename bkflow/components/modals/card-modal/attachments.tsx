@@ -52,6 +52,8 @@ interface AttachmentsProps {
   cardId: string;
   boardId: string;
   items: CardAttachment[];
+  openAdd?: boolean;
+  onOpenAddChange?: (open: boolean) => void;
 }
 
 function reorder<T>(list: T[], startIndex: number, endIndex: number) {
@@ -168,12 +170,21 @@ export const Attachments = ({
   cardId,
   boardId,
   items,
+  openAdd,
+  onOpenAddChange,
 }: AttachmentsProps) => {
   const queryClient = useQueryClient();
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
   const [uploadProgress, setUploadProgress] = useState<number | null>(null);
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+
+  // Sync externally-controlled open state
+  const effectiveOpen = openAdd !== undefined ? openAdd : isPopoverOpen;
+  const setEffectiveOpen = (val: boolean) => {
+    setIsPopoverOpen(val);
+    onOpenAddChange?.(val);
+  };
 
   const {
     execute: executeCreate,
@@ -184,7 +195,7 @@ export const Attachments = ({
       queryClient.invalidateQueries({ queryKey: ["card", cardId] });
       queryClient.invalidateQueries({ queryKey: ["card-logs", cardId] });
       toast.success("Đã thêm liên kết đính kèm.", { id: "card-attachment-link" });
-      setIsPopoverOpen(false);
+      setEffectiveOpen(false);
     },
     onError: (error) => {
       toast.error(error, { id: "card-attachment-link" });
@@ -280,7 +291,7 @@ export const Attachments = ({
       queryClient.invalidateQueries({ queryKey: ["card-logs", cardId] });
       setUploadProgress(null);
       toast.success("Đã tải file đính kèm.", { id: "card-attachment-upload" });
-      setIsPopoverOpen(false);
+      setEffectiveOpen(false);
     },
     onError: (error) => {
       setUploadProgress(null);
@@ -503,7 +514,7 @@ export const Attachments = ({
             Các tập tin đính kèm
           </p>
 
-          <Popover open={isPopoverOpen} onOpenChange={setIsPopoverOpen}>
+          <Popover open={effectiveOpen} onOpenChange={setEffectiveOpen}>
             <PopoverTrigger asChild>
               <Button
                 type="button"
@@ -524,6 +535,7 @@ export const Attachments = ({
                     variant="ghost"
                     size="icon-sm"
                     className="h-6 w-6 text-neutral-500 hover:bg-neutral-100 hover:text-neutral-700 cursor-pointer"
+                    onClick={() => setEffectiveOpen(false)}
                   >
                     <X className="h-4 w-4" />
                   </Button>

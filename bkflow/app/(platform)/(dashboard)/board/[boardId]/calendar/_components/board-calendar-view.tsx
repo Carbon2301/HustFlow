@@ -937,6 +937,7 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
   const openCalendarCard = useCallback((
     cardId: string,
     event?: MouseEvent<HTMLButtonElement>,
+    options?: { checklistItemId?: string },
   ) => {
     event?.stopPropagation();
     if (suppressClickRef.current) {
@@ -944,7 +945,7 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
     }
 
     setExpandedDayKey(null);
-    cardModal.onOpen(cardId);
+    cardModal.onOpen(cardId, options);
   }, [cardModal]);
 
   const canClearStartDate = (occurrence: CalendarOccurrence) => (
@@ -1361,6 +1362,11 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
     const isCardItem = isCalendarCardItem(occurrence.item);
 
     if (!isCardItem) {
+      const checklistItem = occurrence.item as Extract<
+        BoardCalendarItem,
+        { type: "checklist-item" }
+      >;
+
       return (
         <Popover>
           <PopoverTrigger asChild>
@@ -1386,7 +1392,9 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
           >
             <button
               type="button"
-              onClick={(event) => handleQuickActionClick(event, () => cardModal.onOpen(occurrence.item.cardId))}
+              onClick={(event) => handleQuickActionClick(event, () => cardModal.onOpen(checklistItem.cardId, {
+                checklistItemId: checklistItem.checklistItemId,
+              }))}
               className="flex h-8 w-full items-center gap-x-2 rounded-md px-2 text-left text-xs font-medium text-neutral-700 transition hover:bg-neutral-100"
             >
               <ExternalLink className="h-3.5 w-3.5 text-neutral-500" />
@@ -1477,8 +1485,19 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
       >
         <button
           type="button"
-          onClick={(event) => openCalendarCard(occurrence.item.cardId, event)}
-          aria-label={`Mở thẻ ${occurrence.item.title}`}
+          onClick={(event) => openCalendarCard(
+            occurrence.item.cardId,
+            event,
+            occurrence.item.type === "checklist-item"
+              ? { checklistItemId: occurrence.item.checklistItemId }
+              : undefined,
+          )}
+          aria-label={occurrence.item.type === "checklist-item"
+            ? `Mở mục checklist ${occurrence.item.title} trong thẻ ${occurrence.item.cardTitle}`
+            : `Mở thẻ ${occurrence.item.title}`}
+          title={occurrence.item.type === "checklist-item"
+            ? `Mở mục checklist ${occurrence.item.title} trong thẻ ${occurrence.item.cardTitle}`
+            : `Mở thẻ ${occurrence.item.title}`}
           className="flex min-w-0 flex-1 items-start gap-x-2 text-left"
         >
           <div className={cn(
@@ -1531,9 +1550,14 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
     const cardItem = isCalendarCardItem(occurrence.item) ? occurrence.item : null;
 
     return (
-      <Hint description={getCalendarItemTitle(occurrence.item)} side="top" sideOffset={4} className="max-w-[280px]">
+      <Hint
+        key={occurrence.id}
+        description={getCalendarItemTitle(occurrence.item)}
+        side="top"
+        sideOffset={4}
+        className="max-w-[280px]"
+      >
         <div
-          key={occurrence.id}
           draggable={!isUpdatingCardDate && occurrence.kind !== "range" && !!cardItem}
           onDragStart={(event) => handleOccurrenceDragStart(event, occurrence)}
           onDragEnd={handleOccurrenceDragEnd}
@@ -1550,8 +1574,19 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
         >
           <button
             type="button"
-            onClick={(event) => openCalendarCard(occurrence.item.cardId, event)}
-            aria-label={`Mở thẻ ${occurrence.item.title}`}
+            onClick={(event) => openCalendarCard(
+              occurrence.item.cardId,
+              event,
+              occurrence.item.type === "checklist-item"
+                ? { checklistItemId: occurrence.item.checklistItemId }
+                : undefined,
+            )}
+            aria-label={occurrence.item.type === "checklist-item"
+              ? `Mở mục checklist ${occurrence.item.title} trong thẻ ${occurrence.item.cardTitle}`
+              : `Mở thẻ ${occurrence.item.title}`}
+            title={occurrence.item.type === "checklist-item"
+              ? `Mở mục checklist ${occurrence.item.title} trong thẻ ${occurrence.item.cardTitle}`
+              : `Mở thẻ ${occurrence.item.title}`}
             className="flex h-full min-w-0 flex-1 items-center gap-x-1 text-left"
           >
             {cardItem?.labels[0] && (
@@ -1615,9 +1650,14 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
     const endTimeLabel = (segment.isRangeEnd && dueDate) ? formatCalendarTime(dueDate) : null;
 
     return (
-      <Hint description={getCalendarItemTitle(segment.range.item)} side="top" sideOffset={4} className="max-w-[280px]">
+      <Hint
+        key={segment.id}
+        description={getCalendarItemTitle(segment.range.item)}
+        side="top"
+        sideOffset={4}
+        className="max-w-[280px]"
+      >
         <div
-          key={segment.id}
           style={style}
           className={cn(
             "group/event absolute z-10 h-7 min-w-0 px-0.5",
