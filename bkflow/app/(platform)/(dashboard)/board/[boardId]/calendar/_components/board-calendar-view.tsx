@@ -54,6 +54,7 @@ import { Hint } from "@/components/hint";
 import { useAction } from "@/hooks/use-action";
 import { createCard } from "@/actions/create-card";
 import { updateCard } from "@/actions/update-card";
+import { setChecklistItemDueDate } from "@/actions/set-checklist-item-due-date";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -75,6 +76,7 @@ import { REALTIME_EVENTS } from "@/lib/realtime/events";
 import { useBoardCalendarInvalidation } from "@/hooks/use-board-calendar-invalidation";
 import type {
   BoardCalendarCardItem,
+  BoardCalendarChecklistItem,
   BoardCalendarItem,
   BoardCalendarResponse,
 } from "@/types";
@@ -208,6 +210,10 @@ const parseCalendarDate = (value: string | null) => {
 const isCalendarCardItem = (
   item: BoardCalendarItem,
 ): item is BoardCalendarCardItem => item.type === "card";
+
+const isCalendarChecklistItem = (
+  item: BoardCalendarItem,
+): item is BoardCalendarChecklistItem => item.type === "checklist-item";
 
 const getCalendarItemStartDate = (item: BoardCalendarItem) =>
   isCalendarCardItem(item) ? item.startDate : null;
@@ -596,6 +602,7 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
   const [createListId, setCreateListId] = useState(() => lists[0]?.id ?? "");
   const suppressClickRef = useRef(false);
   const updateSuccessToastRef = useRef<string | null>(null);
+  const updatingChecklistItemCardIdRef = useRef<string | null>(null);
   const { fromIso, toIso, days } = useMemo(
     () => viewMode === "month"
       ? getMonthGridRange(anchorDate)
@@ -842,6 +849,34 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
     },
   });
 
+  const {
+    execute: executeSetChecklistItemDueDate,
+    isLoading: isUpdatingChecklistItemDueDate,
+  } = useAction(setChecklistItemDueDate, {
+    onSuccess: () => {
+      const cardId = updatingChecklistItemCardIdRef.current;
+
+      toast.success("Đã cập nhật ngày của mục checklist");
+      setExpandedDayKey(null);
+      invalidateBoardCalendar();
+
+      if (cardId) {
+        queryClient.invalidateQueries({ queryKey: ["card", cardId] });
+        queryClient.invalidateQueries({ queryKey: ["card-logs", cardId] });
+      }
+
+      router.refresh();
+    },
+    onError: (error) => {
+      toast.error(error);
+      invalidateBoardCalendar();
+    },
+    onComplete: () => {
+      updatingChecklistItemCardIdRef.current = null;
+      handleOccurrenceDragEnd();
+    },
+  });
+
   const { execute: executeCreateCard, fieldErrors: createFieldErrors, isLoading: isCreatingCard } = useAction(createCard, {
     onSuccess: (data) => {
       toast.success(`Đã tạo thẻ "${data.title}"`);
@@ -882,7 +917,13 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
   const openCreateDialog = (day: Date, event: MouseEvent<HTMLButtonElement>) => {
     event.stopPropagation();
 
-    if (draggingOccurrenceId || resizingRange || isUpdatingCardDate || lists.length === 0) {
+    if (
+      draggingOccurrenceId ||
+      resizingRange ||
+      isUpdatingCardDate ||
+      isUpdatingChecklistItemDueDate ||
+      lists.length === 0
+    ) {
       return;
     }
 
@@ -1031,8 +1072,9 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
   ) => {
     if (
       isUpdatingCardDate ||
+      isUpdatingChecklistItemDueDate ||
       occurrence.kind === "range" ||
-      !isCalendarCardItem(occurrence.item)
+      (!isCalendarCardItem(occurrence.item) && !isCalendarChecklistItem(occurrence.item))
     ) {
       event.preventDefault();
       return;
@@ -1080,19 +1122,36 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
   const updateOccurrenceDate = (occurrence: CalendarOccurrence, targetDay: Date) => {
     const { item } = occurrence;
 
-    if (!isCalendarCardItem(item)) {
-      toast.error("Checklist item chưa hỗ trợ kéo thả trên lịch.");
+    if (!isCalendarCardItem(item) && !isCalendarChecklistItem(item)) {
+      toast.error("Không thể cập nhật mục lịch này.");
       handleOccurrenceDragEnd();
       return;
     }
 
-    const currentStartDate = parseCalendarDate(item.startDate);
+    const currentStartDate = isCalendarCardItem(item)
+      ? parseCalendarDate(item.startDate)
+      : null;
     const currentDueDate = parseCalendarDate(item.dueDate);
     const targetDayKey = getDayKey(targetDay);
     const sourceDayKey = getDayKey(occurrence.date);
 
     if (targetDayKey === sourceDayKey) {
       handleOccurrenceDragEnd();
+      return;
+    }
+
+    if (isCalendarChecklistItem(item)) {
+      const nextDueDate = currentDueDate
+        ? copyDateToDay(currentDueDate, targetDay)
+        : getDefaultDueDateForDay(targetDay);
+
+      updatingChecklistItemCardIdRef.current = item.cardId;
+      executeSetChecklistItemDueDate({
+        boardId,
+        cardId: item.cardId,
+        id: item.checklistItemId,
+        dueDate: nextDueDate,
+      });
       return;
     }
 
@@ -1191,7 +1250,7 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
     const occurrence = getDraggedOccurrence(event);
 
     if (!occurrence) {
-      toast.error("Không thể xác định thẻ đang kéo.");
+      toast.error("Không thể xác định mục lịch đang kéo.");
       invalidateBoardCalendar();
       handleOccurrenceDragEnd();
       return;
@@ -1548,6 +1607,12 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
   ) => {
     const timeLabel = getOccurrenceTimeLabel(occurrence);
     const cardItem = isCalendarCardItem(occurrence.item) ? occurrence.item : null;
+    const isChecklistItem = isCalendarChecklistItem(occurrence.item);
+    const canDragOccurrence =
+      occurrence.kind !== "range" &&
+      (!!cardItem || isChecklistItem) &&
+      !isUpdatingCardDate &&
+      !isUpdatingChecklistItemDueDate;
 
     return (
       <Hint
@@ -1558,17 +1623,17 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
         className="max-w-[280px]"
       >
         <div
-          draggable={!isUpdatingCardDate && occurrence.kind !== "range" && !!cardItem}
+          draggable={canDragOccurrence}
           onDragStart={(event) => handleOccurrenceDragStart(event, occurrence)}
           onDragEnd={handleOccurrenceDragEnd}
           className={cn(
             "group/event flex h-7 w-full min-w-0 items-center gap-x-1 rounded-md border px-1.5 text-left text-[11px] font-medium leading-none transition",
-            occurrence.kind === "range" || !cardItem
+            occurrence.kind === "range" || (!cardItem && !isChecklistItem)
               ? "cursor-default"
               : "cursor-grab active:cursor-grabbing",
             getOccurrenceTone(occurrence),
             draggingOccurrenceId === occurrence.id && "opacity-60 ring-2 ring-violet-300",
-            isUpdatingCardDate && "cursor-wait opacity-70",
+            (isUpdatingCardDate || isUpdatingChecklistItemDueDate) && "cursor-wait opacity-70",
             className,
           )}
         >
@@ -1881,7 +1946,13 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
             <button
               type="button"
               onClick={(event) => openCreateDialog(day, event)}
-              disabled={!!resizingRange || lists.length === 0 || isCreatingCard || isUpdatingCardDate}
+              disabled={
+                !!resizingRange ||
+                lists.length === 0 ||
+                isCreatingCard ||
+                isUpdatingCardDate ||
+                isUpdatingChecklistItemDueDate
+              }
               aria-label={lists.length === 0 ? "Tạo danh sách trước khi thêm thẻ từ lịch" : `Thêm thẻ vào ngày ${format(day, "dd/MM/yyyy")}`}
               className={cn(
                 "flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-neutral-400 opacity-100 transition hover:bg-violet-50 hover:text-violet-700 focus-visible:bg-violet-50 focus-visible:text-violet-700 disabled:cursor-not-allowed disabled:opacity-30 md:opacity-0 md:group-hover/day:opacity-100 md:focus-visible:opacity-100",
