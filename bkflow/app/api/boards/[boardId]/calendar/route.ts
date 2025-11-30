@@ -8,6 +8,7 @@ import type {
   BoardCalendarChecklistItem,
   BoardCalendarItem,
   BoardCalendarResponse,
+  BoardCalendarUnscheduledCard,
 } from "@/types";
 
 const MAX_RANGE_DAYS = 370;
@@ -80,6 +81,8 @@ export async function GET(
 
     const from = fromResult.date;
     const to = toResult.date;
+    const includeUnscheduled =
+      request.nextUrl.searchParams.get("includeUnscheduled") === "true";
 
     if (!from || !to) {
       return NextResponse.json(
@@ -108,7 +111,7 @@ export async function GET(
       return new NextResponse(permission.error, { status: 403 });
     }
 
-    const [cards, checklistItems] = await Promise.all([
+    const [cards, checklistItems, unscheduledCards] = await Promise.all([
       db.card.findMany({
         where: {
           list: {
@@ -255,6 +258,78 @@ export async function GET(
           },
         },
       }),
+      includeUnscheduled
+        ? db.card.findMany({
+            where: {
+              startDate: null,
+              dueDate: null,
+              list: {
+                board: {
+                  id: boardId,
+                  orgId,
+                },
+              },
+            },
+            select: {
+              id: true,
+              title: true,
+              order: true,
+              isCompleted: true,
+              listId: true,
+              list: {
+                select: {
+                  title: true,
+                  order: true,
+                },
+              },
+              labels: {
+                select: {
+                  label: {
+                    select: {
+                      id: true,
+                      title: true,
+                      color: true,
+                    },
+                  },
+                },
+                orderBy: {
+                  createdAt: "asc",
+                },
+              },
+              assignees: {
+                select: {
+                  id: true,
+                  boardMemberId: true,
+                  boardMember: {
+                    select: {
+                      userId: true,
+                      userName: true,
+                      userImage: true,
+                    },
+                  },
+                },
+                orderBy: {
+                  createdAt: "asc",
+                },
+              },
+              _count: {
+                select: {
+                  comments: true,
+                },
+              },
+            },
+            orderBy: [
+              {
+                list: {
+                  order: "asc",
+                },
+              },
+              {
+                order: "asc",
+              },
+            ],
+          })
+        : Promise.resolve([]),
     ]);
 
     const cardItems = cards.map((card) => ({
@@ -351,11 +426,39 @@ export async function GET(
       })
       .map(({ item }) => item);
 
+    const mappedUnscheduledCards: BoardCalendarUnscheduledCard[] = unscheduledCards
+      .map((card) => ({
+        type: "unscheduled-card" as const,
+        id: `unscheduled-card:${card.id}`,
+        cardId: card.id,
+        boardId,
+        listId: card.listId,
+        listTitle: card.list.title,
+        title: card.title,
+        isCompleted: card.isCompleted,
+        labels: card.labels.map(({ label }) => ({
+          id: label.id,
+          title: label.title,
+          color: label.color,
+        })),
+        assignees: card.assignees.map((assignee) => ({
+          id: assignee.id,
+          boardMemberId: assignee.boardMemberId,
+          userId: assignee.boardMember.userId,
+          userName: assignee.boardMember.userName,
+          userImage: assignee.boardMember.userImage,
+        })),
+        commentCount: card._count.comments,
+        order: card.order,
+        listOrder: card.list.order,
+      }));
+
     const response: BoardCalendarResponse = {
       boardId,
       from: from.toISOString(),
       to: to.toISOString(),
       items,
+      unscheduledCards: mappedUnscheduledCards,
     };
 
     return NextResponse.json(response);

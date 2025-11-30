@@ -111,9 +111,36 @@ export type BoardCalendarChecklistItem = {
 
 export type BoardCalendarItem = BoardCalendarCardItem | BoardCalendarChecklistItem;
 
+export type BoardCalendarUnscheduledCard = {
+  type: "unscheduled-card";
+  id: string;
+  cardId: string;
+  boardId: string;
+  listId: string;
+  listTitle: string;
+  title: string;
+  isCompleted: boolean;
+  labels: {
+    id: string;
+    title: string;
+    color: string;
+  }[];
+  assignees: {
+    id: string;
+    boardMemberId: string;
+    userId: string;
+    userName: string;
+    userImage: string;
+  }[];
+  commentCount: number;
+  order: number;
+  listOrder: number;
+};
+
 export type BoardCalendarResponse = {
   boardId: string;
   from: string;
   to: string;
   items: BoardCalendarItem[];
+  unscheduledCards: BoardCalendarUnscheduledCard[];
 };
