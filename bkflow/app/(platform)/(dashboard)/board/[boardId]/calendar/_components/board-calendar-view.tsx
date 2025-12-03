@@ -134,9 +134,19 @@ type BoardCalendarRealtimePayload = {
   boardId: string;
 };
 
-type CalendarDragPayload = {
+type CalendarOccurrenceDragPayload = {
+  kind: "calendar-occurrence";
   occurrenceId: string;
 };
+
+type UnscheduledCardDragPayload = {
+  kind: "unscheduled-card";
+  cardId: string;
+  title: string;
+  isCompleted: boolean;
+};
+
+type CalendarDragPayload = CalendarOccurrenceDragPayload | UnscheduledCardDragPayload;
 
 type CalendarResizeEdge = "start" | "end";
 
@@ -602,6 +612,7 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
   const [anchorDate, setAnchorDate] = useState(() => new Date());
   const [expandedDayKey, setExpandedDayKey] = useState<string | null>(null);
   const [draggingOccurrenceId, setDraggingOccurrenceId] = useState<string | null>(null);
+  const [draggingUnscheduledCardId, setDraggingUnscheduledCardId] = useState<string | null>(null);
   const [dragOverDayKey, setDragOverDayKey] = useState<string | null>(null);
   const [resizingRange, setResizingRange] = useState<CalendarResizeState | null>(null);
   const [createDialogDay, setCreateDialogDay] = useState<Date | null>(null);
@@ -911,6 +922,7 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
     },
     onComplete: () => {
       setDraggingOccurrenceId(null);
+      setDraggingUnscheduledCardId(null);
       setDragOverDayKey(null);
       resetRangeResize();
     },
@@ -986,6 +998,7 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
 
     if (
       draggingOccurrenceId ||
+      draggingUnscheduledCardId ||
       resizingRange ||
       isUpdatingCardDate ||
       isUpdatingChecklistItemDueDate ||
@@ -1133,6 +1146,15 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
     }, 0);
   };
 
+  const resetCalendarDragState = () => {
+    setDraggingOccurrenceId(null);
+    setDraggingUnscheduledCardId(null);
+    setDragOverDayKey(null);
+    window.setTimeout(() => {
+      suppressClickRef.current = false;
+    }, 0);
+  };
+
   const handleOccurrenceDragStart = (
     event: DragEvent<HTMLDivElement>,
     occurrence: CalendarOccurrence,
@@ -1148,6 +1170,7 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
     }
 
     const payload: CalendarDragPayload = {
+      kind: "calendar-occurrence",
       occurrenceId: occurrence.id,
     };
 
@@ -1159,11 +1182,34 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
   };
 
   const handleOccurrenceDragEnd = () => {
-    setDraggingOccurrenceId(null);
-    setDragOverDayKey(null);
-    window.setTimeout(() => {
-      suppressClickRef.current = false;
-    }, 0);
+    resetCalendarDragState();
+  };
+
+  const handleUnscheduledCardDragStart = (
+    event: DragEvent<HTMLButtonElement>,
+    card: BoardCalendarUnscheduledCard,
+  ) => {
+    if (isUpdatingCardDate || isUpdatingChecklistItemDueDate) {
+      event.preventDefault();
+      return;
+    }
+
+    const payload: CalendarDragPayload = {
+      kind: "unscheduled-card",
+      cardId: card.cardId,
+      title: card.title,
+      isCompleted: card.isCompleted,
+    };
+
+    suppressClickRef.current = true;
+    setDraggingUnscheduledCardId(card.cardId);
+    event.dataTransfer.effectAllowed = "move";
+    event.dataTransfer.setData("application/json", JSON.stringify(payload));
+    event.dataTransfer.setData("text/plain", card.cardId);
+  };
+
+  const handleUnscheduledCardDragEnd = () => {
+    resetCalendarDragState();
   };
 
   const getDraggedOccurrence = (event: DragEvent<HTMLElement>) => {
@@ -1173,7 +1219,11 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
       try {
         const payload = JSON.parse(payloadValue) as Partial<CalendarDragPayload>;
 
-        if (payload.occurrenceId) {
+        if (
+          (!payload.kind || payload.kind === "calendar-occurrence") &&
+          "occurrenceId" in payload &&
+          payload.occurrenceId
+        ) {
           return occurrencesById[payload.occurrenceId] ?? null;
         }
       } catch {
@@ -1184,6 +1234,37 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
     const fallbackId = event.dataTransfer.getData("text/plain");
 
     return fallbackId ? occurrencesById[fallbackId] ?? null : null;
+  };
+
+  const getDraggedUnscheduledCard = (event: DragEvent<HTMLElement>) => {
+    const payloadValue = event.dataTransfer.getData("application/json");
+
+    if (!payloadValue) {
+      return null;
+    }
+
+    try {
+      const payload = JSON.parse(payloadValue) as Partial<CalendarDragPayload>;
+
+      if (
+        payload.kind !== "unscheduled-card" ||
+        !("cardId" in payload) ||
+        !payload.cardId
+      ) {
+        return null;
+      }
+
+      return {
+        cardId: payload.cardId,
+        title: "title" in payload && payload.title ? payload.title : "",
+        isCompleted:
+          "isCompleted" in payload && typeof payload.isCompleted === "boolean"
+            ? payload.isCompleted
+            : false,
+      };
+    } catch {
+      return null;
+    }
   };
 
   const updateOccurrenceDate = (occurrence: CalendarOccurrence, targetDay: Date) => {
@@ -1300,8 +1381,25 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
     });
   };
 
+  const scheduleUnscheduledCard = (
+    card: Pick<UnscheduledCardDragPayload, "cardId" | "isCompleted">,
+    targetDay: Date,
+  ) => {
+    const dueDate = getDefaultDueDateForDay(targetDay);
+
+    updateSuccessToastRef.current = "Đã lên lịch thẻ";
+
+    executeUpdateCard({
+      id: card.cardId,
+      boardId,
+      dueDate,
+      dueDateTimezoneOffset: getDateTimezoneOffset(dueDate),
+      isCompleted: card.isCompleted,
+    });
+  };
+
   const handleDayDragOver = (event: DragEvent<HTMLDivElement>, dayKey: string) => {
-    if (!draggingOccurrenceId) {
+    if (!draggingOccurrenceId && !draggingUnscheduledCardId) {
       return;
     }
 
@@ -1312,7 +1410,15 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
 
   const handleDayDrop = (event: DragEvent<HTMLDivElement>, day: Date) => {
     event.preventDefault();
+    event.stopPropagation();
     suppressClickRef.current = true;
+
+    const unscheduledCard = getDraggedUnscheduledCard(event);
+
+    if (unscheduledCard) {
+      scheduleUnscheduledCard(unscheduledCard, day);
+      return;
+    }
 
     const occurrence = getDraggedOccurrence(event);
 
@@ -1794,7 +1900,7 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
           className={cn(
             "group/event absolute z-10 h-7 min-w-0 px-0.5",
             mode === "week" && "hidden md:block",
-            (resizingRange || draggingOccurrenceId) && "pointer-events-none",
+            (resizingRange || draggingOccurrenceId || draggingUnscheduledCardId) && "pointer-events-none",
           )}
         >
           <div
@@ -1987,7 +2093,7 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
           viewMode === "week" && "min-h-[132px] rounded-lg border md:min-h-[360px]",
           viewMode === "week" && index > 0 && "mt-2 md:mt-0",
           viewMode === "month" && !isSameMonth(day, currentMonth) && "bg-neutral-50/80 text-neutral-400",
-          draggingOccurrenceId && "ring-inset ring-violet-100",
+          (draggingOccurrenceId || draggingUnscheduledCardId) && "ring-inset ring-violet-100",
           resizingRange && "cursor-ew-resize ring-inset ring-violet-100",
           dragOverDayKey === dayKey && "bg-violet-50 ring-2 ring-inset ring-violet-300",
         )}
@@ -2076,8 +2182,21 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
     <button
       key={card.id}
       type="button"
-      onClick={() => cardModal.onOpen(card.cardId)}
-      className="group/card w-full rounded-lg border border-neutral-200 bg-white p-2 text-left transition hover:border-violet-200 hover:bg-violet-50 focus-visible:border-violet-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-100"
+      draggable={!isUpdatingCardDate && !isUpdatingChecklistItemDueDate}
+      onDragStart={(event) => handleUnscheduledCardDragStart(event, card)}
+      onDragEnd={handleUnscheduledCardDragEnd}
+      onClick={() => {
+        if (suppressClickRef.current) {
+          return;
+        }
+
+        cardModal.onOpen(card.cardId);
+      }}
+      className={cn(
+        "group/card w-full cursor-pointer rounded-lg border border-neutral-200 bg-white p-2 text-left transition hover:border-violet-200 hover:bg-violet-50 focus-visible:border-violet-300 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-100 active:cursor-grabbing disabled:cursor-wait disabled:opacity-60",
+        draggingUnscheduledCardId === card.cardId && "opacity-60 ring-2 ring-violet-300",
+      )}
+      disabled={isUpdatingCardDate || isUpdatingChecklistItemDueDate}
       aria-label={`Mở thẻ ${card.title}`}
     >
       <div className="flex min-w-0 items-start justify-between gap-x-2">
