@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Columns3 } from "lucide-react";
+import { CalendarDays, Columns3, LayoutPanelLeft } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -13,21 +13,30 @@ interface BoardViewSwitcherProps {
 export const BoardViewSwitcher = ({ boardId }: BoardViewSwitcherProps) => {
   const pathname = usePathname();
   const calendarHref = `/board/${boardId}/calendar`;
+  const splitHref = `/board/${boardId}/split`;
   const boardHref = `/board/${boardId}`;
+  const isBoard = pathname === boardHref;
   const isCalendar = pathname === calendarHref;
+  const isSplit = pathname === splitHref;
 
   const views = [
     {
       href: boardHref,
-      label: "Bảng",
+      label: "Board",
       icon: Columns3,
-      active: !isCalendar,
+      active: isBoard,
     },
     {
       href: calendarHref,
       label: "Lịch",
       icon: CalendarDays,
       active: isCalendar,
+    },
+    {
+      href: splitHref,
+      label: "Cả hai",
+      icon: LayoutPanelLeft,
+      active: isSplit,
     },
   ];
 

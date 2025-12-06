@@ -81,6 +81,10 @@ import { realtimeChannels } from "@/lib/realtime/channels";
 import { isRealtimeClientConfigured } from "@/lib/realtime/client";
 import { REALTIME_EVENTS } from "@/lib/realtime/events";
 import { useBoardCalendarInvalidation } from "@/hooks/use-board-calendar-invalidation";
+import {
+  BOARD_CARD_CALENDAR_DRAG_MIME,
+  type BoardCardCalendarDragPayload,
+} from "@/lib/calendar-dnd";
 import type {
   BoardCalendarCardItem,
   BoardCalendarChecklistItem,
@@ -92,6 +96,8 @@ import type {
 interface BoardCalendarViewProps {
   boardId: string;
   lists: BoardCalendarList[];
+  defaultUnscheduledCollapsed?: boolean;
+  variant?: "default" | "split";
 }
 
 type BoardCalendarList = {
@@ -146,7 +152,10 @@ type UnscheduledCardDragPayload = {
   isCompleted: boolean;
 };
 
-type CalendarDragPayload = CalendarOccurrenceDragPayload | UnscheduledCardDragPayload;
+type CalendarDragPayload =
+  | CalendarOccurrenceDragPayload
+  | UnscheduledCardDragPayload
+  | BoardCardCalendarDragPayload;
 
 type CalendarResizeEdge = "start" | "end";
 
@@ -603,7 +612,12 @@ const getRangeOccurrencesByDay = (ranges: CalendarRange[], days: Date[]) =>
     return acc;
   }, {});
 
-export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) => {
+export const BoardCalendarView = ({
+  boardId,
+  lists,
+  defaultUnscheduledCollapsed = false,
+  variant = "default",
+}: BoardCalendarViewProps) => {
   const router = useRouter();
   const cardModal = useCardModal();
   const queryClient = useQueryClient();
@@ -613,13 +627,14 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
   const [expandedDayKey, setExpandedDayKey] = useState<string | null>(null);
   const [draggingOccurrenceId, setDraggingOccurrenceId] = useState<string | null>(null);
   const [draggingUnscheduledCardId, setDraggingUnscheduledCardId] = useState<string | null>(null);
+  const [draggingBoardCardId, setDraggingBoardCardId] = useState<string | null>(null);
   const [dragOverDayKey, setDragOverDayKey] = useState<string | null>(null);
   const [resizingRange, setResizingRange] = useState<CalendarResizeState | null>(null);
   const [createDialogDay, setCreateDialogDay] = useState<Date | null>(null);
   const [createTitle, setCreateTitle] = useState("");
   const [createTime, setCreateTime] = useState(DEFAULT_CREATE_TIME);
   const [createListId, setCreateListId] = useState(() => lists[0]?.id ?? "");
-  const [isUnscheduledCollapsed, setIsUnscheduledCollapsed] = useState(false);
+  const [isUnscheduledCollapsed, setIsUnscheduledCollapsed] = useState(defaultUnscheduledCollapsed);
   const [unscheduledListFilter, setUnscheduledListFilter] = useState("all");
   const [unscheduledMemberFilter, setUnscheduledMemberFilter] = useState("all");
   const [unscheduledLabelFilter, setUnscheduledLabelFilter] = useState("all");
@@ -923,6 +938,7 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
     onComplete: () => {
       setDraggingOccurrenceId(null);
       setDraggingUnscheduledCardId(null);
+      setDraggingBoardCardId(null);
       setDragOverDayKey(null);
       resetRangeResize();
     },
@@ -999,6 +1015,7 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
     if (
       draggingOccurrenceId ||
       draggingUnscheduledCardId ||
+      draggingBoardCardId ||
       resizingRange ||
       isUpdatingCardDate ||
       isUpdatingChecklistItemDueDate ||
@@ -1149,6 +1166,7 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
   const resetCalendarDragState = () => {
     setDraggingOccurrenceId(null);
     setDraggingUnscheduledCardId(null);
+    setDraggingBoardCardId(null);
     setDragOverDayKey(null);
     window.setTimeout(() => {
       suppressClickRef.current = false;
@@ -1248,6 +1266,39 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
 
       if (
         payload.kind !== "unscheduled-card" ||
+        !("cardId" in payload) ||
+        !payload.cardId
+      ) {
+        return null;
+      }
+
+      return {
+        cardId: payload.cardId,
+        title: "title" in payload && payload.title ? payload.title : "",
+        isCompleted:
+          "isCompleted" in payload && typeof payload.isCompleted === "boolean"
+            ? payload.isCompleted
+            : false,
+      };
+    } catch {
+      return null;
+    }
+  };
+
+  const getDraggedBoardCard = (event: DragEvent<HTMLElement>) => {
+    const payloadValue =
+      event.dataTransfer.getData(BOARD_CARD_CALENDAR_DRAG_MIME) ||
+      event.dataTransfer.getData("application/json");
+
+    if (!payloadValue) {
+      return null;
+    }
+
+    try {
+      const payload = JSON.parse(payloadValue) as Partial<BoardCardCalendarDragPayload>;
+
+      if (
+        payload.kind !== "board-card" ||
         !("cardId" in payload) ||
         !payload.cardId
       ) {
@@ -1398,13 +1449,38 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
     });
   };
 
+  const scheduleBoardCard = (
+    card: Pick<BoardCardCalendarDragPayload, "cardId" | "isCompleted">,
+    targetDay: Date,
+  ) => {
+    const dueDate = getDefaultDueDateForDay(targetDay);
+
+    updateSuccessToastRef.current = "Đã lên lịch thẻ";
+
+    executeUpdateCard({
+      id: card.cardId,
+      boardId,
+      dueDate,
+      dueDateTimezoneOffset: getDateTimezoneOffset(dueDate),
+      isCompleted: card.isCompleted,
+    });
+  };
+
   const handleDayDragOver = (event: DragEvent<HTMLDivElement>, dayKey: string) => {
-    if (!draggingOccurrenceId && !draggingUnscheduledCardId) {
+    const hasBoardCardPayload = Array.from(event.dataTransfer.types).includes(
+      BOARD_CARD_CALENDAR_DRAG_MIME,
+    );
+
+    if (!draggingOccurrenceId && !draggingUnscheduledCardId && !hasBoardCardPayload) {
       return;
     }
 
     event.preventDefault();
     event.dataTransfer.dropEffect = "move";
+    if (hasBoardCardPayload) {
+      const fallbackId = event.dataTransfer.getData("text/plain");
+      setDraggingBoardCardId(fallbackId || "external");
+    }
     setDragOverDayKey(dayKey);
   };
 
@@ -1420,12 +1496,19 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
       return;
     }
 
+    const boardCard = getDraggedBoardCard(event);
+
+    if (boardCard) {
+      scheduleBoardCard(boardCard, day);
+      return;
+    }
+
     const occurrence = getDraggedOccurrence(event);
 
     if (!occurrence) {
       toast.error("Không thể xác định mục lịch đang kéo.");
       invalidateBoardCalendar();
-      handleOccurrenceDragEnd();
+      resetCalendarDragState();
       return;
     }
 
@@ -1900,7 +1983,7 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
           className={cn(
             "group/event absolute z-10 h-7 min-w-0 px-0.5",
             mode === "week" && "hidden md:block",
-            (resizingRange || draggingOccurrenceId || draggingUnscheduledCardId) && "pointer-events-none",
+            (resizingRange || draggingOccurrenceId || draggingUnscheduledCardId || draggingBoardCardId) && "pointer-events-none",
           )}
         >
           <div
@@ -2093,7 +2176,7 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
           viewMode === "week" && "min-h-[132px] rounded-lg border md:min-h-[360px]",
           viewMode === "week" && index > 0 && "mt-2 md:mt-0",
           viewMode === "month" && !isSameMonth(day, currentMonth) && "bg-neutral-50/80 text-neutral-400",
-          (draggingOccurrenceId || draggingUnscheduledCardId) && "ring-inset ring-violet-100",
+          (draggingOccurrenceId || draggingUnscheduledCardId || draggingBoardCardId) && "ring-inset ring-violet-100",
           resizingRange && "cursor-ew-resize ring-inset ring-violet-100",
           dragOverDayKey === dayKey && "bg-violet-50 ring-2 ring-inset ring-violet-300",
         )}
@@ -2271,6 +2354,10 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
   );
 
   const renderUnscheduledPanel = () => {
+    if (isUnscheduledCollapsed) {
+      return null;
+    }
+
     const hasActiveFilters =
       unscheduledListFilter !== "all" ||
       unscheduledMemberFilter !== "all" ||
@@ -2280,7 +2367,14 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
       : `${filteredUnscheduledCards.length}`;
 
     return (
-      <aside className="flex min-h-0 w-full shrink-0 flex-col rounded-lg border border-white/20 bg-white/95 shadow-xl backdrop-blur lg:w-[340px]">
+      <aside
+        className={cn(
+          "flex min-h-0 w-full shrink-0 flex-col rounded-lg border border-white/20 bg-white/95 shadow-xl backdrop-blur",
+          variant === "split" && isUnscheduledCollapsed && "lg:w-[180px]",
+          variant === "split" && !isUnscheduledCollapsed && "lg:w-[260px] xl:w-[300px]",
+          variant === "default" && "lg:w-[340px]",
+        )}
+      >
         <div className="flex h-14 shrink-0 items-center justify-between gap-x-3 border-b border-neutral-200 px-4">
           <div className="min-w-0">
             <div className="flex items-center gap-x-2">
@@ -2446,6 +2540,21 @@ export const BoardCalendarView = ({ boardId, lists }: BoardCalendarViewProps) =>
 
         <div className="flex flex-col gap-2 lg:items-end">
           <div className="flex flex-wrap items-center gap-2">
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsUnscheduledCollapsed((value) => !value)}
+              className={cn(
+                "h-8 gap-x-1.5 px-3 text-xs font-semibold shadow-sm border",
+                isUnscheduledCollapsed
+                  ? "border-neutral-200 bg-white text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900"
+                  : "border-violet-200 bg-violet-50 text-violet-700 hover:bg-violet-100 hover:text-violet-800"
+              )}
+            >
+              <CalendarX2 className="h-3.5 w-3.5 shrink-0" />
+              <span>Chưa lên lịch ({unscheduledCards.length})</span>
+            </Button>
+
             <div className="flex h-8 shrink-0 items-center rounded-lg border border-neutral-200 bg-white p-0.5 shadow-sm">
               {(["month", "week"] as const).map((mode) => (
                 <button

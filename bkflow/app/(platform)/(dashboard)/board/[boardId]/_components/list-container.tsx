@@ -59,6 +59,7 @@ interface ListContainerProps {
   boardMembers: BoardMember[];
   currentUserId: string;
   currentMemberRole: BoardMemberRole;
+  enableCalendarDragHandle?: boolean;
 };
 
 function reorder<T>(list: T[], startIndex: number, endIndex: number) {
@@ -216,6 +217,7 @@ export const ListContainer = ({
   boardId,
   boardMembers,
   currentUserId,
+  enableCalendarDragHandle = false,
 }: ListContainerProps) => {
   const router = useRouter();
   const queryClient = useQueryClient();
@@ -901,6 +903,7 @@ export const ListContainer = ({
                     key={list.id}
                     index={index}
                     data={list}
+                    enableCalendarDragHandle={enableCalendarDragHandle}
                   />
                 )
               })}
