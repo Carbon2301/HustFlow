@@ -13,13 +13,11 @@ import { ListHeader } from "./list-header";
 interface ListItemProps {
   data: ListWithCards;
   index: number;
-  enableCalendarDragHandle?: boolean;
 };
 
 export const ListItem = ({
   data,
   index,
-  enableCalendarDragHandle = false,
 }: ListItemProps) => {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -74,7 +72,6 @@ export const ListItem = ({
                       index={index}
                       key={card.id}
                       data={card}
-                      enableCalendarDragHandle={enableCalendarDragHandle}
                     />
                   ))}
                   {provided.placeholder}

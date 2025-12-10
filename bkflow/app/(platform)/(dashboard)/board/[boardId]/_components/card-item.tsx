@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { Draggable } from "@hello-pangea/dnd";
-import { AlignLeft, CalendarPlus, ExternalLink, Copy, Trash2, MessageSquare, CheckSquare, Paperclip } from "lucide-react";
+import { AlignLeft, ExternalLink, Copy, Trash2, MessageSquare, CheckSquare, Paperclip } from "lucide-react";
 
 import { useCardModal } from "@/hooks/use-card-modal";
 import { DueDateBadge } from "@/components/due-date-badge";
@@ -21,15 +21,10 @@ import { useAction } from "@/hooks/use-action";
 import { copyCard } from "@/actions/copy-card";
 import { deleteCard } from "@/actions/delete-card";
 import { cn, getColorName } from "@/lib/utils";
-import {
-  BOARD_CARD_CALENDAR_DRAG_MIME,
-  type BoardCardCalendarDragPayload,
-} from "@/lib/calendar-dnd";
 
 interface CardItemProps {
   data: CardWithAssignees;
   index: number;
-  enableCalendarDragHandle?: boolean;
 }
 
 const getInitials = (name: string) => {
@@ -42,7 +37,6 @@ const getInitials = (name: string) => {
 export const CardItem = ({
   data,
   index,
-  enableCalendarDragHandle = false,
 }: CardItemProps) => {
   const cardModal = useCardModal();
   const params = useParams();
@@ -110,25 +104,6 @@ export const CardItem = ({
     e.stopPropagation();
     const boardId = params.boardId as string;
     executeDeleteCard({ id: data.id, boardId });
-  };
-
-  const onCalendarDragStart = (event: React.DragEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-
-    const payload: BoardCardCalendarDragPayload = {
-      kind: "board-card",
-      cardId: data.id,
-      title: data.title,
-      isCompleted: data.isCompleted,
-      startDate: data.startDate ? new Date(data.startDate).toISOString() : null,
-      dueDate: data.dueDate ? new Date(data.dueDate).toISOString() : null,
-      reminder: data.reminder ?? null,
-    };
-
-    event.dataTransfer.effectAllowed = "move";
-    event.dataTransfer.setData(BOARD_CARD_CALENDAR_DRAG_MIME, JSON.stringify(payload));
-    event.dataTransfer.setData("application/json", JSON.stringify(payload));
-    event.dataTransfer.setData("text/plain", data.id);
   };
 
   const visibleAssignees = data.assignees.slice(0, 3);
@@ -278,30 +253,11 @@ export const CardItem = ({
               )}
             </div>
             {data.description && (
-              <div className={cn(
-                "absolute top-3 text-neutral-300 transition-colors group-hover:text-neutral-400",
-                enableCalendarDragHandle ? "right-10" : "right-3",
-              )}>
+              <div className="absolute right-3 top-3 text-neutral-300 transition-colors group-hover:text-neutral-400">
                 <Hint description="Thẻ đã có mô tả" side="bottom">
                   <AlignLeft className="h-3.5 w-3.5" />
                 </Hint>
               </div>
-            )}
-
-            {enableCalendarDragHandle && (
-              <Hint description="Kéo vào lịch" side="left">
-                <button
-                  type="button"
-                  draggable
-                  onDragStart={onCalendarDragStart}
-                  onMouseDown={(event) => event.stopPropagation()}
-                  onClick={(event) => event.stopPropagation()}
-                  className="absolute right-2 top-2 flex h-7 w-7 items-center justify-center rounded-md border border-transparent bg-white/90 text-neutral-400 opacity-0 shadow-sm transition hover:border-violet-200 hover:bg-violet-50 hover:text-violet-700 group-hover:opacity-100 focus-visible:opacity-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200"
-                  aria-label="Kéo vào lịch"
-                >
-                  <CalendarPlus className="h-4 w-4" />
-                </button>
-              </Hint>
             )}
 
             {showMenu && (

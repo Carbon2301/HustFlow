@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
-import { DragDropContext, Droppable, type DropResult } from "@hello-pangea/dnd";
+import { DragDropContext, Droppable, type DragStart, type DropResult } from "@hello-pangea/dnd";
 import { BoardMember, BoardMemberRole } from "@prisma/client";
 
 import { CardWithAssignees, ListWithCards } from "@/types";
@@ -12,9 +12,12 @@ import { useAction } from "@/hooks/use-action";
 import { emptyBoardFilters, useBoardFilters, BoardFilterState } from "@/hooks/use-board-filters";
 import { updateListOrder } from "@/actions/update-list-order";
 import { updateCardOrder } from "@/actions/update-card-order";
+import { updateCard } from "@/actions/update-card";
 import { useRealtimeChannel } from "@/hooks/use-realtime-channel";
 import { useCardModal } from "@/hooks/use-card-modal";
+import { useBoardCalendarInvalidation } from "@/hooks/use-board-calendar-invalidation";
 import {
+  getDateTimezoneOffset,
   getEndOfTomorrow,
   getStartOfTomorrow,
   isOverdue,
@@ -69,6 +72,24 @@ function reorder<T>(list: T[], startIndex: number, endIndex: number) {
 
   return result;
 };
+
+const getDefaultCalendarDueDate = (day: Date) =>
+  new Date(
+    day.getFullYear(),
+    day.getMonth(),
+    day.getDate(),
+    9,
+    0,
+    0,
+    0,
+  );
+
+const CALENDAR_DAY_DRAG_CLASSES = [
+  "bg-violet-50",
+  "ring-2",
+  "ring-inset",
+  "ring-violet-400",
+];
 
 const cardMatchesFilters = (
   card: CardWithAssignees,
@@ -222,8 +243,12 @@ export const ListContainer = ({
   const router = useRouter();
   const queryClient = useQueryClient();
   const cardModal = useCardModal();
+  const invalidateBoardCalendar = useBoardCalendarInvalidation(boardId);
   const [orderedData, setOrderedData] = useState(data);
   const processedCardEventIdsRef = useRef<Set<string>>(new Set());
+  const lastDragPointRef = useRef<{ x: number; y: number } | null>(null);
+  const activeCalendarDragCardIdRef = useRef<string | null>(null);
+  const highlightedCalendarDayRef = useRef<HTMLElement | null>(null);
   const filters = useBoardFilters((state) =>
     state.filtersByBoardId[boardId] ?? emptyBoardFilters,
   );
@@ -247,9 +272,76 @@ export const ListContainer = ({
     },
   });
 
+  const { execute: executeScheduleCardDate } = useAction(updateCard, {
+    onSuccess: (data) => {
+      toast.success("Đã lên lịch thẻ");
+      invalidateBoardCalendar();
+      queryClient.invalidateQueries({ queryKey: ["card", data.id] });
+      queryClient.invalidateQueries({ queryKey: ["card-logs", data.id] });
+      router.refresh();
+    },
+    onError: (error) => {
+      toast.error(error);
+      invalidateBoardCalendar();
+    },
+  });
+
   useEffect(() => {
     setOrderedData(data);
   }, [data]);
+
+  useEffect(() => {
+    if (!enableCalendarDragHandle) {
+      return;
+    }
+
+    const clearHighlightedCalendarDay = () => {
+      highlightedCalendarDayRef.current?.classList.remove(
+        ...CALENDAR_DAY_DRAG_CLASSES,
+      );
+      highlightedCalendarDayRef.current = null;
+    };
+
+    const updateHighlightedCalendarDay = (x: number, y: number) => {
+      if (!activeCalendarDragCardIdRef.current) {
+        clearHighlightedCalendarDay();
+        return;
+      }
+
+      const dayElement = document
+        .elementsFromPoint(x, y)
+        .map((element) => element.closest<HTMLElement>("[data-calendar-day-key]"))
+        .find(Boolean) ?? null;
+
+      if (highlightedCalendarDayRef.current === dayElement) {
+        return;
+      }
+
+      clearHighlightedCalendarDay();
+
+      if (dayElement) {
+        dayElement.classList.add(...CALENDAR_DAY_DRAG_CLASSES);
+        highlightedCalendarDayRef.current = dayElement;
+      }
+    };
+
+    const updateLastDragPoint = (event: MouseEvent | PointerEvent) => {
+      lastDragPointRef.current = {
+        x: event.clientX,
+        y: event.clientY,
+      };
+      updateHighlightedCalendarDay(event.clientX, event.clientY);
+    };
+
+    window.addEventListener("pointermove", updateLastDragPoint, true);
+    window.addEventListener("mousemove", updateLastDragPoint, true);
+
+    return () => {
+      window.removeEventListener("pointermove", updateLastDragPoint, true);
+      window.removeEventListener("mousemove", updateLastDragPoint, true);
+      clearHighlightedCalendarDay();
+    };
+  }, [enableCalendarDragHandle]);
 
   const channelName = realtimeChannels.board(boardId);
   const enabled = isRealtimeClientConfigured();
@@ -722,12 +814,101 @@ export const ListContainer = ({
     filteredData.reduce((total, list) => total + list.cards.length, 0)
   ), [filteredData]);
 
+  const getCalendarDayUnderLastDragPoint = useCallback(() => {
+    const point = lastDragPointRef.current;
+
+    if (!point) {
+      return null;
+    }
+
+    const elements = document.elementsFromPoint(point.x, point.y);
+    const dayElement = elements
+      .map((element) => element.closest<HTMLElement>("[data-calendar-day-key]"))
+      .find(Boolean);
+    const dayKey = dayElement?.dataset.calendarDayKey;
+
+    if (!dayKey) {
+      return null;
+    }
+
+    const [year, month, day] = dayKey.split("-").map(Number);
+
+    if (!year || !month || !day) {
+      return null;
+    }
+
+    return new Date(year, month - 1, day);
+  }, []);
+
+  const scheduleDraggedCardOnCalendar = useCallback((cardId: string) => {
+    if (!enableCalendarDragHandle) {
+      return false;
+    }
+
+    const targetDay = getCalendarDayUnderLastDragPoint();
+
+    if (!targetDay) {
+      return false;
+    }
+
+    const card = orderedData
+      .flatMap((list) => list.cards)
+      .find((item) => item.id === cardId);
+
+    if (!card) {
+      toast.error("Không thể xác định thẻ đang kéo.");
+      invalidateBoardCalendar();
+      return true;
+    }
+
+    const dueDate = getDefaultCalendarDueDate(targetDay);
+
+    executeScheduleCardDate({
+      id: card.id,
+      boardId,
+      dueDate,
+      dueDateTimezoneOffset: getDateTimezoneOffset(dueDate),
+      isCompleted: card.isCompleted,
+    });
+
+    return true;
+  }, [
+    boardId,
+    enableCalendarDragHandle,
+    executeScheduleCardDate,
+    getCalendarDayUnderLastDragPoint,
+    invalidateBoardCalendar,
+    orderedData,
+  ]);
+
+  const clearCalendarDropHighlight = useCallback(() => {
+    highlightedCalendarDayRef.current?.classList.remove(
+      ...CALENDAR_DAY_DRAG_CLASSES,
+    );
+    highlightedCalendarDayRef.current = null;
+    activeCalendarDragCardIdRef.current = null;
+  }, []);
+
+  const onDragStart = (start: DragStart) => {
+    if (enableCalendarDragHandle && start.type === "card") {
+      activeCalendarDragCardIdRef.current = start.draggableId;
+    }
+  };
+
   const onDragEnd = (result: DropResult) => {
     const { destination, source, type } = result;
 
     if (!destination) {
+      if (type === "card" && scheduleDraggedCardOnCalendar(result.draggableId)) {
+        clearCalendarDropHighlight();
+        return;
+      }
+
+      clearCalendarDropHighlight();
       return;
     }
+
+    clearCalendarDropHighlight();
 
     // if dropped in the same position
     if (
@@ -889,7 +1070,7 @@ export const ListContainer = ({
           Không có thẻ nào phù hợp với bộ lọc hiện tại.
         </div>
       )}
-      <DragDropContext onDragEnd={onDragEnd}>
+      <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
         <Droppable droppableId="lists" type="list" direction="horizontal">
           {(provided) => (
             <ol
@@ -903,7 +1084,6 @@ export const ListContainer = ({
                     key={list.id}
                     index={index}
                     data={list}
-                    enableCalendarDragHandle={enableCalendarDragHandle}
                   />
                 )
               })}

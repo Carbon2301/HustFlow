@@ -1300,7 +1300,8 @@ export const BoardCalendarView = ({
       if (
         payload.kind !== "board-card" ||
         !("cardId" in payload) ||
-        !payload.cardId
+        !payload.cardId ||
+        ("boardId" in payload && payload.boardId !== boardId)
       ) {
         return null;
       }
@@ -1467,9 +1468,10 @@ export const BoardCalendarView = ({
   };
 
   const handleDayDragOver = (event: DragEvent<HTMLDivElement>, dayKey: string) => {
-    const hasBoardCardPayload = Array.from(event.dataTransfer.types).includes(
-      BOARD_CARD_CALENDAR_DRAG_MIME,
-    );
+    const dragTypes = Array.from(event.dataTransfer.types);
+    const hasBoardCardPayload =
+      dragTypes.includes(BOARD_CARD_CALENDAR_DRAG_MIME) ||
+      dragTypes.includes("application/json");
 
     if (!draggingOccurrenceId && !draggingUnscheduledCardId && !hasBoardCardPayload) {
       return;
@@ -1862,6 +1864,7 @@ export const BoardCalendarView = ({
     className?: string,
   ) => {
     const timeLabel = getOccurrenceTimeLabel(occurrence);
+    const occurrenceLabel = variant === "split" ? null : getOccurrenceLabel(occurrence);
     const cardItem = isCalendarCardItem(occurrence.item) ? occurrence.item : null;
     const isChecklistItem = isCalendarChecklistItem(occurrence.item);
     const canDragOccurrence =
@@ -1883,7 +1886,7 @@ export const BoardCalendarView = ({
           onDragStart={(event) => handleOccurrenceDragStart(event, occurrence)}
           onDragEnd={handleOccurrenceDragEnd}
           className={cn(
-            "group/event flex h-7 w-full min-w-0 items-center gap-x-1 rounded-md border px-1.5 text-left text-[11px] font-medium leading-none transition",
+            "group/event flex h-7 w-full min-w-0 items-center gap-x-1 overflow-hidden rounded-md border px-1.5 text-left text-[11px] font-medium leading-none transition",
             occurrence.kind === "range" || (!cardItem && !isChecklistItem)
               ? "cursor-default"
               : "cursor-grab active:cursor-grabbing",
@@ -1908,7 +1911,7 @@ export const BoardCalendarView = ({
             title={occurrence.item.type === "checklist-item"
               ? `Mở mục checklist ${occurrence.item.title} trong thẻ ${occurrence.item.cardTitle}`
               : `Mở thẻ ${occurrence.item.title}`}
-            className="flex h-full min-w-0 flex-1 items-center gap-x-1 text-left"
+            className="flex h-full min-w-0 flex-1 items-center gap-x-1 overflow-hidden text-left"
           >
             {cardItem?.labels[0] && (
               <span
@@ -1916,25 +1919,25 @@ export const BoardCalendarView = ({
                 style={{ backgroundColor: cardItem.labels[0].color }}
               />
             )}
-            {!cardItem && (
+            {!cardItem && !occurrence.item.isCompleted && (
               <ListChecks className="h-3 w-3 shrink-0 opacity-80" />
+            )}
+            {occurrence.item.isCompleted && (
+              <CheckCircle2 className="h-3 w-3 shrink-0 opacity-80" />
             )}
             {timeLabel && (
               <span className="shrink-0 rounded bg-white/70 px-1 py-0.5 text-[10px] font-semibold tabular-nums opacity-90">
                 {timeLabel}
               </span>
             )}
-            {getOccurrenceLabel(occurrence) && (
+            {occurrenceLabel && (
               <span className="hidden shrink-0 text-[10px] font-semibold uppercase tracking-wide opacity-70 md:inline">
-                {getOccurrenceLabel(occurrence)}
+                {occurrenceLabel}
               </span>
             )}
             <span className="truncate">{occurrence.item.title}</span>
           </button>
-          {occurrence.item.isCompleted && (
-            <CheckCircle2 className="h-3 w-3 shrink-0 opacity-80" />
-          )}
-          {renderQuickActionsMenu(occurrence)}
+          {variant !== "split" && renderQuickActionsMenu(occurrence)}
         </div>
       </Hint>
     );
@@ -1988,7 +1991,7 @@ export const BoardCalendarView = ({
         >
           <div
             className={cn(
-              "relative flex h-full min-w-0 items-center gap-x-1 border text-left text-[11px] font-medium leading-none shadow-sm transition",
+              "relative flex h-full min-w-0 items-center gap-x-1 overflow-hidden border text-left text-[11px] font-medium leading-none shadow-sm transition",
               getOccurrenceTone(occurrence),
               segment.isRangeStart ? "rounded-l-md pl-3" : "rounded-l-none border-l-0 pl-1.5",
               segment.isRangeEnd ? "rounded-r-md pr-3" : "rounded-r-none border-r-0 pr-1.5",
@@ -2023,7 +2026,7 @@ export const BoardCalendarView = ({
               type="button"
               onClick={(event) => openCalendarCard(segment.range.item.cardId, event)}
               aria-label={`Mở thẻ ${segment.range.item.title}`}
-              className="flex h-full min-w-0 flex-1 items-center gap-x-1 text-left"
+              className="flex h-full min-w-0 flex-1 items-center gap-x-1 overflow-hidden text-left"
             >
               {segment.range.item.labels[0] && (
                 <span
@@ -2039,6 +2042,9 @@ export const BoardCalendarView = ({
                   {startTimeLabel}
                 </span>
               )}
+              {segment.range.item.isCompleted && (
+                <CheckCircle2 className="h-3 w-3 shrink-0 opacity-80" />
+              )}
               <span className="truncate">{segment.range.item.title}</span>
               {endTimeLabel && (
                 <span className="ml-auto shrink-0 rounded bg-white/70 px-1 py-0.5 text-[10px] font-semibold tabular-nums opacity-90">
@@ -2049,10 +2055,7 @@ export const BoardCalendarView = ({
                 <span className="shrink-0 text-[10px] font-semibold opacity-70">↦</span>
               )}
             </button>
-            {segment.range.item.isCompleted && (
-              <CheckCircle2 className="h-3 w-3 shrink-0 opacity-80" />
-            )}
-            {renderQuickActionsMenu(occurrence)}
+            {variant !== "split" && renderQuickActionsMenu(occurrence)}
             {segment.isRangeEnd && (
               <Hint description="Đổi ngày hết hạn" side="top">
                 <button
