@@ -112,6 +112,7 @@ const BoardSplitPage = async ({
         <BoardCalendarView
           boardId={boardId}
           lists={calendarLists}
+          currentBoardMemberId={currentMembership.membership.id}
           defaultUnscheduledCollapsed
           variant="split"
         />

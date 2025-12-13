@@ -107,6 +107,11 @@ export type BoardCalendarChecklistItem = {
     userName: string;
     userImage: string;
   } | null;
+  labels: {
+    id: string;
+    title: string;
+    color: string;
+  }[];
 };
 
 export type BoardCalendarItem = BoardCalendarCardItem | BoardCalendarChecklistItem;

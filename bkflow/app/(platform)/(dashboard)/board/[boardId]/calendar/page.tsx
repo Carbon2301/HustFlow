@@ -48,7 +48,11 @@ const BoardCalendarPage = async ({
 
   return (
     <div className="h-full p-4">
-      <BoardCalendarView boardId={boardId} lists={lists} />
+      <BoardCalendarView
+        boardId={boardId}
+        lists={lists}
+        currentBoardMemberId={currentMembership.membership.id}
+      />
     </div>
   );
 };

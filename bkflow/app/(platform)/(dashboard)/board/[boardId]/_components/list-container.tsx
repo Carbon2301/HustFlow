@@ -9,7 +9,7 @@ import { BoardMember, BoardMemberRole } from "@prisma/client";
 
 import { CardWithAssignees, ListWithCards } from "@/types";
 import { useAction } from "@/hooks/use-action";
-import { emptyBoardFilters, useBoardFilters, BoardFilterState } from "@/hooks/use-board-filters";
+import { emptyBoardFilters, useBoardFilters } from "@/hooks/use-board-filters";
 import { updateListOrder } from "@/actions/update-list-order";
 import { updateCardOrder } from "@/actions/update-card-order";
 import { updateCard } from "@/actions/update-card";
@@ -18,10 +18,11 @@ import { useCardModal } from "@/hooks/use-card-modal";
 import { useBoardCalendarInvalidation } from "@/hooks/use-board-calendar-invalidation";
 import {
   getDateTimezoneOffset,
-  getEndOfTomorrow,
-  getStartOfTomorrow,
-  isOverdue,
 } from "@/lib/date-utils";
+import {
+  boardFiltersAreActive,
+  cardMatchesBoardFilters,
+} from "@/lib/board-filters";
 import { realtimeChannels } from "@/lib/realtime/channels";
 import { isRealtimeClientConfigured } from "@/lib/realtime/client";
 import { REALTIME_EVENTS } from "@/lib/realtime/events";
@@ -91,120 +92,6 @@ const CALENDAR_DAY_DRAG_CLASSES = [
   "ring-violet-400",
 ];
 
-const cardMatchesFilters = (
-  card: CardWithAssignees,
-  filters: BoardFilterState,
-  currentBoardMemberId: string | undefined,
-) => {
-  const {
-    selectedMemberIds,
-    myWorkEnabled,
-    noMembersEnabled,
-    completedEnabled,
-    notCompletedEnabled,
-    selectedDueDateFilters,
-  } = filters;
-
-  // 1. Member Filters
-  const hasMemberFilter = selectedMemberIds.length > 0 || myWorkEnabled || noMembersEnabled;
-  if (hasMemberFilter) {
-    let match = false;
-    if (noMembersEnabled && card.assignees.length === 0) {
-      match = true;
-    }
-    if (myWorkEnabled && currentBoardMemberId && card.assignees.some((a) => a.boardMemberId === currentBoardMemberId)) {
-      match = true;
-    }
-    if (selectedMemberIds.length > 0 && card.assignees.some((a) => selectedMemberIds.includes(a.boardMemberId))) {
-      match = true;
-    }
-    if (!match) return false;
-  }
-
-  // 2. Card Status Filters
-  const hasStatusFilter = completedEnabled || notCompletedEnabled;
-  if (hasStatusFilter) {
-    let match = false;
-    if (completedEnabled && card.isCompleted) {
-      match = true;
-    }
-    if (notCompletedEnabled && !card.isCompleted) {
-      match = true;
-    }
-    if (!match) return false;
-  }
-
-  // 3. Due Date Filters
-  const hasDueDateFilter = selectedDueDateFilters.length > 0;
-  if (hasDueDateFilter) {
-    let match = false;
-    const now = new Date();
-
-    selectedDueDateFilters.forEach((filterType) => {
-      if (filterType === "no-due" && !card.dueDate) {
-        match = true;
-      }
-
-      if (card.dueDate) {
-        const dueDate = new Date(card.dueDate);
-        const isPast = isOverdue(dueDate, now);
-
-        if (filterType === "overdue" && isPast && !card.isCompleted) {
-          match = true;
-        }
-
-        if (filterType === "next-hour") {
-          const oneHourFromNow = new Date(now.getTime() + 60 * 60 * 1000);
-          if (dueDate.getTime() >= now.getTime() && dueDate.getTime() <= oneHourFromNow.getTime()) {
-            match = true;
-          }
-        }
-
-        if (filterType === "tomorrow") {
-          const startOfTomorrow = getStartOfTomorrow(now);
-          const endOfTomorrow = getEndOfTomorrow(now);
-
-          if (dueDate.getTime() >= startOfTomorrow.getTime() && dueDate.getTime() <= endOfTomorrow.getTime()) {
-            match = true;
-          }
-        }
-
-        if (filterType === "next-week") {
-          const sevenDaysFromNow = new Date(now.getTime() + 7 * 24 * 60 * 60 * 1000);
-          if (dueDate.getTime() >= now.getTime() && dueDate.getTime() <= sevenDaysFromNow.getTime()) {
-            match = true;
-          }
-        }
-
-        if (filterType === "next-month") {
-          const thirtyDaysFromNow = new Date(now.getTime() + 30 * 24 * 60 * 60 * 1000);
-          if (dueDate.getTime() >= now.getTime() && dueDate.getTime() <= thirtyDaysFromNow.getTime()) {
-            match = true;
-          }
-        }
-      }
-    });
-
-    if (!match) return false;
-  }
-
-  // 4. Label Filters
-  const { selectedLabelIds = [], noLabelsEnabled = false } = filters;
-  const hasLabelFilter = selectedLabelIds.length > 0 || noLabelsEnabled;
-  if (hasLabelFilter) {
-    let match = false;
-    if (noLabelsEnabled && (!card.labels || card.labels.length === 0)) {
-      match = true;
-    }
-    if (selectedLabelIds.length > 0 && card.labels && card.labels.some((cl) => selectedLabelIds.includes(cl.labelId))) {
-      match = true;
-    }
-    if (!match) return false;
-  }
-
-  return true;
-};
-
 const getDestinationIndex = ({
   actualCards,
   visibleCards,
@@ -252,7 +139,6 @@ export const ListContainer = ({
   const filters = useBoardFilters((state) =>
     state.filtersByBoardId[boardId] ?? emptyBoardFilters,
   );
-  const { selectedMemberIds, myWorkEnabled } = filters;
 
   const { execute: executeUpdateListOrder } = useAction(updateListOrder, {
     onSuccess: () => {
@@ -785,17 +671,8 @@ export const ListContainer = ({
   }, [boardMembers, currentUserId]);
 
   const filtersAreActive = useMemo(() => {
-    return (
-      selectedMemberIds.length > 0 ||
-      myWorkEnabled ||
-      filters.noMembersEnabled ||
-      filters.completedEnabled ||
-      filters.notCompletedEnabled ||
-      filters.selectedDueDateFilters.length > 0 ||
-      (filters.selectedLabelIds && filters.selectedLabelIds.length > 0) ||
-      !!filters.noLabelsEnabled
-    );
-  }, [selectedMemberIds, myWorkEnabled, filters]);
+    return boardFiltersAreActive(filters);
+  }, [filters]);
 
   const filteredData = useMemo(() => {
     if (!filtersAreActive) {
@@ -805,7 +682,7 @@ export const ListContainer = ({
     return orderedData.map((list) => ({
       ...list,
       cards: list.cards.filter((card) =>
-        cardMatchesFilters(card, filters, currentBoardMember?.id),
+        cardMatchesBoardFilters(card, filters, currentBoardMember?.id),
       ),
     }));
   }, [filters, filtersAreActive, orderedData, currentBoardMember]);

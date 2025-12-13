@@ -244,6 +244,20 @@ export async function GET(
                       order: true,
                     },
                   },
+                  labels: {
+                    select: {
+                      label: {
+                        select: {
+                          id: true,
+                          title: true,
+                          color: true,
+                        },
+                      },
+                    },
+                    orderBy: {
+                      createdAt: "asc",
+                    },
+                  },
                 },
               },
             },
@@ -394,6 +408,11 @@ export async function GET(
                 userImage: item.assignee.userImage,
               }
             : null,
+          labels: item.checklist.card.labels.map(({ label }) => ({
+            id: label.id,
+            title: label.title,
+            color: label.color,
+          })),
         } satisfies BoardCalendarChecklistItem,
         listOrder: item.checklist.card.list.order,
         cardOrder: item.checklist.card.order,

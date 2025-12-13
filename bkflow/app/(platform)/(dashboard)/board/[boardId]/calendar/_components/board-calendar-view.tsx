@@ -2,6 +2,7 @@
 
 import {
   useCallback,
+  useEffect,
   useMemo,
   useRef,
   useState,
@@ -81,6 +82,12 @@ import { realtimeChannels } from "@/lib/realtime/channels";
 import { isRealtimeClientConfigured } from "@/lib/realtime/client";
 import { REALTIME_EVENTS } from "@/lib/realtime/events";
 import { useBoardCalendarInvalidation } from "@/hooks/use-board-calendar-invalidation";
+import { emptyBoardFilters, useBoardFilters } from "@/hooks/use-board-filters";
+import {
+  boardFiltersAreActive,
+  calendarItemMatchesBoardFilters,
+  unscheduledCardMatchesBoardFilters,
+} from "@/lib/board-filters";
 import {
   BOARD_CARD_CALENDAR_DRAG_MIME,
   type BoardCardCalendarDragPayload,
@@ -96,6 +103,7 @@ import type {
 interface BoardCalendarViewProps {
   boardId: string;
   lists: BoardCalendarList[];
+  currentBoardMemberId: string;
   defaultUnscheduledCollapsed?: boolean;
   variant?: "default" | "split";
 }
@@ -615,6 +623,7 @@ const getRangeOccurrencesByDay = (ranges: CalendarRange[], days: Date[]) =>
 export const BoardCalendarView = ({
   boardId,
   lists,
+  currentBoardMemberId,
   defaultUnscheduledCollapsed = false,
   variant = "default",
 }: BoardCalendarViewProps) => {
@@ -635,12 +644,13 @@ export const BoardCalendarView = ({
   const [createTime, setCreateTime] = useState(DEFAULT_CREATE_TIME);
   const [createListId, setCreateListId] = useState(() => lists[0]?.id ?? "");
   const [isUnscheduledCollapsed, setIsUnscheduledCollapsed] = useState(defaultUnscheduledCollapsed);
-  const [unscheduledListFilter, setUnscheduledListFilter] = useState("all");
-  const [unscheduledMemberFilter, setUnscheduledMemberFilter] = useState("all");
-  const [unscheduledLabelFilter, setUnscheduledLabelFilter] = useState("all");
   const suppressClickRef = useRef(false);
   const updateSuccessToastRef = useRef<string | null>(null);
   const updatingChecklistItemCardIdRef = useRef<string | null>(null);
+  const filters = useBoardFilters((state) =>
+    state.filtersByBoardId[boardId] ?? emptyBoardFilters,
+  );
+  const setSelectedLists = useBoardFilters((state) => state.setSelectedLists);
   const { fromIso, toIso, days } = useMemo(
     () => viewMode === "month"
       ? getMonthGridRange(anchorDate)
@@ -800,64 +810,39 @@ export const BoardCalendarView = ({
   });
 
   const responseItems = query.data?.items;
-  const items = useMemo(() => responseItems ?? [], [responseItems]);
+  const unfilteredItems = useMemo(() => responseItems ?? [], [responseItems]);
   const unscheduledCards = useMemo(
     () => query.data?.unscheduledCards ?? [],
     [query.data?.unscheduledCards],
   );
-  const unscheduledMemberOptions = useMemo(() => {
-    const members = new Map<string, BoardCalendarUnscheduledCard["assignees"][number]>();
-
-    unscheduledCards.forEach((card) => {
-      card.assignees.forEach((assignee) => {
-        members.set(assignee.boardMemberId, assignee);
-      });
-    });
-
-    return Array.from(members.values()).sort((left, right) =>
-      left.userName.localeCompare(right.userName, "vi"),
-    );
-  }, [unscheduledCards]);
-  const unscheduledLabelOptions = useMemo(() => {
-    const labels = new Map<string, BoardCalendarUnscheduledCard["labels"][number]>();
-
-    unscheduledCards.forEach((card) => {
-      card.labels.forEach((label) => {
-        labels.set(label.id, label);
-      });
-    });
-
-    return Array.from(labels.values()).sort((left, right) =>
-      left.title.localeCompare(right.title, "vi"),
-    );
-  }, [unscheduledCards]);
+  const filtersAreActive = useMemo(() => boardFiltersAreActive(filters), [filters]);
+  const items = useMemo(
+    () => unfilteredItems.filter((item) =>
+      calendarItemMatchesBoardFilters(item, filters, currentBoardMemberId),
+    ),
+    [currentBoardMemberId, filters, unfilteredItems],
+  );
   const filteredUnscheduledCards = useMemo(() => {
-    return unscheduledCards.filter((card) => {
-      const matchesList =
-        unscheduledListFilter === "all" || card.listId === unscheduledListFilter;
-      const matchesMember =
-        unscheduledMemberFilter === "all" ||
-        (unscheduledMemberFilter === "none"
-          ? card.assignees.length === 0
-          : card.assignees.some((assignee) =>
-              assignee.boardMemberId === unscheduledMemberFilter,
-            ));
-      const matchesLabel =
-        unscheduledLabelFilter === "all" ||
-        (unscheduledLabelFilter === "none"
-          ? card.labels.length === 0
-          : card.labels.some((label) => label.id === unscheduledLabelFilter));
-
-      return matchesList && matchesMember && matchesLabel;
-    });
-  }, [
-    unscheduledCards,
-    unscheduledLabelFilter,
-    unscheduledListFilter,
-    unscheduledMemberFilter,
-  ]);
+    return unscheduledCards.filter((card) =>
+      unscheduledCardMatchesBoardFilters(card, filters, currentBoardMemberId),
+    );
+  }, [currentBoardMemberId, filters, unscheduledCards]);
   const occurrences = useMemo(() => getOccurrences(items), [items]);
   const ranges = useMemo(() => getRanges(items), [items]);
+
+  useEffect(() => {
+    let cancelled = false;
+
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setExpandedDayKey(null);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [filters]);
   const weekRows = useMemo(() => getWeekRows(days), [days]);
   const daysByKey = useMemo(() => {
     return days.reduce<Record<string, Date>>((acc, day) => {
@@ -2193,7 +2178,7 @@ export const BoardCalendarView = ({
             )}
             <span
               className={cn(
-                "flex h-6 min-w-6 items-center justify-center rounded-full px-1.5 text-xs font-semibold text-neutral-600",
+                "flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full px-1.5 text-xs font-semibold text-neutral-600",
                 viewMode === "month" && !isSameMonth(day, currentMonth) && "text-neutral-400",
                 isToday(day) && "bg-violet-600 text-white",
               )}
@@ -2361,11 +2346,7 @@ export const BoardCalendarView = ({
       return null;
     }
 
-    const hasActiveFilters =
-      unscheduledListFilter !== "all" ||
-      unscheduledMemberFilter !== "all" ||
-      unscheduledLabelFilter !== "all";
-    const countLabel = hasActiveFilters
+    const countLabel = filtersAreActive
       ? `${filteredUnscheduledCards.length}/${unscheduledCards.length}`
       : `${filteredUnscheduledCards.length}`;
 
@@ -2409,8 +2390,13 @@ export const BoardCalendarView = ({
           <>
             <div className="grid shrink-0 gap-2 border-b border-neutral-100 p-3">
               <select
-                value={unscheduledListFilter}
-                onChange={(event) => setUnscheduledListFilter(event.target.value)}
+                value={filters.selectedListIds[0] ?? "all"}
+                onChange={(event) =>
+                  setSelectedLists(
+                    boardId,
+                    event.target.value === "all" ? [] : [event.target.value],
+                  )
+                }
                 className="h-8 w-full rounded-md border border-neutral-200 bg-white px-2 text-xs font-medium text-neutral-700 outline-none transition focus:border-violet-400 focus:ring-1 focus:ring-violet-200"
                 aria-label="Lọc thẻ chưa lên lịch theo danh sách"
               >
@@ -2418,36 +2404,6 @@ export const BoardCalendarView = ({
                 {lists.map((list) => (
                   <option key={list.id} value={list.id}>
                     {list.title}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={unscheduledMemberFilter}
-                onChange={(event) => setUnscheduledMemberFilter(event.target.value)}
-                className="h-8 w-full rounded-md border border-neutral-200 bg-white px-2 text-xs font-medium text-neutral-700 outline-none transition focus:border-violet-400 focus:ring-1 focus:ring-violet-200"
-                aria-label="Lọc thẻ chưa lên lịch theo thành viên"
-              >
-                <option value="all">Tất cả thành viên</option>
-                <option value="none">Không có thành viên</option>
-                {unscheduledMemberOptions.map((member) => (
-                  <option key={member.boardMemberId} value={member.boardMemberId}>
-                    {member.userName}
-                  </option>
-                ))}
-              </select>
-
-              <select
-                value={unscheduledLabelFilter}
-                onChange={(event) => setUnscheduledLabelFilter(event.target.value)}
-                className="h-8 w-full rounded-md border border-neutral-200 bg-white px-2 text-xs font-medium text-neutral-700 outline-none transition focus:border-violet-400 focus:ring-1 focus:ring-violet-200"
-                aria-label="Lọc thẻ chưa lên lịch theo nhãn"
-              >
-                <option value="all">Tất cả nhãn</option>
-                <option value="none">Không có nhãn</option>
-                {unscheduledLabelOptions.map((label) => (
-                  <option key={label.id} value={label.id}>
-                    {label.title || "Nhãn không tên"}
                   </option>
                 ))}
               </select>
@@ -2555,7 +2511,7 @@ export const BoardCalendarView = ({
               )}
             >
               <CalendarX2 className="h-3.5 w-3.5 shrink-0" />
-              <span>Chưa lên lịch ({unscheduledCards.length})</span>
+              <span>Chưa lên lịch ({filteredUnscheduledCards.length})</span>
             </Button>
 
             <div className="flex h-8 shrink-0 items-center rounded-lg border border-neutral-200 bg-white p-0.5 shadow-sm">
@@ -2693,11 +2649,15 @@ export const BoardCalendarView = ({
               <div className="mt-3 flex min-h-[96px] flex-col items-center justify-center rounded-lg border border-dashed border-neutral-300 bg-neutral-50 px-4 text-center">
                 <CalendarDays className="mb-2 h-6 w-6 text-neutral-400" />
                 <p className="text-sm font-semibold text-neutral-700">
-                  Chưa có thẻ nào trong khoảng thời gian này.
+                  {filtersAreActive
+                    ? "Không có mục nào phù hợp với bộ lọc."
+                    : "Chưa có thẻ nào trong khoảng thời gian này."}
                 </p>
-                <p className="mt-1 max-w-md text-xs text-neutral-500">
-                  Các thẻ có ngày bắt đầu hoặc ngày hết hạn sẽ xuất hiện trong lịch.
-                </p>
+                {!filtersAreActive && (
+                  <p className="mt-1 max-w-md text-xs text-neutral-500">
+                    Các thẻ có ngày bắt đầu hoặc ngày hết hạn sẽ xuất hiện trong lịch.
+                  </p>
+                )}
               </div>
             )}
 

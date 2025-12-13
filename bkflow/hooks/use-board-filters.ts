@@ -3,6 +3,7 @@
 import { create } from "zustand";
 
 export type BoardFilterState = {
+  selectedListIds: string[];
   selectedMemberIds: string[];
   myWorkEnabled: boolean;
   noMembersEnabled: boolean;
@@ -21,6 +22,7 @@ type BoardFiltersStore = {
   toggleNotCompleted: (boardId: string) => void;
   toggleMember: (boardId: string, memberId: string) => void;
   toggleDueDateFilter: (boardId: string, filterType: string) => void;
+  setSelectedLists: (boardId: string, listIds: string[]) => void;
   toggleLabel: (boardId: string, labelId: string) => void;
   toggleNoLabels: (boardId: string) => void;
   setSelectedLabels: (boardId: string, labelIds: string[]) => void;
@@ -28,6 +30,7 @@ type BoardFiltersStore = {
 };
 
 export const emptyBoardFilters: BoardFilterState = {
+  selectedListIds: [],
   selectedMemberIds: [],
   myWorkEnabled: false,
   noMembersEnabled: false,
@@ -131,6 +134,19 @@ export const useBoardFilters = create<BoardFiltersStore>((set) => ({
           [boardId]: {
             ...currentFilters,
             selectedDueDateFilters,
+          },
+        },
+      };
+    }),
+  setSelectedLists: (boardId, listIds) =>
+    set((state) => {
+      const currentFilters = getBoardFilters(state.filtersByBoardId, boardId);
+      return {
+        filtersByBoardId: {
+          ...state.filtersByBoardId,
+          [boardId]: {
+            ...currentFilters,
+            selectedListIds: listIds,
           },
         },
       };

@@ -59,6 +59,7 @@ export const BoardFilters = ({
   const [labelsExpanded, setLabelsExpanded] = useState(false);
 
   const {
+    selectedListIds,
     selectedMemberIds,
     myWorkEnabled,
     noMembersEnabled,
@@ -72,6 +73,7 @@ export const BoardFilters = ({
   const activeFilterCount = useMemo(() => {
     return (
       selectedMemberIds.length +
+      selectedListIds.length +
       (myWorkEnabled ? 1 : 0) +
       (noMembersEnabled ? 1 : 0) +
       (completedEnabled ? 1 : 0) +
@@ -82,6 +84,7 @@ export const BoardFilters = ({
     );
   }, [
     selectedMemberIds,
+    selectedListIds,
     myWorkEnabled,
     noMembersEnabled,
     completedEnabled,
