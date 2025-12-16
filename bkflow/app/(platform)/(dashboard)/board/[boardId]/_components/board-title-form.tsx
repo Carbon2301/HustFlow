@@ -93,7 +93,7 @@ export const BoardTitleForm = ({
 
   if (isEditing) {
     return (
-      <form action={onSubmit} ref={formRef} className="flex items-center gap-x-2">
+      <form action={onSubmit} ref={formRef} className="flex min-w-0 items-center gap-x-2">
         <FormInput
           ref={inputRef}
           id="title"
@@ -110,7 +110,7 @@ export const BoardTitleForm = ({
       onClick={enableEditing}
       variant="transparent"
       disabled={!canEdit}
-      className="font-bold text-lg h-auto w-auto p-1 px-2 cursor-pointer"
+      className="h-auto min-w-0 max-w-full cursor-pointer truncate p-1 px-2 text-lg font-bold"
     >
       {title}
     </Button>

@@ -23,9 +23,11 @@ export const BoardNavbar = async ({
   const isAdmin = currentMemberRole === BoardMemberRole.ADMIN;
 
   return (
-    <div className="w-full h-14 z-[40] bg-gradient-to-b from-black/50 to-black/30 fixed top-14 flex items-center px-4 md:px-6 gap-x-4 text-white backdrop-blur-sm">
-      <BoardTitleForm data={data} canEdit={isAdmin} currentUserId={currentUserId} />
-      <div className="ml-auto flex items-center gap-x-2">
+    <div className="w-full h-14 z-[40] bg-gradient-to-b from-black/50 to-black/30 fixed top-14 flex items-center justify-between px-3 md:px-6 text-white backdrop-blur-sm">
+      <div className="min-w-0">
+        <BoardTitleForm data={data} canEdit={isAdmin} currentUserId={currentUserId} />
+      </div>
+      <div className="min-w-0 flex items-center justify-end gap-x-1.5 md:gap-x-2">
         <BoardViewSwitcher boardId={data.id} />
         <BoardFilters
           boardId={data.id}
