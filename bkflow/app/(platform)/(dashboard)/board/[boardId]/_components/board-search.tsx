@@ -276,7 +276,7 @@ const BoardSearchSurface = ({
         placeholder="Tìm thẻ, checklist, bình luận, tệp..."
         className={cn(
           "h-9 rounded-lg border-neutral-200 bg-neutral-100 pl-9 pr-9 text-sm text-neutral-800 placeholder:text-neutral-400 focus-visible:border-violet-500 focus-visible:ring-1 focus-visible:ring-violet-200 focus-visible:bg-white transition-all font-medium",
-          compact ? "w-full" : "w-[min(35vw,400px)]",
+          compact ? "w-full" : "w-[min(50vw,500px)]",
         )}
       />
       {query && (
@@ -307,7 +307,7 @@ const BoardSearchSurface = ({
         onOpenAutoFocus={(event) => event.preventDefault()}
         className={cn(
           "z-[60] max-h-[min(440px,calc(100vh-9rem))] overflow-hidden rounded-xl border border-neutral-200 bg-white p-0 text-neutral-900 shadow-2xl",
-          compact ? "w-[calc(100vw-2rem)]" : "w-[min(42vw,520px)]",
+          compact ? "w-[calc(100vw-2rem)]" : "w-[min(55vw,560px)]",
         )}
       >
         <div className="border-b border-neutral-100 px-3 py-2">

@@ -18,11 +18,13 @@ export const Navbar = () => {
     const boardId = params.boardId as string;
 
     return (
-        <nav className="fixed z-50 top-0 px-4 w-full h-14 border-b border-neutral-200/80 bg-white/95 backdrop-blur-sm flex items-center gap-x-4">
+        <nav className="fixed z-50 top-0 px-4 w-full h-14 border-b border-neutral-200/80 bg-white/95 backdrop-blur-sm flex items-center justify-between gap-x-4">
             <RealtimeNotificationSync />
             <NotificationToasts />
-            <MobileSidebar />
-            <div className="flex items-center gap-x-4">
+
+            {/* Left Section */}
+            <div className="flex items-center gap-x-2 md:gap-x-4 shrink-0">
+                <MobileSidebar />
                 <div className="hidden md:flex">
                     <Logo />
                 </div>
@@ -44,9 +46,15 @@ export const Navbar = () => {
                         <Plus className="h-4 w-4" />
                     </Button>
                 </FormPopover>
+            </div>
+
+            {/* Center Section */}
+            <div className="flex-1 flex justify-center max-w-xl mx-auto">
                 {boardId && <BoardSearch boardId={boardId} />}
             </div>
-            <div className="ml-auto flex items-center gap-x-3">
+
+            {/* Right Section */}
+            <div className="flex items-center gap-x-3 shrink-0">
                 <NotificationsPopover />
                 <OrganizationSwitcher
                     hidePersonal
@@ -59,7 +67,7 @@ export const Navbar = () => {
                                 display: "flex",
                                 justifyContent: "center",
                                 alignItems: "center",
-                            },
+                             },
                         },
                     }}
                 />

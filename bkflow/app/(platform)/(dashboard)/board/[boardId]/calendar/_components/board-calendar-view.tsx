@@ -14,6 +14,7 @@ import {
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import {
+  addDays,
   addMonths,
   addWeeks,
   eachDayOfInterval,
@@ -24,6 +25,7 @@ import {
   isToday,
   startOfMonth,
   startOfWeek,
+  subDays,
   subMonths,
   subWeeks,
 } from "date-fns";
@@ -114,7 +116,7 @@ type BoardCalendarList = {
   order: number;
 };
 
-type ViewMode = "month" | "week";
+type ViewMode = "month" | "week" | "day";
 type CalendarOccurrenceKind = "single" | "start" | "due" | "range";
 
 type CalendarOccurrence = {
@@ -179,6 +181,9 @@ type CalendarMarkerListStyle = CSSProperties & {
 };
 
 const WEEK_DAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
+const DAY_VIEW_LABELS = ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"];
+const GMT7_OFFSET_MINUTES = 7 * 60;
+const GMT7_OFFSET_MS = GMT7_OFFSET_MINUTES * 60 * 1000;
 const MONTH_VISIBLE_DESKTOP = 3;
 const MONTH_VISIBLE_MOBILE = 2;
 const MONTH_RANGE_LANES = 2;
@@ -187,6 +192,20 @@ const RANGE_LANE_HEIGHT = 28;
 const RANGE_LANE_GAP = 4;
 const WEEK_VISIBLE_DESKTOP = 8;
 const WEEK_VISIBLE_MOBILE = 4;
+const DAY_SLOT_HEIGHT = 20;
+const DAY_TIME_SLOTS = Array.from({ length: 96 }, (_, index) => {
+  const totalMinutes = index * 15;
+  const hour = Math.floor(totalMinutes / 60);
+  const minute = totalMinutes % 60;
+
+  return {
+    index,
+    hour,
+    minute,
+    label: `${String(hour).padStart(2, "0")}:${String(minute).padStart(2, "0")}`,
+    isHour: minute === 0,
+  };
+});
 const DEFAULT_CREATE_HOUR = 9;
 const DEFAULT_CREATE_TIME = `${String(DEFAULT_CREATE_HOUR).padStart(2, "0")}:00`;
 const TIME_INPUT_PATTERN = /^([01]\d|2[0-3]):([0-5]\d)$/;
@@ -213,6 +232,60 @@ const getWeekGridRange = (anchorDate: Date) => {
     toIso: to.toISOString(),
     days: eachDayOfInterval({ start: from, end: to }),
   };
+};
+
+const getGmt7Parts = (date: Date) => {
+  const shiftedDate = new Date(date.getTime() + GMT7_OFFSET_MS);
+
+  return {
+    year: shiftedDate.getUTCFullYear(),
+    month: shiftedDate.getUTCMonth(),
+    date: shiftedDate.getUTCDate(),
+    day: shiftedDate.getUTCDay(),
+    hours: shiftedDate.getUTCHours(),
+    minutes: shiftedDate.getUTCMinutes(),
+  };
+};
+
+const getGmt7DayKey = (date: Date) => {
+  const parts = getGmt7Parts(date);
+
+  return [
+    parts.year,
+    String(parts.month + 1).padStart(2, "0"),
+    String(parts.date).padStart(2, "0"),
+  ].join("-");
+};
+
+const getGmt7DateFromParts = (
+  year: number,
+  month: number,
+  date: number,
+  hours = 0,
+  minutes = 0,
+  seconds = 0,
+  milliseconds = 0,
+) => new Date(
+  Date.UTC(year, month, date, hours, minutes, seconds, milliseconds) -
+    GMT7_OFFSET_MS,
+);
+
+const getDayGridRange = (anchorDate: Date) => {
+  const { year, month, date } = getGmt7Parts(anchorDate);
+  const from = getGmt7DateFromParts(year, month, date, 0, 0, 0, 0);
+  const to = getGmt7DateFromParts(year, month, date, 23, 59, 59, 999);
+
+  return {
+    fromIso: from.toISOString(),
+    toIso: to.toISOString(),
+    days: [from],
+  };
+};
+
+const formatDayTitle = (date: Date) => {
+  const parts = getGmt7Parts(date);
+
+  return `${DAY_VIEW_LABELS[parts.day]}, ${String(parts.date).padStart(2, "0")}/${String(parts.month + 1).padStart(2, "0")}/${parts.year}`;
 };
 
 const getDayKey = (date: Date) => format(date, "yyyy-MM-dd");
@@ -633,6 +706,7 @@ export const BoardCalendarView = ({
   const invalidateBoardCalendar = useBoardCalendarInvalidation(boardId);
   const [viewMode, setViewMode] = useState<ViewMode>("month");
   const [anchorDate, setAnchorDate] = useState(() => new Date());
+  const [currentTime, setCurrentTime] = useState(() => new Date());
   const [expandedDayKey, setExpandedDayKey] = useState<string | null>(null);
   const [draggingOccurrenceId, setDraggingOccurrenceId] = useState<string | null>(null);
   const [draggingUnscheduledCardId, setDraggingUnscheduledCardId] = useState<string | null>(null);
@@ -652,9 +726,17 @@ export const BoardCalendarView = ({
   );
   const setSelectedLists = useBoardFilters((state) => state.setSelectedLists);
   const { fromIso, toIso, days } = useMemo(
-    () => viewMode === "month"
-      ? getMonthGridRange(anchorDate)
-      : getWeekGridRange(anchorDate),
+    () => {
+      if (viewMode === "month") {
+        return getMonthGridRange(anchorDate);
+      }
+
+      if (viewMode === "week") {
+        return getWeekGridRange(anchorDate);
+      }
+
+      return getDayGridRange(anchorDate);
+    },
     [anchorDate, viewMode],
   );
 
@@ -843,6 +925,13 @@ export const BoardCalendarView = ({
       cancelled = true;
     };
   }, [filters]);
+  useEffect(() => {
+    const intervalId = window.setInterval(() => {
+      setCurrentTime(new Date());
+    }, 60_000);
+
+    return () => window.clearInterval(intervalId);
+  }, []);
   const weekRows = useMemo(() => getWeekRows(days), [days]);
   const daysByKey = useMemo(() => {
     return days.reduce<Record<string, Date>>((acc, day) => {
@@ -896,8 +985,23 @@ export const BoardCalendarView = ({
 
   const monthLabel = format(anchorDate, "'Tháng' M, yyyy", { locale: vi });
   const weekLabel = `Tuần ${format(new Date(fromIso), "dd/MM/yyyy", { locale: vi })} - ${format(new Date(toIso), "dd/MM/yyyy", { locale: vi })}`;
+  const dayLabel = formatDayTitle(anchorDate);
   const rangeLabel = `${format(new Date(fromIso), "dd/MM/yyyy", { locale: vi })} - ${format(new Date(toIso), "dd/MM/yyyy", { locale: vi })}`;
-  const titleLabel = viewMode === "month" ? monthLabel : weekLabel;
+  const titleLabel = viewMode === "month"
+    ? monthLabel
+    : viewMode === "week"
+      ? weekLabel
+      : dayLabel;
+  const previousLabel = viewMode === "month"
+    ? "Tháng trước"
+    : viewMode === "week"
+      ? "Tuần trước"
+      : "Ngày trước";
+  const nextLabel = viewMode === "month"
+    ? "Tháng sau"
+    : viewMode === "week"
+      ? "Tuần sau"
+      : "Ngày sau";
   const currentMonth = startOfMonth(anchorDate);
   const maxVisibleDesktop = viewMode === "month" ? MONTH_VISIBLE_DESKTOP : WEEK_VISIBLE_DESKTOP;
   const maxVisibleMobile = viewMode === "month" ? MONTH_VISIBLE_MOBILE : WEEK_VISIBLE_MOBILE;
@@ -976,12 +1080,32 @@ export const BoardCalendarView = ({
 
   const goToPrevious = () => {
     setExpandedDayKey(null);
-    setAnchorDate((value) => viewMode === "month" ? subMonths(value, 1) : subWeeks(value, 1));
+    setAnchorDate((value) => {
+      if (viewMode === "month") {
+        return subMonths(value, 1);
+      }
+
+      if (viewMode === "week") {
+        return subWeeks(value, 1);
+      }
+
+      return subDays(value, 1);
+    });
   };
 
   const goToNext = () => {
     setExpandedDayKey(null);
-    setAnchorDate((value) => viewMode === "month" ? addMonths(value, 1) : addWeeks(value, 1));
+    setAnchorDate((value) => {
+      if (viewMode === "month") {
+        return addMonths(value, 1);
+      }
+
+      if (viewMode === "week") {
+        return addWeeks(value, 1);
+      }
+
+      return addDays(value, 1);
+    });
   };
 
   const goToToday = () => {
@@ -2450,6 +2574,75 @@ export const BoardCalendarView = ({
     );
   };
 
+  const renderCalendarDayTimeGrid = (isSkeleton = false) => {
+    const anchorDayKey = getGmt7DayKey(anchorDate);
+    const currentDayKey = getGmt7DayKey(currentTime);
+    const currentParts = getGmt7Parts(currentTime);
+    const isCurrentGmt7Day = anchorDayKey === currentDayKey;
+    const currentTimeTop =
+      ((currentParts.hours * 60 + currentParts.minutes) / (24 * 60)) * 100;
+
+    return (
+      <div className="min-w-0 overflow-hidden rounded-lg border border-neutral-200 bg-white">
+        <div className="grid grid-cols-[56px_minmax(0,1fr)] border-b border-neutral-200 bg-neutral-50 sm:grid-cols-[68px_minmax(0,1fr)]">
+          <div className="border-r border-neutral-200 px-2 py-2 text-[11px] font-semibold uppercase text-neutral-500">
+            GMT+7
+          </div>
+          <div className="px-3 py-2 text-xs font-semibold text-neutral-700">
+            {formatDayTitle(anchorDate)}
+          </div>
+        </div>
+
+        <div className="relative grid grid-cols-[56px_minmax(0,1fr)] sm:grid-cols-[68px_minmax(0,1fr)]">
+          <div className="bg-neutral-50">
+            {DAY_TIME_SLOTS.map((slot) => (
+              <div
+                key={`time:${slot.label}`}
+                className={cn(
+                  "flex h-5 items-start justify-end border-r border-neutral-200 px-2 pt-0.5 text-[10px] font-medium tabular-nums text-neutral-400",
+                  slot.isHour && "border-t border-t-neutral-300 text-neutral-600",
+                  !slot.isHour && "border-t border-t-neutral-100",
+                )}
+                style={{ height: DAY_SLOT_HEIGHT }}
+              >
+                {slot.isHour ? slot.label : String(slot.minute).padStart(2, "0")}
+              </div>
+            ))}
+          </div>
+
+          <div className="relative min-w-0">
+            {DAY_TIME_SLOTS.map((slot) => (
+              <div
+                key={`slot:${slot.label}`}
+                className={cn(
+                  "h-5 border-t",
+                  slot.isHour ? "border-neutral-300 bg-white" : "border-neutral-100 bg-white",
+                )}
+                style={{ height: DAY_SLOT_HEIGHT }}
+                aria-label={`Khung giờ ${slot.label} GMT+7`}
+              >
+                {isSkeleton && slot.index % 16 === 4 && (
+                  <Skeleton className="ml-3 mt-1 h-3 w-24 rounded bg-neutral-100" />
+                )}
+              </div>
+            ))}
+
+            {isCurrentGmt7Day && (
+              <div
+                className="pointer-events-none absolute left-0 right-0 z-10 flex items-center"
+                style={{ top: `${currentTimeTop}%` }}
+                aria-hidden="true"
+              >
+                <span className="h-2 w-2 -translate-x-1 rounded-full bg-red-500" />
+                <span className="h-px flex-1 bg-red-500" />
+              </div>
+            )}
+          </div>
+        </div>
+      </div>
+    );
+  };
+
   const renderCalendarWeekRow = (
     weekDays: Date[],
     weekIndex: number,
@@ -2515,7 +2708,7 @@ export const BoardCalendarView = ({
             </Button>
 
             <div className="flex h-8 shrink-0 items-center rounded-lg border border-neutral-200 bg-white p-0.5 shadow-sm">
-              {(["month", "week"] as const).map((mode) => (
+              {(["month", "week", "day"] as const).map((mode) => (
                 <button
                   key={mode}
                   type="button"
@@ -2525,18 +2718,18 @@ export const BoardCalendarView = ({
                     viewMode === mode && "bg-violet-600 text-white shadow-sm hover:bg-violet-600",
                   )}
                 >
-                  {mode === "month" ? "Tháng" : "Tuần"}
+                  {mode === "month" ? "Tháng" : mode === "week" ? "Tuần" : "Ngày"}
                 </button>
               ))}
             </div>
 
             <div className="flex h-8 shrink-0 items-center rounded-lg border border-neutral-200 bg-white p-0.5 shadow-sm">
-              <Hint description={viewMode === "month" ? "Tháng trước" : "Tuần trước"} side="top">
+              <Hint description={previousLabel} side="top">
                 <button
                   type="button"
                   onClick={goToPrevious}
                   className="flex h-7 w-7 items-center justify-center rounded-md text-neutral-600 transition hover:bg-neutral-100"
-                  aria-label={viewMode === "month" ? "Tháng trước" : "Tuần trước"}
+                  aria-label={previousLabel}
                 >
                   <ChevronLeft className="h-4 w-4" />
                 </button>
@@ -2550,12 +2743,12 @@ export const BoardCalendarView = ({
                   Hôm nay
                 </button>
               </Hint>
-              <Hint description={viewMode === "month" ? "Tháng sau" : "Tuần sau"} side="top">
+              <Hint description={nextLabel} side="top">
                 <button
                   type="button"
                   onClick={goToNext}
                   className="flex h-7 w-7 items-center justify-center rounded-md text-neutral-600 transition hover:bg-neutral-100"
-                  aria-label={viewMode === "month" ? "Tháng sau" : "Tuần sau"}
+                  aria-label={nextLabel}
                 >
                   <ChevronRight className="h-4 w-4" />
                 </button>
@@ -2598,7 +2791,9 @@ export const BoardCalendarView = ({
           </div>
         )}
 
-        {query.isLoading && (
+        {query.isLoading && viewMode === "day" && renderCalendarDayTimeGrid(true)}
+
+        {query.isLoading && viewMode !== "day" && (
           <div
             className={cn(
               viewMode === "month" && "grid grid-cols-7 rounded-b-lg border border-neutral-200",
@@ -2641,11 +2836,13 @@ export const BoardCalendarView = ({
                   renderCalendarWeekRow(weekDays, weekIndex, "month"),
                 )}
               </div>
-            ) : (
+            ) : viewMode === "week" ? (
               renderCalendarWeekRow(weekRows[0] ?? days, 0, "week")
+            ) : (
+              renderCalendarDayTimeGrid()
             )}
 
-            {items.length === 0 && (
+            {items.length === 0 && viewMode !== "day" && (
               <div className="mt-3 flex min-h-[96px] flex-col items-center justify-center rounded-lg border border-dashed border-neutral-300 bg-neutral-50 px-4 text-center">
                 <CalendarDays className="mb-2 h-6 w-6 text-neutral-400" />
                 <p className="text-sm font-semibold text-neutral-700">
@@ -2658,6 +2855,16 @@ export const BoardCalendarView = ({
                     Các thẻ có ngày bắt đầu hoặc ngày hết hạn sẽ xuất hiện trong lịch.
                   </p>
                 )}
+              </div>
+            )}
+
+            {items.length === 0 && viewMode === "day" && (
+              <div className="mt-3 rounded-lg border border-dashed border-neutral-300 bg-neutral-50 px-4 py-3 text-center">
+                <p className="text-sm font-semibold text-neutral-700">
+                  {filtersAreActive
+                    ? "Không có mục nào phù hợp với bộ lọc."
+                    : "Chưa có thẻ nào trong ngày này."}
+                </p>
               </div>
             )}
 
