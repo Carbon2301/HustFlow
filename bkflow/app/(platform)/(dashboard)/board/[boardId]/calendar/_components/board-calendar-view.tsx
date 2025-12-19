@@ -180,10 +180,22 @@ type CalendarMarkerListStyle = CSSProperties & {
   "--pt-desktop"?: string;
 };
 
+type DayViewBlock = {
+  id: string;
+  item: BoardCalendarItem;
+  startsAt: Date;
+  endsAt: Date;
+  startMinute: number;
+  endMinute: number;
+  top: number;
+  height: number;
+};
+
 const WEEK_DAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 const DAY_VIEW_LABELS = ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"];
 const GMT7_OFFSET_MINUTES = 7 * 60;
 const GMT7_OFFSET_MS = GMT7_OFFSET_MINUTES * 60 * 1000;
+const MINUTES_IN_DAY = 24 * 60;
 const MONTH_VISIBLE_DESKTOP = 3;
 const MONTH_VISIBLE_MOBILE = 2;
 const MONTH_RANGE_LANES = 2;
@@ -282,6 +294,14 @@ const getDayGridRange = (anchorDate: Date) => {
   };
 };
 
+const getGmt7DayBoundary = (anchorDate: Date) => {
+  const { year, month, date } = getGmt7Parts(anchorDate);
+  const start = getGmt7DateFromParts(year, month, date, 0, 0, 0, 0);
+  const end = getGmt7DateFromParts(year, month, date + 1, 0, 0, 0, 0);
+
+  return { start, end };
+};
+
 const formatDayTitle = (date: Date) => {
   const parts = getGmt7Parts(date);
 
@@ -294,6 +314,21 @@ const formatCalendarTime = (date: Date) => format(date, "HH:mm");
 
 const formatCalendarDateTime = (date: Date) =>
   format(date, "dd/MM/yyyy HH:mm", { locale: vi });
+
+const formatGmt7Time = (date: Date) => {
+  const parts = getGmt7Parts(date);
+
+  return `${String(parts.hours).padStart(2, "0")}:${String(parts.minutes).padStart(2, "0")}`;
+};
+
+const formatGmt7DateTime = (date: Date) => {
+  const parts = getGmt7Parts(date);
+
+  return [
+    `${String(parts.date).padStart(2, "0")}/${String(parts.month + 1).padStart(2, "0")}/${parts.year}`,
+    formatGmt7Time(date),
+  ].join(" ");
+};
 
 const getLocalDay = (date: Date) =>
   new Date(date.getFullYear(), date.getMonth(), date.getDate());
@@ -314,6 +349,11 @@ const parseCalendarDate = (value: string | null) => {
 
   return date;
 };
+
+const parseDayViewItemDates = (item: BoardCalendarItem) => ({
+  startDate: isCalendarCardItem(item) ? parseCalendarDate(item.startDate) : null,
+  dueDate: parseCalendarDate(item.dueDate),
+});
 
 const isCalendarCardItem = (
   item: BoardCalendarItem,
@@ -693,6 +733,189 @@ const getRangeOccurrencesByDay = (ranges: CalendarRange[], days: Date[]) =>
     return acc;
   }, {});
 
+const clampRangeToGmt7Day = (
+  rangeStart: Date,
+  rangeEnd: Date,
+  anchorDate: Date,
+) => {
+  const { start: dayStart, end: dayEnd } = getGmt7DayBoundary(anchorDate);
+
+  if (rangeEnd.getTime() <= rangeStart.getTime()) {
+    return null;
+  }
+
+  if (
+    rangeEnd.getTime() <= dayStart.getTime() ||
+    rangeStart.getTime() >= dayEnd.getTime()
+  ) {
+    return null;
+  }
+
+  return {
+    startsAt: new Date(Math.max(rangeStart.getTime(), dayStart.getTime())),
+    endsAt: new Date(Math.min(rangeEnd.getTime(), dayEnd.getTime())),
+    dayStart,
+  };
+};
+
+const getMinutesFromGmt7DayStart = (date: Date, dayStart: Date) => {
+  const minutes = (date.getTime() - dayStart.getTime()) / 60_000;
+
+  return Math.max(0, Math.min(MINUTES_IN_DAY, minutes));
+};
+
+const getDayViewBlockPosition = (
+  startsAt: Date,
+  endsAt: Date,
+  dayStart: Date,
+) => {
+  const startMinute = Math.floor(getMinutesFromGmt7DayStart(startsAt, dayStart));
+  const actualEndMinute = Math.ceil(getMinutesFromGmt7DayStart(endsAt, dayStart));
+  const endMinute = Math.min(
+    MINUTES_IN_DAY,
+    Math.max(actualEndMinute, startMinute + 15),
+  );
+
+  return {
+    startMinute,
+    endMinute,
+    top: (startMinute / MINUTES_IN_DAY) * 100,
+    height: ((endMinute - startMinute) / MINUTES_IN_DAY) * 100,
+  };
+};
+
+const getDayViewBlocks = (
+  items: BoardCalendarItem[],
+  anchorDate: Date,
+) =>
+  items.reduce<DayViewBlock[]>((acc, item) => {
+    const { startDate, dueDate } = parseDayViewItemDates(item);
+    const durationMinutes = item.type === "checklist-item" ? 15 : 60;
+    let rangeStart: Date | null = null;
+    let rangeEnd: Date | null = null;
+
+    if (item.type === "checklist-item") {
+      rangeStart = dueDate;
+      rangeEnd = dueDate
+        ? new Date(dueDate.getTime() + durationMinutes * 60_000)
+        : null;
+    } else if (startDate && dueDate) {
+      rangeStart = startDate;
+      rangeEnd = dueDate;
+    } else {
+      const singleDate = startDate ?? dueDate;
+      rangeStart = singleDate;
+      rangeEnd = singleDate
+        ? new Date(singleDate.getTime() + durationMinutes * 60_000)
+        : null;
+    }
+
+    if (!rangeStart || !rangeEnd) {
+      return acc;
+    }
+
+    const clippedRange = clampRangeToGmt7Day(rangeStart, rangeEnd, anchorDate);
+
+    if (!clippedRange) {
+      return acc;
+    }
+
+    const position = getDayViewBlockPosition(
+      clippedRange.startsAt,
+      clippedRange.endsAt,
+      clippedRange.dayStart,
+    );
+
+    if (position.endMinute <= position.startMinute) {
+      return acc;
+    }
+
+    acc.push({
+      id: `${item.id}:day-block:${getGmt7DayKey(anchorDate)}`,
+      item,
+      startsAt: clippedRange.startsAt,
+      endsAt: clippedRange.endsAt,
+      ...position,
+    });
+
+    return acc;
+  }, [])
+    .sort((left, right) => (
+      left.startMinute - right.startMinute ||
+      right.endMinute - left.endMinute ||
+      left.item.title.localeCompare(right.item.title, "vi")
+    ));
+
+const getDayViewBlockStyle = (
+  block: DayViewBlock,
+  index: number,
+): CSSProperties => {
+  const offset = index % 3;
+
+  return {
+    top: `${block.top}%`,
+    height: `${block.height}%`,
+    left: `${8 + offset * 8}px`,
+    right: `${8 + (2 - offset) * 4}px`,
+  };
+};
+
+const getDayViewBlockPixelHeight = (block: DayViewBlock) =>
+  ((block.endMinute - block.startMinute) / 15) * DAY_SLOT_HEIGHT;
+
+const getDayViewBlockTimeLabel = (block: DayViewBlock) => {
+  const startTime = formatGmt7Time(block.startsAt);
+  const endTime = block.endMinute >= MINUTES_IN_DAY
+    ? "24:00"
+    : formatGmt7Time(block.endsAt);
+
+  return startTime === endTime ? startTime : `${startTime}-${endTime}`;
+};
+
+const getDayViewBlockContext = (block: DayViewBlock) =>
+  block.item.type === "checklist-item"
+    ? block.item.cardTitle
+    : block.item.listTitle;
+
+const getDayViewBlockTooltip = (block: DayViewBlock) => {
+  const { item } = block;
+  const parts = item.type === "checklist-item"
+    ? [
+        item.title,
+        `Checklist: ${item.checklistTitle}`,
+        `Card: ${item.cardTitle}`,
+        `Due: ${formatGmt7DateTime(block.startsAt)} GMT+7`,
+      ]
+    : [
+        item.title,
+        `List: ${item.listTitle}`,
+        item.startDate ? `Start: ${formatGmt7DateTime(parseCalendarDate(item.startDate) ?? block.startsAt)} GMT+7` : null,
+        item.dueDate ? `Due: ${formatGmt7DateTime(parseCalendarDate(item.dueDate) ?? block.endsAt)} GMT+7` : null,
+      ];
+
+  if (item.isCompleted) {
+    parts.push("Status: completed");
+  }
+
+  return parts.filter((part): part is string => !!part).join("\n");
+};
+
+const getDayViewBlockTone = (block: DayViewBlock) => {
+  if (block.item.isCompleted) {
+    return "border-emerald-200 bg-emerald-50 text-emerald-900 hover:bg-emerald-100";
+  }
+
+  if (isOverdue(block.item)) {
+    return "border-red-200 bg-red-50 text-red-900 hover:bg-red-100";
+  }
+
+  if (block.item.type === "checklist-item") {
+    return "border-amber-200 bg-amber-50 text-amber-900 hover:bg-amber-100";
+  }
+
+  return "border-violet-200 bg-violet-50 text-violet-900 hover:bg-violet-100";
+};
+
 export const BoardCalendarView = ({
   boardId,
   lists,
@@ -911,6 +1134,10 @@ export const BoardCalendarView = ({
   }, [currentBoardMemberId, filters, unscheduledCards]);
   const occurrences = useMemo(() => getOccurrences(items), [items]);
   const ranges = useMemo(() => getRanges(items), [items]);
+  const dayViewBlocks = useMemo(
+    () => getDayViewBlocks(items, anchorDate),
+    [anchorDate, items],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -2574,6 +2801,83 @@ export const BoardCalendarView = ({
     );
   };
 
+  const renderDayViewBlock = (block: DayViewBlock, index: number) => {
+    const isChecklistItem = block.item.type === "checklist-item";
+    const checklistItemId = block.item.type === "checklist-item"
+      ? block.item.checklistItemId
+      : undefined;
+    const pixelHeight = getDayViewBlockPixelHeight(block);
+    const canShowContext = pixelHeight >= 36;
+    const canShowLabels = pixelHeight >= 44 && block.item.labels.length > 0;
+    const tooltip = getDayViewBlockTooltip(block);
+
+    return (
+      <Hint
+        key={block.id}
+        description={tooltip}
+        side="top"
+        sideOffset={4}
+        className="max-w-[300px]"
+      >
+        <button
+          type="button"
+          style={getDayViewBlockStyle(block, index)}
+          title={tooltip}
+          onClick={(event) => openCalendarCard(
+            block.item.cardId,
+            event,
+            checklistItemId ? { checklistItemId } : undefined,
+          )}
+          aria-label={isChecklistItem
+            ? `Open checklist item ${block.item.title}`
+            : `Open card ${block.item.title}`}
+          className={cn(
+            "group/day-block pointer-events-auto absolute z-10 min-w-0 overflow-hidden rounded-md border px-2 py-1 text-left shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300",
+            "flex flex-col justify-start",
+            getDayViewBlockTone(block),
+          )}
+        >
+          <span className="flex min-w-0 items-center gap-x-1.5 text-[10px] font-semibold leading-none">
+            {isChecklistItem && !block.item.isCompleted && (
+              <ListChecks className="h-3 w-3 shrink-0 opacity-80" />
+            )}
+            {block.item.isCompleted && (
+              <CheckCircle2 className="h-3 w-3 shrink-0 opacity-80" />
+            )}
+            <span className="shrink-0 rounded bg-white/70 px-1 py-0.5 tabular-nums">
+              {getDayViewBlockTimeLabel(block)}
+            </span>
+            {isOverdue(block.item) && !block.item.isCompleted && (
+              <span className="hidden shrink-0 text-[10px] uppercase opacity-80 sm:inline">
+                Overdue
+              </span>
+            )}
+          </span>
+          <span className="mt-1 min-w-0 truncate text-xs font-semibold leading-tight">
+            {block.item.title}
+          </span>
+          {canShowContext && (
+            <span className="mt-0.5 min-w-0 truncate text-[11px] leading-tight opacity-75">
+              {getDayViewBlockContext(block)}
+            </span>
+          )}
+          {canShowLabels && (
+            <span className="mt-1 flex min-w-0 gap-1 overflow-hidden">
+              {block.item.labels.slice(0, 5).map((label) => (
+                <span
+                  key={label.id}
+                  className="h-1.5 w-5 shrink-0 rounded-full"
+                  style={{ backgroundColor: label.color }}
+                  title={label.title}
+                />
+              ))}
+            </span>
+          )}
+        </button>
+      </Hint>
+    );
+  };
+
   const renderCalendarDayTimeGrid = (isSkeleton = false) => {
     const anchorDayKey = getGmt7DayKey(anchorDate);
     const currentDayKey = getGmt7DayKey(currentTime);
@@ -2626,6 +2930,14 @@ export const BoardCalendarView = ({
                 )}
               </div>
             ))}
+
+            {!isSkeleton && dayViewBlocks.length > 0 && (
+              <div className="pointer-events-none absolute inset-0">
+                {dayViewBlocks.map((block, index) =>
+                  renderDayViewBlock(block, index),
+                )}
+              </div>
+            )}
 
             {isCurrentGmt7Day && (
               <div
