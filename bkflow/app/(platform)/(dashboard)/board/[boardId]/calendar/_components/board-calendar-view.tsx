@@ -191,6 +191,33 @@ type DayViewBlock = {
   height: number;
 };
 
+type PositionedDayViewBlock = DayViewBlock & {
+  lane: number;
+  laneCount: number;
+  isHiddenByLaneLimit: boolean;
+  leftPercent: number;
+  widthPercent: number;
+};
+
+type DayViewOverflowGroup = {
+  id: string;
+  startMinute: number;
+  endMinute: number;
+  top: number;
+  height: number;
+  hiddenBlocks: PositionedDayViewBlock[];
+};
+
+type DayViewBlockLayout = {
+  visibleBlocks: PositionedDayViewBlock[];
+  overflowGroups: DayViewOverflowGroup[];
+};
+
+type DayViewBlockStyle = CSSProperties & {
+  "--day-block-left"?: string;
+  "--day-block-width"?: string;
+};
+
 const WEEK_DAYS = ["T2", "T3", "T4", "T5", "T6", "T7", "CN"];
 const DAY_VIEW_LABELS = ["Chủ nhật", "Thứ hai", "Thứ ba", "Thứ tư", "Thứ năm", "Thứ sáu", "Thứ bảy"];
 const GMT7_OFFSET_MINUTES = 7 * 60;
@@ -205,6 +232,9 @@ const RANGE_LANE_GAP = 4;
 const WEEK_VISIBLE_DESKTOP = 8;
 const WEEK_VISIBLE_MOBILE = 4;
 const DAY_SLOT_HEIGHT = 20;
+const DAY_LANE_GAP_PX = 4;
+const MAX_DAY_LANES = 4;
+const MAX_MOBILE_DAY_LANES = 1;
 const DAY_TIME_SLOTS = Array.from({ length: 96 }, (_, index) => {
   const totalMinutes = index * 15;
   const hour = Math.floor(totalMinutes / 60);
@@ -388,7 +418,7 @@ const getCalendarItemTitle = (item: BoardCalendarItem) => {
 
   if (item.type === "checklist-item") {
     parts.splice(1, 0, `Thẻ: ${item.cardTitle}`);
-    parts.splice(2, 0, `Checklist: ${item.checklistTitle}`);
+    parts.splice(2, 0, `Danh sách kiểm tra: ${item.checklistTitle}`);
   }
 
   if (startDate) {
@@ -795,18 +825,20 @@ const getDayViewBlocks = (
     let rangeEnd: Date | null = null;
 
     if (item.type === "checklist-item") {
-      rangeStart = dueDate;
-      rangeEnd = dueDate
-        ? new Date(dueDate.getTime() + durationMinutes * 60_000)
+      rangeStart = dueDate
+        ? new Date(dueDate.getTime() - durationMinutes * 60_000)
         : null;
+      rangeEnd = dueDate;
     } else if (startDate && dueDate) {
       rangeStart = startDate;
       rangeEnd = dueDate;
+    } else if (dueDate) {
+      rangeStart = new Date(dueDate.getTime() - durationMinutes * 60_000);
+      rangeEnd = dueDate;
     } else {
-      const singleDate = startDate ?? dueDate;
-      rangeStart = singleDate;
-      rangeEnd = singleDate
-        ? new Date(singleDate.getTime() + durationMinutes * 60_000)
+      rangeStart = startDate;
+      rangeEnd = startDate
+        ? new Date(startDate.getTime() + durationMinutes * 60_000)
         : null;
     }
 
@@ -846,17 +878,144 @@ const getDayViewBlocks = (
       left.item.title.localeCompare(right.item.title, "vi")
     ));
 
-const getDayViewBlockStyle = (
-  block: DayViewBlock,
-  index: number,
-): CSSProperties => {
-  const offset = index % 3;
+const dayBlocksOverlap = (
+  left: DayViewBlock,
+  right: DayViewBlock,
+) => left.startMinute < right.endMinute && left.endMinute > right.startMinute;
 
+const sortDayViewBlocks = (blocks: DayViewBlock[]) =>
+  [...blocks].sort((left, right) => (
+    left.startMinute - right.startMinute ||
+    left.endMinute - right.endMinute ||
+    left.id.localeCompare(right.id)
+  ));
+
+const getPositionedClusterBlocks = (
+  clusterBlocks: DayViewBlock[],
+  maxLanes: number,
+) => {
+  const laneEnds: number[] = [];
+  const assignedBlocks = clusterBlocks.map((block) => {
+    const reusableLane = laneEnds.findIndex((endMinute) =>
+      endMinute <= block.startMinute,
+    );
+    const lane = reusableLane >= 0 ? reusableLane : laneEnds.length;
+    laneEnds[lane] = block.endMinute;
+
+    return {
+      block,
+      lane,
+    };
+  });
+  const laneCount = Math.max(1, laneEnds.length);
+  const visibleLaneCount = Math.min(laneCount, maxLanes);
+
+  return assignedBlocks.map<PositionedDayViewBlock>(({ block, lane }) => {
+    const isHiddenByLaneLimit = lane >= maxLanes;
+    const widthPercent = isHiddenByLaneLimit
+      ? 0
+      : 100 / visibleLaneCount;
+
+    return {
+      ...block,
+      lane,
+      laneCount,
+      isHiddenByLaneLimit,
+      leftPercent: isHiddenByLaneLimit ? 0 : lane * widthPercent,
+      widthPercent,
+    };
+  });
+};
+
+const getDayViewOverflowGroup = (
+  clusterBlocks: PositionedDayViewBlock[],
+) => {
+  const hiddenBlocks = clusterBlocks.filter((block) => block.isHiddenByLaneLimit);
+
+  if (hiddenBlocks.length === 0) {
+    return null;
+  }
+
+  const startMinute = Math.min(...clusterBlocks.map((block) => block.startMinute));
+  const endMinute = Math.max(...clusterBlocks.map((block) => block.endMinute));
+
+  return {
+    id: `day-overflow:${startMinute}:${endMinute}:${hiddenBlocks.map((block) => block.id).join("|")}`,
+    startMinute,
+    endMinute,
+    top: (startMinute / MINUTES_IN_DAY) * 100,
+    height: ((endMinute - startMinute) / MINUTES_IN_DAY) * 100,
+    hiddenBlocks,
+  } satisfies DayViewOverflowGroup;
+};
+
+const getOverlappingDayBlockLayout = (
+  blocks: DayViewBlock[],
+  maxLanes: number,
+): DayViewBlockLayout => {
+  const sortedBlocks = sortDayViewBlocks(blocks);
+  const visibleBlocks: PositionedDayViewBlock[] = [];
+  const overflowGroups: DayViewOverflowGroup[] = [];
+  let clusterBlocks: DayViewBlock[] = [];
+  let clusterEndMinute = 0;
+
+  const flushCluster = () => {
+    if (clusterBlocks.length === 0) {
+      return;
+    }
+
+    const positionedBlocks = getPositionedClusterBlocks(clusterBlocks, maxLanes);
+    const overflowGroup = getDayViewOverflowGroup(positionedBlocks);
+
+    visibleBlocks.push(
+      ...positionedBlocks.filter((block) => !block.isHiddenByLaneLimit),
+    );
+
+    if (overflowGroup) {
+      overflowGroups.push(overflowGroup);
+    }
+
+    clusterBlocks = [];
+    clusterEndMinute = 0;
+  };
+
+  sortedBlocks.forEach((block) => {
+    if (clusterBlocks.length === 0) {
+      clusterBlocks = [block];
+      clusterEndMinute = block.endMinute;
+      return;
+    }
+
+    const overlapsCluster = block.startMinute < clusterEndMinute ||
+      clusterBlocks.some((clusterBlock) => dayBlocksOverlap(block, clusterBlock));
+
+    if (!overlapsCluster) {
+      flushCluster();
+      clusterBlocks = [block];
+      clusterEndMinute = block.endMinute;
+      return;
+    }
+
+    clusterBlocks.push(block);
+    clusterEndMinute = Math.max(clusterEndMinute, block.endMinute);
+  });
+
+  flushCluster();
+
+  return {
+    visibleBlocks,
+    overflowGroups,
+  };
+};
+
+const getDayViewBlockStyle = (
+  block: PositionedDayViewBlock,
+): DayViewBlockStyle => {
   return {
     top: `${block.top}%`,
     height: `${block.height}%`,
-    left: `${8 + offset * 8}px`,
-    right: `${8 + (2 - offset) * 4}px`,
+    "--day-block-left": `calc(${block.leftPercent}% + ${DAY_LANE_GAP_PX / 2}px)`,
+    "--day-block-width": `calc(${block.widthPercent}% - ${DAY_LANE_GAP_PX}px)`,
   };
 };
 
@@ -864,6 +1023,12 @@ const getDayViewBlockPixelHeight = (block: DayViewBlock) =>
   ((block.endMinute - block.startMinute) / 15) * DAY_SLOT_HEIGHT;
 
 const getDayViewBlockTimeLabel = (block: DayViewBlock) => {
+  if (block.item.type === "checklist-item") {
+    const dueDate = parseCalendarDate(block.item.dueDate);
+
+    return dueDate ? formatGmt7Time(dueDate) : formatGmt7Time(block.endsAt);
+  }
+
   const startTime = formatGmt7Time(block.startsAt);
   const endTime = block.endMinute >= MINUTES_IN_DAY
     ? "24:00"
@@ -874,27 +1039,30 @@ const getDayViewBlockTimeLabel = (block: DayViewBlock) => {
 
 const getDayViewBlockContext = (block: DayViewBlock) =>
   block.item.type === "checklist-item"
-    ? block.item.cardTitle
+    ? block.item.checklistTitle
     : block.item.listTitle;
 
 const getDayViewBlockTooltip = (block: DayViewBlock) => {
   const { item } = block;
+  const checklistDueDate = item.type === "checklist-item"
+    ? parseCalendarDate(item.dueDate)
+    : null;
   const parts = item.type === "checklist-item"
     ? [
         item.title,
-        `Checklist: ${item.checklistTitle}`,
-        `Card: ${item.cardTitle}`,
-        `Due: ${formatGmt7DateTime(block.startsAt)} GMT+7`,
+        `Danh sách kiểm tra: ${item.checklistTitle}`,
+        `Thẻ: ${item.cardTitle}`,
+        `Hết hạn: ${formatGmt7DateTime(checklistDueDate ?? block.endsAt)} GMT+7`,
       ]
     : [
         item.title,
-        `List: ${item.listTitle}`,
-        item.startDate ? `Start: ${formatGmt7DateTime(parseCalendarDate(item.startDate) ?? block.startsAt)} GMT+7` : null,
-        item.dueDate ? `Due: ${formatGmt7DateTime(parseCalendarDate(item.dueDate) ?? block.endsAt)} GMT+7` : null,
+        `Danh sách: ${item.listTitle}`,
+        item.startDate ? `Bắt đầu: ${formatGmt7DateTime(parseCalendarDate(item.startDate) ?? block.startsAt)} GMT+7` : null,
+        item.dueDate ? `Hết hạn: ${formatGmt7DateTime(parseCalendarDate(item.dueDate) ?? block.endsAt)} GMT+7` : null,
       ];
 
   if (item.isCompleted) {
-    parts.push("Status: completed");
+    parts.push("Trạng thái: Hoàn thành");
   }
 
   return parts.filter((part): part is string => !!part).join("\n");
@@ -936,6 +1104,7 @@ export const BoardCalendarView = ({
   const [draggingBoardCardId, setDraggingBoardCardId] = useState<string | null>(null);
   const [dragOverDayKey, setDragOverDayKey] = useState<string | null>(null);
   const [resizingRange, setResizingRange] = useState<CalendarResizeState | null>(null);
+  const [openDayOverflowGroupId, setOpenDayOverflowGroupId] = useState<string | null>(null);
   const [createDialogDay, setCreateDialogDay] = useState<Date | null>(null);
   const [createTitle, setCreateTitle] = useState("");
   const [createTime, setCreateTime] = useState(DEFAULT_CREATE_TIME);
@@ -1138,6 +1307,14 @@ export const BoardCalendarView = ({
     () => getDayViewBlocks(items, anchorDate),
     [anchorDate, items],
   );
+  const desktopDayViewLayout = useMemo(
+    () => getOverlappingDayBlockLayout(dayViewBlocks, MAX_DAY_LANES),
+    [dayViewBlocks],
+  );
+  const mobileDayViewLayout = useMemo(
+    () => getOverlappingDayBlockLayout(dayViewBlocks, MAX_MOBILE_DAY_LANES),
+    [dayViewBlocks],
+  );
 
   useEffect(() => {
     let cancelled = false;
@@ -1152,6 +1329,19 @@ export const BoardCalendarView = ({
       cancelled = true;
     };
   }, [filters]);
+  useEffect(() => {
+    let cancelled = false;
+
+    queueMicrotask(() => {
+      if (!cancelled) {
+        setOpenDayOverflowGroupId(null);
+      }
+    });
+
+    return () => {
+      cancelled = true;
+    };
+  }, [dayViewBlocks]);
   useEffect(() => {
     const intervalId = window.setInterval(() => {
       setCurrentTime(new Date());
@@ -2801,19 +2991,23 @@ export const BoardCalendarView = ({
     );
   };
 
-  const renderDayViewBlock = (block: DayViewBlock, index: number) => {
+  const renderDayViewBlock = (
+    block: PositionedDayViewBlock,
+    className: string,
+    keySuffix: string,
+  ) => {
     const isChecklistItem = block.item.type === "checklist-item";
     const checklistItemId = block.item.type === "checklist-item"
       ? block.item.checklistItemId
       : undefined;
     const pixelHeight = getDayViewBlockPixelHeight(block);
-    const canShowContext = pixelHeight >= 36;
-    const canShowLabels = pixelHeight >= 44 && block.item.labels.length > 0;
+    const canShowContext = isChecklistItem || pixelHeight >= 36;
+    const canShowLabels = !isChecklistItem && pixelHeight >= 44 && block.item.labels.length > 0;
     const tooltip = getDayViewBlockTooltip(block);
 
     return (
       <Hint
-        key={block.id}
+        key={`${block.id}:${keySuffix}`}
         description={tooltip}
         side="top"
         sideOffset={4}
@@ -2821,7 +3015,10 @@ export const BoardCalendarView = ({
       >
         <button
           type="button"
-          style={getDayViewBlockStyle(block, index)}
+          style={{
+            ...getDayViewBlockStyle(block),
+            ...(isChecklistItem ? { zIndex: 20 } : {})
+          }}
           title={tooltip}
           onClick={(event) => openCalendarCard(
             block.item.cardId,
@@ -2829,15 +3026,17 @@ export const BoardCalendarView = ({
             checklistItemId ? { checklistItemId } : undefined,
           )}
           aria-label={isChecklistItem
-            ? `Open checklist item ${block.item.title}`
-            : `Open card ${block.item.title}`}
+            ? `Mở mục kiểm tra ${block.item.title}`
+            : `Mở thẻ ${block.item.title}`}
           className={cn(
             "group/day-block pointer-events-auto absolute z-10 min-w-0 overflow-hidden rounded-md border px-2 py-1 text-left shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300",
             "flex flex-col justify-start",
+            isChecklistItem ? "py-0.5 gap-y-0" : "gap-y-0.5",
             getDayViewBlockTone(block),
+            className,
           )}
         >
-          <span className="flex min-w-0 items-center gap-x-1.5 text-[10px] font-semibold leading-none">
+          <span className="flex min-w-0 w-full items-center gap-x-1 text-[10px] font-semibold leading-none">
             {isChecklistItem && !block.item.isCompleted && (
               <ListChecks className="h-3 w-3 shrink-0 opacity-80" />
             )}
@@ -2847,18 +3046,29 @@ export const BoardCalendarView = ({
             <span className="shrink-0 rounded bg-white/70 px-1 py-0.5 tabular-nums">
               {getDayViewBlockTimeLabel(block)}
             </span>
-            {isOverdue(block.item) && !block.item.isCompleted && (
-              <span className="hidden shrink-0 text-[10px] uppercase opacity-80 sm:inline">
-                Overdue
+            {isChecklistItem ? (
+              <span className="min-w-0 truncate text-[10px] font-semibold leading-none ml-0.5">
+                {block.item.title}
               </span>
+            ) : (
+              isOverdue(block.item) && !block.item.isCompleted && (
+                <span className="hidden shrink-0 text-[10px] uppercase opacity-80 sm:inline">
+                  Quá hạn
+                </span>
+              )
             )}
           </span>
-          <span className="mt-1 min-w-0 truncate text-xs font-semibold leading-tight">
-            {block.item.title}
-          </span>
+          {!isChecklistItem && (
+            <span className="mt-1 min-w-0 truncate text-xs font-semibold leading-tight">
+              {block.item.title}
+            </span>
+          )}
           {canShowContext && (
-            <span className="mt-0.5 min-w-0 truncate text-[11px] leading-tight opacity-75">
-              {getDayViewBlockContext(block)}
+            <span className={cn(
+              "min-w-0 truncate leading-none opacity-75",
+              isChecklistItem ? "text-[8.5px] text-neutral-500 mt-[1px]" : "text-[11px] mt-0.5"
+            )}>
+              {isChecklistItem ? `Checklist: ${getDayViewBlockContext(block)}` : getDayViewBlockContext(block)}
             </span>
           )}
           {canShowLabels && (
@@ -2875,6 +3085,103 @@ export const BoardCalendarView = ({
           )}
         </button>
       </Hint>
+    );
+  };
+
+  const renderDayOverflowItem = (block: PositionedDayViewBlock) => {
+    const isChecklistItem = block.item.type === "checklist-item";
+    const checklistItemId = block.item.type === "checklist-item"
+      ? block.item.checklistItemId
+      : undefined;
+
+    return (
+      <button
+        key={block.id}
+        type="button"
+        onClick={(event) => {
+          setOpenDayOverflowGroupId(null);
+          openCalendarCard(
+            block.item.cardId,
+            event,
+            checklistItemId ? { checklistItemId } : undefined,
+          );
+        }}
+        className="flex w-full min-w-0 items-start gap-x-2 rounded-md px-2 py-1.5 text-left transition hover:bg-neutral-100 focus-visible:bg-neutral-100 focus-visible:outline-none"
+      >
+        <span className={cn(
+          "mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full",
+          isChecklistItem ? "bg-amber-100 text-amber-700" : "bg-violet-100 text-violet-700",
+          block.item.isCompleted && "bg-emerald-100 text-emerald-700",
+        )}>
+          {block.item.isCompleted ? (
+            <CheckCircle2 className="h-3.5 w-3.5" />
+          ) : isChecklistItem ? (
+            <ListChecks className="h-3.5 w-3.5" />
+          ) : (
+            <Clock className="h-3.5 w-3.5" />
+          )}
+        </span>
+        <span className="min-w-0 flex-1">
+          <span className="block truncate text-xs font-semibold text-neutral-800">
+            {block.item.title}
+          </span>
+          <span className="mt-0.5 block truncate text-[11px] text-neutral-500">
+            {getDayViewBlockTimeLabel(block)} · {getDayViewBlockContext(block)}
+          </span>
+        </span>
+      </button>
+    );
+  };
+
+  const renderDayOverflowGroup = (
+    group: DayViewOverflowGroup,
+    className: string,
+    keySuffix: string,
+  ) => {
+    const instanceId = `${group.id}:${keySuffix}`;
+
+    return (
+      <Popover
+        key={instanceId}
+        open={openDayOverflowGroupId === instanceId}
+        onOpenChange={(open) =>
+          setOpenDayOverflowGroupId(open ? instanceId : null)
+        }
+      >
+        <PopoverTrigger asChild>
+          <button
+            type="button"
+            style={{
+              top: `${group.top}%`,
+            }}
+            className={cn(
+              "pointer-events-auto absolute right-2 z-20 rounded-full border border-neutral-200 bg-white/95 px-2 py-1 text-[11px] font-semibold text-neutral-700 shadow-sm transition hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300",
+              className,
+            )}
+            aria-label={`Xem thêm ${group.hiddenBlocks.length} mục bị chồng lịch`}
+          >
+            +{group.hiddenBlocks.length} mục
+          </button>
+        </PopoverTrigger>
+        <PopoverContent
+          side="left"
+          align="start"
+          sideOffset={8}
+          className="w-72 rounded-lg border-neutral-200 p-2 shadow-xl"
+        >
+          <div className="border-b border-neutral-100 px-2 pb-2">
+            <p className="text-xs font-semibold text-neutral-800">
+              Mục bị chồng lịch
+            </p>
+            <p className="mt-0.5 text-[11px] text-neutral-500">
+              {group.hiddenBlocks.length} mục chưa hiển thị trực tiếp
+            </p>
+          </div>
+          <div className="mt-2 max-h-64 overflow-y-auto">
+            {group.hiddenBlocks.map((block) => renderDayOverflowItem(block))}
+          </div>
+        </PopoverContent>
+      </Popover>
     );
   };
 
@@ -2903,13 +3210,14 @@ export const BoardCalendarView = ({
               <div
                 key={`time:${slot.label}`}
                 className={cn(
-                  "flex h-5 items-start justify-end border-r border-neutral-200 px-2 pt-0.5 text-[10px] font-medium tabular-nums text-neutral-400",
-                  slot.isHour && "border-t border-t-neutral-300 text-neutral-600",
-                  !slot.isHour && "border-t border-t-neutral-100",
+                  "flex h-5 items-start justify-end border-r border-neutral-200 px-2 text-[10px] font-medium tabular-nums",
+                  slot.isHour ? "text-neutral-600" : "text-neutral-400",
                 )}
                 style={{ height: DAY_SLOT_HEIGHT }}
               >
-                {slot.isHour ? slot.label : String(slot.minute).padStart(2, "0")}
+                <span className="-translate-y-1/2 block">
+                  {slot.isHour ? slot.label : String(slot.minute).padStart(2, "0")}
+                </span>
               </div>
             ))}
           </div>
@@ -2933,15 +3241,28 @@ export const BoardCalendarView = ({
 
             {!isSkeleton && dayViewBlocks.length > 0 && (
               <div className="pointer-events-none absolute inset-0">
-                {dayViewBlocks.map((block, index) =>
-                  renderDayViewBlock(block, index),
+                {desktopDayViewLayout.visibleBlocks.map((block) =>
+                  renderDayViewBlock(
+                    block,
+                    "hidden md:flex md:left-[var(--day-block-left)] md:w-[var(--day-block-width)]",
+                    "desktop",
+                  ),
+                )}
+                {desktopDayViewLayout.overflowGroups.map((group) =>
+                  renderDayOverflowGroup(group, "hidden md:block", "desktop"),
+                )}
+                {mobileDayViewLayout.visibleBlocks.map((block) =>
+                  renderDayViewBlock(block, "left-2 right-2 flex md:hidden", "mobile"),
+                )}
+                {mobileDayViewLayout.overflowGroups.map((group) =>
+                  renderDayOverflowGroup(group, "block md:hidden", "mobile"),
                 )}
               </div>
             )}
 
             {isCurrentGmt7Day && (
               <div
-                className="pointer-events-none absolute left-0 right-0 z-10 flex items-center"
+                className="pointer-events-none absolute left-0 right-0 z-30 flex items-center"
                 style={{ top: `${currentTimeTop}%` }}
                 aria-hidden="true"
               >
