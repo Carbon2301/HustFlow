@@ -161,3 +161,22 @@
   cursor: default !important;
 }
 
+/* Drag over day view slot highlight preview */
+[data-calendar-day-view-grid="true"][data-calendar-drag-over-slot="true"]::after {
+  content: "";
+  position: absolute;
+  left: 0;
+  right: 0;
+  z-index: 20;
+  margin-left: 0.25rem;
+  margin-right: 0.25rem;
+  border-radius: 0.375rem;
+  border: 1px solid #c084fc;
+  background-color: rgba(237, 233, 254, 0.55);
+  box-shadow: inset 0 0 0 1px rgba(139, 92, 246, 0.12);
+  height: 20px;
+  top: calc(var(--drag-over-slot-index) * 20px);
+  pointer-events: none;
+}
+
+

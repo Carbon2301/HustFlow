@@ -143,7 +143,7 @@ export const CardItem = ({
             className={cn(
               "group relative flex flex-col justify-between border border-transparent hover:border-violet-200 pb-2.5 px-3 text-sm bg-white rounded-lg shadow-sm hover:shadow transition-all duration-150 !cursor-pointer select-none overflow-hidden",
               data.labels && data.labels.length > 0 ? "pt-4.5" : "pt-2.5",
-              snapshot.isDragging && "shadow-md rotate-1 opacity-90 border-violet-300 z-[9999]",
+              snapshot.isDragging && "shadow-md rotate-1 opacity-90 border-violet-300 z-[9999] pointer-events-none",
               showMenu && "relative z-[100] ring-2 ring-violet-500 shadow-xl"
             )}
           >

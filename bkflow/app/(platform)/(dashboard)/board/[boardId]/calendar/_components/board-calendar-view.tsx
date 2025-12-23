@@ -91,6 +91,11 @@ import {
   unscheduledCardMatchesBoardFilters,
 } from "@/lib/board-filters";
 import {
+  DAY_VIEW_SLOT_HEIGHT,
+  getDayViewDropDate,
+  getDayViewSlotFromPointer,
+} from "@/lib/calendar-day-view";
+import {
   BOARD_CARD_CALENDAR_DRAG_MIME,
   type BoardCardCalendarDragPayload,
 } from "@/lib/calendar-dnd";
@@ -231,7 +236,6 @@ const RANGE_LANE_HEIGHT = 28;
 const RANGE_LANE_GAP = 4;
 const WEEK_VISIBLE_DESKTOP = 8;
 const WEEK_VISIBLE_MOBILE = 4;
-const DAY_SLOT_HEIGHT = 20;
 const DAY_LANE_GAP_PX = 4;
 const MAX_DAY_LANES = 4;
 const MAX_MOBILE_DAY_LANES = 1;
@@ -1020,7 +1024,7 @@ const getDayViewBlockStyle = (
 };
 
 const getDayViewBlockPixelHeight = (block: DayViewBlock) =>
-  ((block.endMinute - block.startMinute) / 15) * DAY_SLOT_HEIGHT;
+  ((block.endMinute - block.startMinute) / 15) * DAY_VIEW_SLOT_HEIGHT;
 
 const getDayViewBlockTimeLabel = (block: DayViewBlock) => {
   if (block.item.type === "checklist-item") {
@@ -1103,6 +1107,7 @@ export const BoardCalendarView = ({
   const [draggingUnscheduledCardId, setDraggingUnscheduledCardId] = useState<string | null>(null);
   const [draggingBoardCardId, setDraggingBoardCardId] = useState<string | null>(null);
   const [dragOverDayKey, setDragOverDayKey] = useState<string | null>(null);
+  const [dragOverDaySlotIndex, setDragOverDaySlotIndex] = useState<number | null>(null);
   const [resizingRange, setResizingRange] = useState<CalendarResizeState | null>(null);
   const [openDayOverflowGroupId, setOpenDayOverflowGroupId] = useState<string | null>(null);
   const [createDialogDay, setCreateDialogDay] = useState<Date | null>(null);
@@ -1446,6 +1451,7 @@ export const BoardCalendarView = ({
       setDraggingUnscheduledCardId(null);
       setDraggingBoardCardId(null);
       setDragOverDayKey(null);
+      setDragOverDaySlotIndex(null);
       resetRangeResize();
     },
   });
@@ -1694,6 +1700,7 @@ export const BoardCalendarView = ({
     setDraggingUnscheduledCardId(null);
     setDraggingBoardCardId(null);
     setDragOverDayKey(null);
+    setDragOverDaySlotIndex(null);
     window.setTimeout(() => {
       suppressClickRef.current = false;
     }, 0);
@@ -1976,6 +1983,24 @@ export const BoardCalendarView = ({
     });
   };
 
+  const scheduleUnscheduledCardAtDate = (
+    card: Pick<UnscheduledCardDragPayload, "cardId" | "isCompleted">,
+    startDate: Date,
+  ) => {
+    const dueDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+
+    updateSuccessToastRef.current = "ÄÃ£ lÃªn lá»‹ch tháº»";
+
+    executeUpdateCard({
+      id: card.cardId,
+      boardId,
+      startDate,
+      dueDate,
+      dueDateTimezoneOffset: -GMT7_OFFSET_MINUTES,
+      isCompleted: card.isCompleted,
+    });
+  };
+
   const scheduleBoardCard = (
     card: Pick<BoardCardCalendarDragPayload, "cardId" | "isCompleted">,
     targetDay: Date,
@@ -1989,6 +2014,24 @@ export const BoardCalendarView = ({
       boardId,
       dueDate,
       dueDateTimezoneOffset: getDateTimezoneOffset(dueDate),
+      isCompleted: card.isCompleted,
+    });
+  };
+
+  const scheduleBoardCardAtDate = (
+    card: Pick<BoardCardCalendarDragPayload, "cardId" | "isCompleted">,
+    startDate: Date,
+  ) => {
+    const dueDate = new Date(startDate.getTime() + 60 * 60 * 1000);
+
+    updateSuccessToastRef.current = "ÄÃ£ lÃªn lá»‹ch tháº»";
+
+    executeUpdateCard({
+      id: card.cardId,
+      boardId,
+      startDate,
+      dueDate,
+      dueDateTimezoneOffset: -GMT7_OFFSET_MINUTES,
       isCompleted: card.isCompleted,
     });
   };
@@ -2041,6 +2084,67 @@ export const BoardCalendarView = ({
     }
 
     updateOccurrenceDate(occurrence, day);
+  };
+
+  const handleDayViewDragOver = (event: DragEvent<HTMLDivElement>) => {
+    const dragTypes = Array.from(event.dataTransfer.types);
+    const hasBoardCardPayload =
+      dragTypes.includes(BOARD_CARD_CALENDAR_DRAG_MIME) ||
+      (
+        dragTypes.includes("application/json") &&
+        !draggingOccurrenceId &&
+        !draggingUnscheduledCardId
+      );
+
+    if (!draggingUnscheduledCardId && !hasBoardCardPayload) {
+      return;
+    }
+
+    event.preventDefault();
+    event.dataTransfer.dropEffect = "move";
+
+    const slotIndex = getDayViewSlotFromPointer(event, event.currentTarget);
+    setDragOverDayKey(getGmt7DayKey(anchorDate));
+    setDragOverDaySlotIndex(slotIndex);
+
+    if (hasBoardCardPayload) {
+      const fallbackId = event.dataTransfer.getData("text/plain");
+      setDraggingBoardCardId(fallbackId || "external");
+    }
+  };
+
+  const handleDayViewDragLeave = (event: DragEvent<HTMLDivElement>) => {
+    if (event.currentTarget.contains(event.relatedTarget as Node | null)) {
+      return;
+    }
+
+    setDragOverDaySlotIndex(null);
+  };
+
+  const handleDayViewDrop = (event: DragEvent<HTMLDivElement>) => {
+    event.preventDefault();
+    event.stopPropagation();
+    suppressClickRef.current = true;
+
+    const slotIndex = getDayViewSlotFromPointer(event, event.currentTarget);
+    const startDate = getDayViewDropDate(anchorDate, slotIndex);
+    const unscheduledCard = getDraggedUnscheduledCard(event);
+
+    if (unscheduledCard) {
+      scheduleUnscheduledCardAtDate(unscheduledCard, startDate);
+      return;
+    }
+
+    const boardCard = getDraggedBoardCard(event);
+
+    if (boardCard) {
+      scheduleBoardCardAtDate(boardCard, startDate);
+      return;
+    }
+
+    toast.error("KhÃ´ng thá»ƒ xÃ¡c Ä‘á»‹nh tháº» Ä‘ang kÃ©o.");
+    invalidateBoardCalendar();
+    resetCalendarDragState();
   };
 
   const getResizeTargetDayKey = (event: PointerEvent<HTMLElement>) => {
@@ -3213,7 +3317,7 @@ export const BoardCalendarView = ({
                   "flex h-5 items-start justify-end border-r border-neutral-200 px-2 text-[10px] font-medium tabular-nums",
                   slot.isHour ? "text-neutral-600" : "text-neutral-400",
                 )}
-                style={{ height: DAY_SLOT_HEIGHT }}
+                style={{ height: DAY_VIEW_SLOT_HEIGHT }}
               >
                 <span className="-translate-y-1/2 block">
                   {slot.isHour ? slot.label : String(slot.minute).padStart(2, "0")}
@@ -3222,7 +3326,15 @@ export const BoardCalendarView = ({
             ))}
           </div>
 
-          <div className="relative min-w-0">
+          <div
+            className="relative min-w-0"
+            data-calendar-day-key={anchorDayKey}
+            data-calendar-day-view-grid="true"
+            onDragOver={isSkeleton ? undefined : handleDayViewDragOver}
+            onDragEnter={isSkeleton ? undefined : handleDayViewDragOver}
+            onDragLeave={isSkeleton ? undefined : handleDayViewDragLeave}
+            onDrop={isSkeleton ? undefined : handleDayViewDrop}
+          >
             {DAY_TIME_SLOTS.map((slot) => (
               <div
                 key={`slot:${slot.label}`}
@@ -3230,7 +3342,7 @@ export const BoardCalendarView = ({
                   "h-5 border-t",
                   slot.isHour ? "border-neutral-300 bg-white" : "border-neutral-100 bg-white",
                 )}
-                style={{ height: DAY_SLOT_HEIGHT }}
+                style={{ height: DAY_VIEW_SLOT_HEIGHT }}
                 aria-label={`Khung giờ ${slot.label} GMT+7`}
               >
                 {isSkeleton && slot.index % 16 === 4 && (
@@ -3238,6 +3350,17 @@ export const BoardCalendarView = ({
                 )}
               </div>
             ))}
+
+            {!isSkeleton && dragOverDaySlotIndex !== null && (
+              <div
+                className="pointer-events-none absolute left-0 right-0 z-20 mx-1 rounded-md border border-violet-300 bg-violet-100/55 shadow-[inset_0_0_0_1px_rgba(139,92,246,0.12)]"
+                style={{
+                  top: dragOverDaySlotIndex * DAY_VIEW_SLOT_HEIGHT,
+                  height: DAY_VIEW_SLOT_HEIGHT,
+                }}
+                aria-hidden="true"
+              />
+            )}
 
             {!isSkeleton && dayViewBlocks.length > 0 && (
               <div className="pointer-events-none absolute inset-0">

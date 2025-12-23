@@ -20,6 +20,10 @@ import {
   getDateTimezoneOffset,
 } from "@/lib/date-utils";
 import {
+  getDayViewDropDate,
+  getDayViewSlotFromPointer,
+} from "@/lib/calendar-day-view";
+import {
   boardFiltersAreActive,
   cardMatchesBoardFilters,
 } from "@/lib/board-filters";
@@ -120,6 +124,16 @@ const getDestinationIndex = ({
   return actualCards.length;
 };
 
+const getGmt7AnchorDateFromDayKey = (dayKey: string) => {
+  const [year, month, day] = dayKey.split("-").map(Number);
+
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0) - 7 * 60 * 60 * 1000);
+};
+
 export const ListContainer = ({
   data,
   boardId,
@@ -182,9 +196,15 @@ export const ListContainer = ({
     }
 
     const clearHighlightedCalendarDay = () => {
-      highlightedCalendarDayRef.current?.classList.remove(
-        ...CALENDAR_DAY_DRAG_CLASSES,
-      );
+      if (highlightedCalendarDayRef.current) {
+        highlightedCalendarDayRef.current.classList.remove(
+          ...CALENDAR_DAY_DRAG_CLASSES,
+        );
+        delete highlightedCalendarDayRef.current.dataset.calendarDragOverSlot;
+        highlightedCalendarDayRef.current.style.removeProperty(
+          "--drag-over-slot-index",
+        );
+      }
       highlightedCalendarDayRef.current = null;
     };
 
@@ -199,7 +219,14 @@ export const ListContainer = ({
         .map((element) => element.closest<HTMLElement>("[data-calendar-day-key]"))
         .find(Boolean) ?? null;
 
+      const isDayViewGrid = dayElement?.dataset.calendarDayViewGrid === "true";
+
       if (highlightedCalendarDayRef.current === dayElement) {
+        if (dayElement && isDayViewGrid) {
+          const slotIndex = getDayViewSlotFromPointer({ clientY: y }, dayElement);
+          dayElement.dataset.calendarDragOverSlot = "true";
+          dayElement.style.setProperty("--drag-over-slot-index", String(slotIndex));
+        }
         return;
       }
 
@@ -208,6 +235,12 @@ export const ListContainer = ({
       if (dayElement) {
         dayElement.classList.add(...CALENDAR_DAY_DRAG_CLASSES);
         highlightedCalendarDayRef.current = dayElement;
+
+        if (isDayViewGrid) {
+          const slotIndex = getDayViewSlotFromPointer({ clientY: y }, dayElement);
+          dayElement.dataset.calendarDragOverSlot = "true";
+          dayElement.style.setProperty("--drag-over-slot-index", String(slotIndex));
+        }
       }
     };
 
@@ -691,7 +724,7 @@ export const ListContainer = ({
     filteredData.reduce((total, list) => total + list.cards.length, 0)
   ), [filteredData]);
 
-  const getCalendarDayUnderLastDragPoint = useCallback(() => {
+  const getCalendarDropDateUnderLastDragPoint = useCallback(() => {
     const point = lastDragPointRef.current;
 
     if (!point) {
@@ -699,6 +732,27 @@ export const ListContainer = ({
     }
 
     const elements = document.elementsFromPoint(point.x, point.y);
+    const dayViewGridElement = elements
+      .map((element) => element.closest<HTMLElement>("[data-calendar-day-view-grid]"))
+      .find(Boolean);
+    const dayViewDayKey = dayViewGridElement?.dataset.calendarDayKey;
+
+    if (dayViewGridElement && dayViewDayKey) {
+      const anchorDate = getGmt7AnchorDateFromDayKey(dayViewDayKey);
+
+      if (anchorDate) {
+        const slotIndex = getDayViewSlotFromPointer(
+          { clientY: point.y },
+          dayViewGridElement,
+        );
+
+        return {
+          date: getDayViewDropDate(anchorDate, slotIndex),
+          isDayViewSlot: true,
+        };
+      }
+    }
+
     const dayElement = elements
       .map((element) => element.closest<HTMLElement>("[data-calendar-day-key]"))
       .find(Boolean);
@@ -714,7 +768,10 @@ export const ListContainer = ({
       return null;
     }
 
-    return new Date(year, month - 1, day);
+    return {
+      date: new Date(year, month - 1, day),
+      isDayViewSlot: false,
+    };
   }, []);
 
   const scheduleDraggedCardOnCalendar = useCallback((cardId: string) => {
@@ -722,9 +779,9 @@ export const ListContainer = ({
       return false;
     }
 
-    const targetDay = getCalendarDayUnderLastDragPoint();
+    const targetDrop = getCalendarDropDateUnderLastDragPoint();
 
-    if (!targetDay) {
+    if (!targetDrop) {
       return false;
     }
 
@@ -738,13 +795,17 @@ export const ListContainer = ({
       return true;
     }
 
-    const dueDate = getDefaultCalendarDueDate(targetDay);
+    const startDate = targetDrop.isDayViewSlot ? targetDrop.date : undefined;
+    const dueDate = startDate
+      ? new Date(startDate.getTime() + 60 * 60 * 1000)
+      : getDefaultCalendarDueDate(targetDrop.date);
 
     executeScheduleCardDate({
       id: card.id,
       boardId,
+      ...(startDate ? { startDate } : {}),
       dueDate,
-      dueDateTimezoneOffset: getDateTimezoneOffset(dueDate),
+      dueDateTimezoneOffset: startDate ? -7 * 60 : getDateTimezoneOffset(dueDate),
       isCompleted: card.isCompleted,
     });
 
@@ -753,15 +814,21 @@ export const ListContainer = ({
     boardId,
     enableCalendarDragHandle,
     executeScheduleCardDate,
-    getCalendarDayUnderLastDragPoint,
+    getCalendarDropDateUnderLastDragPoint,
     invalidateBoardCalendar,
     orderedData,
   ]);
 
   const clearCalendarDropHighlight = useCallback(() => {
-    highlightedCalendarDayRef.current?.classList.remove(
-      ...CALENDAR_DAY_DRAG_CLASSES,
-    );
+    if (highlightedCalendarDayRef.current) {
+      highlightedCalendarDayRef.current.classList.remove(
+        ...CALENDAR_DAY_DRAG_CLASSES,
+      );
+      delete highlightedCalendarDayRef.current.dataset.calendarDragOverSlot;
+      highlightedCalendarDayRef.current.style.removeProperty(
+        "--drag-over-slot-index",
+      );
+    }
     highlightedCalendarDayRef.current = null;
     activeCalendarDragCardIdRef.current = null;
   }, []);
