@@ -188,6 +188,13 @@ type CalendarResizeState = {
   targetDayKey: string;
 };
 
+type DayViewResizeState = {
+  edge: CalendarResizeEdge;
+  pointerId: number;
+  block: PositionedDayViewBlock;
+  targetMinute: number;
+};
+
 type CalendarMarkerListStyle = CSSProperties & {
   "--pt-desktop"?: string;
 };
@@ -1033,9 +1040,6 @@ const getDayViewBlockStyle = (
   };
 };
 
-const getDayViewBlockPixelHeight = (block: DayViewBlock) =>
-  ((block.endMinute - block.startMinute) / 15) * DAY_VIEW_SLOT_HEIGHT;
-
 const getDayViewBlockTimeLabel = (block: DayViewBlock) => {
   if (block.item.type === "checklist-item") {
     const dueDate = parseCalendarDate(block.item.dueDate);
@@ -1130,7 +1134,9 @@ export const BoardCalendarView = ({
   const [draggingDayViewBlockId, setDraggingDayViewBlockId] = useState<string | null>(null);
   const [dragOverDayKey, setDragOverDayKey] = useState<string | null>(null);
   const [dragOverDaySlotIndex, setDragOverDaySlotIndex] = useState<number | null>(null);
+  const [dragOverDayMinute, setDragOverDayMinute] = useState<number | null>(null);
   const [resizingRange, setResizingRange] = useState<CalendarResizeState | null>(null);
+  const [resizingDayViewBlock, setResizingDayViewBlock] = useState<DayViewResizeState | null>(null);
   const [openDayOverflowGroupId, setOpenDayOverflowGroupId] = useState<string | null>(null);
   const [createDialogDay, setCreateDialogDay] = useState<Date | null>(null);
   const [createTitle, setCreateTitle] = useState("");
@@ -1475,6 +1481,7 @@ export const BoardCalendarView = ({
       updateSuccessToastRef.current = null;
       toast.error(error);
       invalidateBoardCalendar();
+      void query.refetch();
     },
     onComplete: () => {
       setDraggingOccurrenceId(null);
@@ -1483,7 +1490,9 @@ export const BoardCalendarView = ({
       setDraggingDayViewBlockId(null);
       setDragOverDayKey(null);
       setDragOverDaySlotIndex(null);
+      setDragOverDayMinute(null);
       resetRangeResize();
+      resetDayViewBlockResize();
     },
   });
 
@@ -1581,6 +1590,7 @@ export const BoardCalendarView = ({
       draggingBoardCardId ||
       draggingDayViewBlockId ||
       resizingRange ||
+      resizingDayViewBlock ||
       isUpdatingCardDate ||
       isUpdatingChecklistItemDueDate ||
       lists.length === 0
@@ -1638,7 +1648,7 @@ export const BoardCalendarView = ({
 
   const openCalendarCard = useCallback((
     cardId: string,
-    event?: MouseEvent<HTMLButtonElement>,
+    event?: MouseEvent<HTMLElement>,
     options?: { checklistItemId?: string },
   ) => {
     event?.stopPropagation();
@@ -1732,9 +1742,21 @@ export const BoardCalendarView = ({
     setDraggingUnscheduledCardId(null);
     setDraggingBoardCardId(null);
     setDraggingDayViewBlockId(null);
+    setResizingDayViewBlock(null);
     setDragOverDayKey(null);
     setDragOverDaySlotIndex(null);
+    setDragOverDayMinute(null);
     dayViewDragSlotOffsetRef.current = 0;
+    window.setTimeout(() => {
+      suppressClickRef.current = false;
+    }, 0);
+  };
+
+  const resetDayViewBlockResize = () => {
+    setResizingDayViewBlock(null);
+    setDragOverDayKey(null);
+    setDragOverDaySlotIndex(null);
+    setDragOverDayMinute(null);
     window.setTimeout(() => {
       suppressClickRef.current = false;
     }, 0);
@@ -2202,7 +2224,7 @@ export const BoardCalendarView = ({
   };
 
   const handleDayViewBlockDragStart = (
-    event: DragEvent<HTMLButtonElement>,
+    event: DragEvent<HTMLElement>,
     block: PositionedDayViewBlock,
   ) => {
     if (
@@ -2343,6 +2365,7 @@ export const BoardCalendarView = ({
     const slotIndex = getDayViewTargetSlotIndex(event, event.currentTarget);
     setDragOverDayKey(getGmt7DayKey(anchorDate));
     setDragOverDaySlotIndex(slotIndex);
+    setDragOverDayMinute(null);
 
     if (hasBoardCardPayload) {
       const fallbackId = event.dataTransfer.getData("text/plain");
@@ -2356,6 +2379,7 @@ export const BoardCalendarView = ({
     }
 
     setDragOverDaySlotIndex(null);
+    setDragOverDayMinute(null);
   };
 
   const handleDayViewDrop = (event: DragEvent<HTMLDivElement>) => {
@@ -2391,6 +2415,205 @@ export const BoardCalendarView = ({
     resetCalendarDragState();
   };
 
+  const getDayViewResizeMinute = (
+    event: PointerEvent<HTMLElement>,
+    handleElement: HTMLElement,
+  ) => {
+    const gridElement = handleElement.closest<HTMLElement>("[data-calendar-day-view-grid]");
+
+    if (!gridElement) {
+      return null;
+    }
+
+    const rect = gridElement.getBoundingClientRect();
+    const rawMinute =
+      ((event.clientY - rect.top) / DAY_VIEW_SLOT_HEIGHT) * 15;
+
+    return Math.min(
+      Math.max(Math.round(rawMinute), 0),
+      MINUTES_IN_DAY,
+    );
+  };
+
+  const getDayViewDateAtMinute = (minute: number) => {
+    const { start } = getGmt7DayBoundary(anchorDate);
+
+    return new Date(start.getTime() + minute * 60_000);
+  };
+
+  const handleDayViewBlockResizeStart = (
+    event: PointerEvent<HTMLSpanElement>,
+    block: PositionedDayViewBlock,
+    edge: CalendarResizeEdge,
+  ) => {
+    const canResize =
+      block.item.type === "card" &&
+      !!block.item.startDate &&
+      !!block.item.dueDate &&
+      !isUpdatingCardDate &&
+      !isUpdatingChecklistItemDueDate;
+
+    if (!canResize || event.pointerType === "touch") {
+      event.preventDefault();
+      event.stopPropagation();
+      return;
+    }
+
+    const targetMinute = getDayViewResizeMinute(event, event.currentTarget);
+
+    if (targetMinute === null) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    suppressClickRef.current = true;
+    setExpandedDayKey(null);
+    setDragOverDayKey(getGmt7DayKey(anchorDate));
+    setDragOverDaySlotIndex(null);
+    setDragOverDayMinute(targetMinute);
+    setResizingDayViewBlock({
+      edge,
+      pointerId: event.pointerId,
+      block,
+      targetMinute,
+    });
+  };
+
+  const handleDayViewBlockResizeMove = (
+    event: PointerEvent<HTMLSpanElement>,
+  ) => {
+    if (
+      !resizingDayViewBlock ||
+      resizingDayViewBlock.pointerId !== event.pointerId
+    ) {
+      return;
+    }
+
+    const targetMinute = getDayViewResizeMinute(event, event.currentTarget);
+
+    if (targetMinute === null) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+    setDragOverDayKey(getGmt7DayKey(anchorDate));
+    setDragOverDaySlotIndex(null);
+    setDragOverDayMinute(targetMinute);
+    setResizingDayViewBlock((value) => value
+      ? {
+        ...value,
+        targetMinute,
+      }
+      : value);
+  };
+
+  const failDayViewBlockResize = (message: string) => {
+    toast.error(message);
+    invalidateBoardCalendar();
+    void query.refetch();
+    resetDayViewBlockResize();
+  };
+
+  const commitDayViewBlockResize = (
+    block: PositionedDayViewBlock,
+    edge: CalendarResizeEdge,
+    targetMinute: number,
+  ) => {
+    if (!isCalendarCardItem(block.item)) {
+      failDayViewBlockResize("Checklist item chưa hỗ trợ resize trong Day View.");
+      return;
+    }
+
+    const currentStartDate = parseCalendarDate(block.item.startDate);
+    const currentDueDate = parseCalendarDate(block.item.dueDate);
+
+    if (!currentStartDate || !currentDueDate) {
+      failDayViewBlockResize("Chỉ thẻ có cả ngày bắt đầu và hết hạn mới resize được.");
+      return;
+    }
+
+    const targetDate = getDayViewDateAtMinute(targetMinute);
+
+    if (edge === "start") {
+      if (targetDate.getTime() === currentStartDate.getTime()) {
+        resetDayViewBlockResize();
+        return;
+      }
+
+      const nextDurationMs = currentDueDate.getTime() - targetDate.getTime();
+
+      if (targetDate.getTime() >= currentDueDate.getTime() || nextDurationMs < 15 * 60_000) {
+        failDayViewBlockResize("Khoảng thời gian tối thiểu là 15 phút.");
+        return;
+      }
+
+      updateSuccessToastRef.current = "Đã resize thẻ";
+      executeUpdateCard({
+        id: block.item.cardId,
+        boardId,
+        startDate: targetDate,
+        dueDateTimezoneOffset: -GMT7_OFFSET_MINUTES,
+      });
+      return;
+    }
+
+    if (targetDate.getTime() === currentDueDate.getTime()) {
+      resetDayViewBlockResize();
+      return;
+    }
+
+    const nextDurationMs = targetDate.getTime() - currentStartDate.getTime();
+
+    if (targetDate.getTime() <= currentStartDate.getTime() || nextDurationMs < 15 * 60_000) {
+      failDayViewBlockResize("Khoảng thời gian tối thiểu là 15 phút.");
+      return;
+    }
+
+    const reminderError = getReminderError(targetDate, block.item.reminder);
+
+    if (reminderError) {
+      failDayViewBlockResize(reminderError);
+      return;
+    }
+
+    updateSuccessToastRef.current = "Đã resize thẻ";
+    executeUpdateCard({
+      id: block.item.cardId,
+      boardId,
+      dueDate: targetDate,
+      dueDateTimezoneOffset: -GMT7_OFFSET_MINUTES,
+      isCompleted: block.item.isCompleted,
+      ...(block.item.reminder !== null ? { reminder: block.item.reminder } : {}),
+    });
+  };
+
+  const handleDayViewBlockResizeEnd = (
+    event: PointerEvent<HTMLSpanElement>,
+  ) => {
+    if (
+      !resizingDayViewBlock ||
+      resizingDayViewBlock.pointerId !== event.pointerId
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    commitDayViewBlockResize(
+      resizingDayViewBlock.block,
+      resizingDayViewBlock.edge,
+      resizingDayViewBlock.targetMinute,
+    );
+  };
+
   const getResizeTargetDayKey = (event: PointerEvent<HTMLElement>) => {
     const element = document.elementFromPoint(event.clientX, event.clientY);
     const dayElement = element?.closest<HTMLElement>("[data-calendar-day-key]");
@@ -2402,6 +2625,7 @@ export const BoardCalendarView = ({
     setResizingRange(null);
     setDragOverDayKey(null);
     setDragOverDaySlotIndex(null);
+    setDragOverDayMinute(null);
     window.setTimeout(() => {
       suppressClickRef.current = false;
     }, 0);
@@ -3349,12 +3573,9 @@ export const BoardCalendarView = ({
     const checklistItemId = block.item.type === "checklist-item"
       ? block.item.checklistItemId
       : undefined;
-    const pixelHeight = getDayViewBlockPixelHeight(block);
     const isSinglePointCard =
       block.item.type === "card" &&
       Boolean(block.item.startDate) !== Boolean(block.item.dueDate);
-    const canShowContext = isChecklistItem || (!isSinglePointCard && pixelHeight >= 36);
-    const canShowLabels = !isChecklistItem && pixelHeight >= 44 && block.item.labels.length > 0;
     const tooltip = getDayViewBlockTooltip(block);
     const canDragDayViewBlock =
       (
@@ -3369,6 +3590,40 @@ export const BoardCalendarView = ({
       ) &&
       !isUpdatingCardDate &&
       !isUpdatingChecklistItemDueDate;
+    const canResizeDayViewBlock =
+      block.item.type === "card" &&
+      !!block.item.startDate &&
+      !!block.item.dueDate &&
+      !isUpdatingCardDate &&
+      !isUpdatingChecklistItemDueDate;
+    const isResizingThisBlock = resizingDayViewBlock?.block.id === block.id;
+    const previewStartMinute =
+      isResizingThisBlock && resizingDayViewBlock?.edge === "start"
+        ? Math.min(resizingDayViewBlock.targetMinute, block.endMinute - 15)
+        : block.startMinute;
+    const previewEndMinute =
+      isResizingThisBlock && resizingDayViewBlock?.edge === "end"
+        ? Math.max(resizingDayViewBlock.targetMinute, block.startMinute + 15)
+        : block.endMinute;
+    const effectivePixelHeight =
+      ((previewEndMinute - previewStartMinute) / 15) * DAY_VIEW_SLOT_HEIGHT;
+    const isCompactBlock = effectivePixelHeight < 30;
+    const canShowTitleRow =
+      !isChecklistItem && !isSinglePointCard && !isCompactBlock;
+    const canShowContext = isChecklistItem
+      ? effectivePixelHeight >= 30
+      : !isSinglePointCard && effectivePixelHeight >= 44;
+    const canShowLabels =
+      !isChecklistItem &&
+      effectivePixelHeight >= 60 &&
+      block.item.labels.length > 0;
+    const blockStyle = isResizingThisBlock
+      ? {
+        ...getDayViewBlockStyle(block),
+        top: `${(previewStartMinute / MINUTES_IN_DAY) * 100}%`,
+        height: `${((previewEndMinute - previewStartMinute) / MINUTES_IN_DAY) * 100}%`,
+      }
+      : getDayViewBlockStyle(block);
 
     return (
       <Hint
@@ -3378,10 +3633,11 @@ export const BoardCalendarView = ({
         sideOffset={4}
         className="max-w-[300px]"
       >
-        <button
-          type="button"
+        <div
+          role="button"
+          tabIndex={0}
           style={{
-            ...getDayViewBlockStyle(block),
+            ...blockStyle,
             ...(isChecklistItem ? { zIndex: 20 } : {})
           }}
           title={tooltip}
@@ -3393,19 +3649,64 @@ export const BoardCalendarView = ({
           draggable={canDragDayViewBlock}
           onDragStart={(event) => handleDayViewBlockDragStart(event, block)}
           onDragEnd={handleDayViewBlockDragEnd}
+          onKeyDown={(event) => {
+            if (event.key !== "Enter" && event.key !== " ") {
+              return;
+            }
+
+            event.preventDefault();
+            openCalendarCard(
+              block.item.cardId,
+              undefined,
+              checklistItemId ? { checklistItemId } : undefined,
+            );
+          }}
           aria-label={isChecklistItem
             ? `Mở mục kiểm tra ${block.item.title}`
             : `Mở thẻ ${block.item.title}`}
           className={cn(
-            "group/day-block pointer-events-auto absolute z-10 min-w-0 overflow-hidden rounded-md border px-2 py-1 text-left shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300",
+            "group/day-block pointer-events-auto absolute z-10 min-w-0 overflow-hidden rounded-md border text-left shadow-sm transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300",
             "flex flex-col justify-start",
-            isChecklistItem ? "py-0.5 gap-y-0" : "gap-y-0.5",
+            isCompactBlock || isChecklistItem ? "gap-y-0 px-1.5 py-0.5" : "gap-y-0.5 px-2 py-1",
             canDragDayViewBlock && "cursor-grab active:cursor-grabbing",
             draggingDayViewBlockId === block.id && "opacity-60 ring-2 ring-violet-300",
+            isResizingThisBlock && "ring-2 ring-violet-300",
             getDayViewBlockTone(block),
             className,
           )}
         >
+          {canResizeDayViewBlock && (
+            <>
+              <span
+                role="separator"
+                aria-orientation="horizontal"
+                aria-label={`Resize bắt đầu thẻ ${block.item.title}`}
+                tabIndex={0}
+                draggable={false}
+                onClick={(event) => event.stopPropagation()}
+                onDragStart={(event) => event.preventDefault()}
+                onPointerDown={(event) => handleDayViewBlockResizeStart(event, block, "start")}
+                onPointerMove={handleDayViewBlockResizeMove}
+                onPointerUp={handleDayViewBlockResizeEnd}
+                onPointerCancel={resetDayViewBlockResize}
+                className="absolute left-0 right-0 top-0 z-20 hidden h-1 cursor-ns-resize bg-violet-500/0 transition hover:bg-violet-500/20 focus-visible:bg-violet-500/25 focus-visible:outline-none md:block md:opacity-0 md:group-hover/day-block:opacity-100 md:group-focus-within/day-block:opacity-100"
+              />
+              <span
+                role="separator"
+                aria-orientation="horizontal"
+                aria-label={`Resize kết thúc thẻ ${block.item.title}`}
+                tabIndex={0}
+                draggable={false}
+                onClick={(event) => event.stopPropagation()}
+                onDragStart={(event) => event.preventDefault()}
+                onPointerDown={(event) => handleDayViewBlockResizeStart(event, block, "end")}
+                onPointerMove={handleDayViewBlockResizeMove}
+                onPointerUp={handleDayViewBlockResizeEnd}
+                onPointerCancel={resetDayViewBlockResize}
+                className="absolute bottom-0 left-0 right-0 z-20 hidden h-1 cursor-ns-resize bg-violet-500/0 transition hover:bg-violet-500/20 focus-visible:bg-violet-500/25 focus-visible:outline-none md:block md:opacity-0 md:group-hover/day-block:opacity-100 md:group-focus-within/day-block:opacity-100"
+              />
+            </>
+          )}
           <span className="flex min-w-0 w-full items-center gap-x-1 text-[10px] font-semibold leading-none">
             {isChecklistItem && !block.item.isCompleted && (
               <ListChecks className="h-3 w-3 shrink-0 opacity-80" />
@@ -3420,7 +3721,7 @@ export const BoardCalendarView = ({
               <span className="min-w-0 truncate text-[10px] font-semibold leading-none ml-0.5">
                 {block.item.title}
               </span>
-            ) : isSinglePointCard ? (
+            ) : isSinglePointCard || isCompactBlock ? (
               <span className="min-w-0 truncate text-[10px] font-semibold leading-none ml-0.5">
                 {block.item.title}
               </span>
@@ -3432,7 +3733,7 @@ export const BoardCalendarView = ({
               )
             )}
           </span>
-          {!isChecklistItem && !isSinglePointCard && (
+          {canShowTitleRow && (
             <span className="mt-1 min-w-0 truncate text-xs font-semibold leading-tight">
               {block.item.title}
             </span>
@@ -3457,7 +3758,7 @@ export const BoardCalendarView = ({
               ))}
             </span>
           )}
-        </button>
+        </div>
       </Hint>
     );
   };
@@ -3627,6 +3928,17 @@ export const BoardCalendarView = ({
                 style={{
                   top: dragOverDaySlotIndex * DAY_VIEW_SLOT_HEIGHT,
                   height: DAY_VIEW_SLOT_HEIGHT,
+                }}
+                aria-hidden="true"
+              />
+            )}
+
+            {!isSkeleton && resizingDayViewBlock && dragOverDayMinute !== null && (
+              <div
+                className="pointer-events-none absolute left-0 right-0 z-20 mx-1 border-t border-violet-400 bg-violet-100/35"
+                style={{
+                  top: (dragOverDayMinute / 15) * DAY_VIEW_SLOT_HEIGHT,
+                  height: 2,
                 }}
                 aria-hidden="true"
               />
