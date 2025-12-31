@@ -44,7 +44,7 @@ import {
 } from "@/components/ui/popover";
 import { Hint } from "@/components/hint";
 import { LabelPopover } from "./label-popover";
-import { getColorName } from "@/lib/utils";
+import { cn, getColorName } from "@/lib/utils";
 import { ChecklistPopover } from "./checklist-popover";
 import { useBoardCalendarInvalidation } from "@/hooks/use-board-calendar-invalidation";
 
@@ -730,26 +730,24 @@ export const Metadata = ({
           </div>
         )}
 
-        {/* Column C: Ngày */}
-        {hasDateRange && (
-          <div className="flex flex-col gap-y-1.5">
-            <span className="text-xs font-semibold text-neutral-600 pl-0.5">
-              Ngày
-            </span>
-            <div className="flex items-center gap-x-2">
-              {hasDueDate && (
-                <Hint description={data.isCompleted ? "Đánh dấu chưa hoàn thành" : "Đánh dấu hoàn thành"} side="bottom">
-                  <input
-                    type="checkbox"
-                    checked={data.isCompleted}
-                    onChange={onToggleComplete}
-                    disabled={isLoadingUpdate}
-                    className="h-4.5 w-4.5 rounded-sm border-neutral-300 accent-violet-600 cursor-pointer shadow-xs"
-                    aria-label={data.isCompleted ? "Đánh dấu chưa hoàn thành" : "Đánh dấu hoàn thành"}
-                  />
-                </Hint>
-              )}
+        {/* Column C: Ngày / Trạng thái */}
+        <div className="flex flex-col gap-y-1.5">
+          <span className="text-xs font-semibold text-neutral-600 pl-0.5">
+            {hasDateRange ? "Ngày" : "Hoàn thành"}
+          </span>
+          <div className="flex items-center gap-x-2">
+            <Hint description={data.isCompleted ? "Đánh dấu chưa hoàn thành" : "Đánh dấu hoàn thành"} side="bottom">
+              <input
+                type="checkbox"
+                checked={data.isCompleted}
+                onChange={onToggleComplete}
+                disabled={isLoadingUpdate}
+                className="h-4.5 w-4.5 rounded-sm border-neutral-300 accent-violet-600 cursor-pointer shadow-xs"
+                aria-label={data.isCompleted ? "Đánh dấu chưa hoàn thành" : "Đánh dấu hoàn thành"}
+              />
+            </Hint>
 
+            {hasDateRange ? (
               <Popover open={isDateOpen} onOpenChange={setIsDateOpen}>
                 <PopoverTrigger asChild>
                   <button
@@ -887,9 +885,18 @@ export const Metadata = ({
                   </form>
                 </PopoverContent>
               </Popover>
-            </div>
+            ) : (
+              <span className={cn(
+                "text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider shadow-xs",
+                data.isCompleted
+                  ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
+                  : "bg-neutral-50 text-neutral-500 border border-neutral-200"
+              )}>
+                {data.isCompleted ? "Hoàn thành" : "Chưa hoàn thành"}
+              </span>
+            )}
           </div>
-        )}
+        </div>
       </div>
     </div>
   );

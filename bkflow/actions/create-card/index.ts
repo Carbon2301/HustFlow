@@ -22,7 +22,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     };
   }
 
-  const { title, boardId, listId, dueDate } = data;
+  const { title, boardId, listId, startDate, dueDate } = data;
   let card;
 
   try {
@@ -56,11 +56,22 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
     const newOrder = lastCard ? lastCard.order + 1 : 1;
 
+    if (
+      startDate &&
+      dueDate &&
+      dueDate.getTime() - startDate.getTime() < 15 * 60_000
+    ) {
+      return {
+        error: "Khoảng thời gian tối thiểu là 15 phút.",
+      };
+    }
+
     card = await db.card.create({
       data: {
         title,
         listId,
         order: newOrder,
+        ...(startDate !== undefined ? { startDate } : {}),
         ...(dueDate !== undefined ? { dueDate } : {}),
       },
     });

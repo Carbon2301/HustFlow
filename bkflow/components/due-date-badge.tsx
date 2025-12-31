@@ -52,13 +52,15 @@ export const DueDateBadge = ({
   const hasStart = !!startDate;
   const hasDue = !!dueDate;
 
-  const status = hasDue ? getDueDateStatus(dueDate, isCompleted) : "normal";
+  const status = isCompleted
+    ? "completed"
+    : (hasDue ? getDueDateStatus(dueDate, isCompleted) : "normal");
 
   let tooltipText = "";
-  if (hasDue) {
-    if (status === "completed") {
-      tooltipText = "Thẻ đã hoàn thành";
-    } else if (status === "overdue") {
+  if (isCompleted) {
+    tooltipText = "Thẻ đã hoàn thành";
+  } else if (hasDue) {
+    if (status === "overdue") {
       tooltipText = "Thẻ đã hết hạn";
     } else if (status === "warning") {
       tooltipText = "Thẻ sắp hết hạn";

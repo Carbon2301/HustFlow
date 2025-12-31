@@ -195,6 +195,12 @@ type DayViewResizeState = {
   targetMinute: number;
 };
 
+type DayViewCreateSelectionState = {
+  pointerId: number;
+  anchorMinute: number;
+  currentMinute: number;
+};
+
 type CalendarMarkerListStyle = CSSProperties & {
   "--pt-desktop"?: string;
 };
@@ -254,6 +260,8 @@ const DAY_LANE_GAP_PX = 4;
 const MAX_DAY_LANES = 4;
 const MAX_MOBILE_DAY_LANES = 1;
 const DAY_FLOATING_CARD_BLOCK_MINUTES = 30;
+const MIN_CREATE_DURATION_MINUTES = 15;
+const MIN_CREATE_DURATION_MS = MIN_CREATE_DURATION_MINUTES * 60_000;
 const DAY_TIME_SLOTS = Array.from({ length: 96 }, (_, index) => {
   const totalMinutes = index * 15;
   const hour = Math.floor(totalMinutes / 60);
@@ -330,6 +338,172 @@ const getGmt7DateFromParts = (
   Date.UTC(year, month, date, hours, minutes, seconds, milliseconds) -
     GMT7_OFFSET_MS,
 );
+
+const formatGmt7DateTimeInput = (date: Date) => {
+  const parts = getGmt7Parts(date);
+
+  return [
+    [
+      parts.year,
+      String(parts.month + 1).padStart(2, "0"),
+      String(parts.date).padStart(2, "0"),
+    ].join("-"),
+    [
+      String(parts.hours).padStart(2, "0"),
+      String(parts.minutes).padStart(2, "0"),
+    ].join(":"),
+  ].join("T");
+};
+
+const parseGmt7DateTimeInput = (value: string) => {
+  const match = /^(\d{4})-(\d{2})-(\d{2})T(\d{2}):(\d{2})$/.exec(value);
+
+  if (!match) {
+    return null;
+  }
+
+  const [, year, month, date, hours, minutes] = match;
+  const parsedDate = getGmt7DateFromParts(
+    Number(year),
+    Number(month) - 1,
+    Number(date),
+    Number(hours),
+    Number(minutes),
+  );
+
+  if (Number.isNaN(parsedDate.getTime())) {
+    return null;
+  }
+
+  return parsedDate;
+};
+
+const getDefaultCreateRangeForDay = (day: Date) => {
+  const parts = getGmt7Parts(day);
+  const startDate = getGmt7DateFromParts(
+    parts.year,
+    parts.month,
+    parts.date,
+    DEFAULT_CREATE_HOUR,
+  );
+
+  return {
+    startDate,
+    dueDate: new Date(startDate.getTime() + MIN_CREATE_DURATION_MS),
+  };
+};
+
+const getCreateRangeFromDayViewMinutes = (
+  anchorDate: Date,
+  anchorMinute: number,
+  currentMinute: number,
+) => {
+  if (anchorMinute === currentMinute) {
+    const startMinute = Math.min(
+      Math.floor(anchorMinute / MIN_CREATE_DURATION_MINUTES) *
+        MIN_CREATE_DURATION_MINUTES,
+      MINUTES_IN_DAY - MIN_CREATE_DURATION_MINUTES,
+    );
+    const endMinute = startMinute + MIN_CREATE_DURATION_MINUTES;
+    const { start } = getGmt7DayBoundary(anchorDate);
+
+    return {
+      startMinute,
+      endMinute,
+      startDate: new Date(start.getTime() + startMinute * 60_000),
+      dueDate: new Date(start.getTime() + endMinute * 60_000),
+    };
+  }
+
+  let startMinute = Math.min(anchorMinute, currentMinute);
+  let endMinute = Math.max(anchorMinute, currentMinute);
+
+  if (endMinute - startMinute < MIN_CREATE_DURATION_MINUTES) {
+    if (currentMinute < anchorMinute) {
+      startMinute = Math.max(0, endMinute - MIN_CREATE_DURATION_MINUTES);
+    } else {
+      endMinute = Math.min(
+        MINUTES_IN_DAY,
+        startMinute + MIN_CREATE_DURATION_MINUTES,
+      );
+    }
+  }
+
+  if (endMinute - startMinute < MIN_CREATE_DURATION_MINUTES) {
+    startMinute = Math.max(0, MINUTES_IN_DAY - MIN_CREATE_DURATION_MINUTES);
+    endMinute = MINUTES_IN_DAY;
+  }
+
+  const { start } = getGmt7DayBoundary(anchorDate);
+
+  return {
+    startMinute,
+    endMinute,
+    startDate: new Date(start.getTime() + startMinute * 60_000),
+    dueDate: new Date(start.getTime() + endMinute * 60_000),
+  };
+};
+
+const getRoundedCreateRangeFromDayViewMinutes = (
+  anchorDate: Date,
+  anchorMinute: number,
+  currentMinute: number,
+) => {
+  const rawStartMinute = Math.min(anchorMinute, currentMinute);
+  const rawEndMinute = Math.max(anchorMinute, currentMinute);
+  let startMinute =
+    Math.floor(rawStartMinute / MIN_CREATE_DURATION_MINUTES) *
+      MIN_CREATE_DURATION_MINUTES;
+  let endMinute =
+    Math.ceil(rawEndMinute / MIN_CREATE_DURATION_MINUTES) *
+      MIN_CREATE_DURATION_MINUTES;
+
+  startMinute = Math.min(
+    Math.max(startMinute, 0),
+    MINUTES_IN_DAY - MIN_CREATE_DURATION_MINUTES,
+  );
+  endMinute = Math.min(Math.max(endMinute, startMinute), MINUTES_IN_DAY);
+
+  if (endMinute - startMinute < MIN_CREATE_DURATION_MINUTES) {
+    endMinute = Math.min(
+      MINUTES_IN_DAY,
+      startMinute + MIN_CREATE_DURATION_MINUTES,
+    );
+  }
+
+  if (endMinute - startMinute < MIN_CREATE_DURATION_MINUTES) {
+    startMinute = Math.max(0, endMinute - MIN_CREATE_DURATION_MINUTES);
+  }
+
+  const { start } = getGmt7DayBoundary(anchorDate);
+
+  return {
+    startMinute,
+    endMinute,
+    startDate: new Date(start.getTime() + startMinute * 60_000),
+    dueDate: new Date(start.getTime() + endMinute * 60_000),
+  };
+};
+
+const roundDayViewStartMinute = (minute: number) =>
+  Math.min(
+    Math.max(
+      Math.floor(minute / MIN_CREATE_DURATION_MINUTES) *
+        MIN_CREATE_DURATION_MINUTES,
+      0,
+    ),
+    MINUTES_IN_DAY,
+  );
+
+const roundDayViewEndMinute = (minute: number) =>
+  Math.min(
+    Math.max(
+      Math.ceil(minute / MIN_CREATE_DURATION_MINUTES) *
+        MIN_CREATE_DURATION_MINUTES,
+      0,
+    ),
+    MINUTES_IN_DAY,
+  );
 
 const getDayGridRange = (anchorDate: Date) => {
   const { year, month, date } = getGmt7Parts(anchorDate);
@@ -1137,10 +1311,13 @@ export const BoardCalendarView = ({
   const [dragOverDayMinute, setDragOverDayMinute] = useState<number | null>(null);
   const [resizingRange, setResizingRange] = useState<CalendarResizeState | null>(null);
   const [resizingDayViewBlock, setResizingDayViewBlock] = useState<DayViewResizeState | null>(null);
+  const [dayViewCreateSelection, setDayViewCreateSelection] =
+    useState<DayViewCreateSelectionState | null>(null);
   const [openDayOverflowGroupId, setOpenDayOverflowGroupId] = useState<string | null>(null);
   const [createDialogDay, setCreateDialogDay] = useState<Date | null>(null);
   const [createTitle, setCreateTitle] = useState("");
-  const [createTime, setCreateTime] = useState(DEFAULT_CREATE_TIME);
+  const [createStartValue, setCreateStartValue] = useState("");
+  const [createDueValue, setCreateDueValue] = useState("");
   const [createListId, setCreateListId] = useState(() => lists[0]?.id ?? "");
   const [isUnscheduledCollapsed, setIsUnscheduledCollapsed] = useState(defaultUnscheduledCollapsed);
   const suppressClickRef = useRef(false);
@@ -1466,6 +1643,13 @@ export const BoardCalendarView = ({
   const selectedCreateDayLabel = createDialogDay
     ? format(createDialogDay, "EEEE, dd/MM/yyyy", { locale: vi })
     : "";
+  const dayViewCreatePreview = dayViewCreateSelection
+    ? getCreateRangeFromDayViewMinutes(
+      anchorDate,
+      dayViewCreateSelection.anchorMinute,
+      dayViewCreateSelection.currentMinute,
+    )
+    : null;
 
   const { execute: executeUpdateCard, isLoading: isUpdatingCardDate } = useAction(updateCard, {
     onSuccess: (data) => {
@@ -1529,7 +1713,10 @@ export const BoardCalendarView = ({
       toast.success(`Đã tạo thẻ "${data.title}"`);
       setCreateDialogDay(null);
       setCreateTitle("");
-      setCreateTime(DEFAULT_CREATE_TIME);
+      setCreateStartValue("");
+      setCreateDueValue("");
+      setDayViewCreateSelection(null);
+      suppressClickRef.current = false;
       invalidateBoardCalendar();
       queryClient.invalidateQueries({ queryKey: ["card", data.id] });
       router.refresh();
@@ -1537,7 +1724,14 @@ export const BoardCalendarView = ({
     },
     onError: (error) => {
       toast.error(error);
+      setCreateDialogDay(null);
+      setCreateTitle("");
+      setCreateStartValue("");
+      setCreateDueValue("");
+      setDayViewCreateSelection(null);
+      suppressClickRef.current = false;
       invalidateBoardCalendar();
+      void query.refetch();
     },
   });
 
@@ -1581,9 +1775,7 @@ export const BoardCalendarView = ({
     setViewMode(mode);
   };
 
-  const openCreateDialog = (day: Date, event: MouseEvent<HTMLButtonElement>) => {
-    event.stopPropagation();
-
+  const openCreateDialogWithRange = (startDate: Date, dueDate: Date) => {
     if (
       draggingOccurrenceId ||
       draggingUnscheduledCardId ||
@@ -1599,10 +1791,20 @@ export const BoardCalendarView = ({
     }
 
     setExpandedDayKey(null);
-    setCreateDialogDay(day);
+    setCreateDialogDay(startDate);
     setCreateTitle("");
-    setCreateTime(DEFAULT_CREATE_TIME);
-    setCreateListId((value) => value || lists[0]?.id || "");
+    setCreateStartValue(formatGmt7DateTimeInput(startDate));
+    setCreateDueValue(formatGmt7DateTimeInput(dueDate));
+    setCreateListId((value) =>
+      lists.some((list) => list.id === value) ? value : lists[0]?.id || "",
+    );
+  };
+
+  const openCreateDialog = (day: Date, event: MouseEvent<HTMLButtonElement>) => {
+    event.stopPropagation();
+    const range = getDefaultCreateRangeForDay(day);
+
+    openCreateDialogWithRange(range.startDate, range.dueDate);
   };
 
   const closeCreateDialog = (open: boolean) => {
@@ -1612,7 +1814,10 @@ export const BoardCalendarView = ({
 
     setCreateDialogDay(null);
     setCreateTitle("");
-    setCreateTime(DEFAULT_CREATE_TIME);
+    setCreateStartValue("");
+    setCreateDueValue("");
+    setDayViewCreateSelection(null);
+    suppressClickRef.current = false;
   };
 
   const submitCreateCard = () => {
@@ -1628,13 +1833,21 @@ export const BoardCalendarView = ({
       return;
     }
 
-    if (!createDialogDay) {
-      toast.error("Không xác định được ngày tạo thẻ.");
+    const startDate = parseGmt7DateTimeInput(createStartValue);
+    const dueDate = parseGmt7DateTimeInput(createDueValue);
+
+    if (!startDate || !dueDate) {
+      toast.error("Khoảng thời gian tạo thẻ không hợp lệ.");
       return;
     }
 
-    if (!TIME_INPUT_PATTERN.test(createTime)) {
-      toast.error("Giờ hết hạn không hợp lệ.");
+    if (dueDate.getTime() <= startDate.getTime()) {
+      toast.error("Ngày kết thúc phải sau ngày bắt đầu.");
+      return;
+    }
+
+    if (dueDate.getTime() - startDate.getTime() < MIN_CREATE_DURATION_MS) {
+      toast.error("Khoảng thời gian tối thiểu là 15 phút.");
       return;
     }
 
@@ -1642,7 +1855,8 @@ export const BoardCalendarView = ({
       title,
       boardId,
       listId: createListId,
-      dueDate: getDefaultDueDateForDay(createDialogDay, createTime),
+      startDate,
+      dueDate,
     });
   };
 
@@ -1743,6 +1957,7 @@ export const BoardCalendarView = ({
     setDraggingBoardCardId(null);
     setDraggingDayViewBlockId(null);
     setResizingDayViewBlock(null);
+    setDayViewCreateSelection(null);
     setDragOverDayKey(null);
     setDragOverDaySlotIndex(null);
     setDragOverDayMinute(null);
@@ -1754,6 +1969,7 @@ export const BoardCalendarView = ({
 
   const resetDayViewBlockResize = () => {
     setResizingDayViewBlock(null);
+    setDayViewCreateSelection(null);
     setDragOverDayKey(null);
     setDragOverDaySlotIndex(null);
     setDragOverDayMinute(null);
@@ -2415,6 +2631,143 @@ export const BoardCalendarView = ({
     resetCalendarDragState();
   };
 
+  const isDesktopDayViewCreatePointer = (event: PointerEvent<HTMLDivElement>) =>
+    event.pointerType !== "touch" &&
+    window.matchMedia("(min-width: 768px)").matches;
+
+  const isBlockedDayViewCreateTarget = (target: EventTarget | null) => {
+    if (!(target instanceof Element)) {
+      return true;
+    }
+
+    return !!target.closest(
+      [
+        "button",
+        "a",
+        "input",
+        "select",
+        "textarea",
+        "[role='button']",
+        "[data-calendar-day-view-block]",
+        "[data-calendar-day-view-resize-handle]",
+        "[data-calendar-day-view-overflow]",
+        "[data-calendar-current-time-indicator]",
+        "[data-rbd-draggable-id]",
+        "[draggable='true']",
+      ].join(","),
+    );
+  };
+
+  const getDayViewMinuteFromPointer = (
+    event: PointerEvent<HTMLDivElement>,
+    gridElement: HTMLDivElement,
+  ) => {
+    const rect = gridElement.getBoundingClientRect();
+    const rawMinute =
+      ((event.clientY - rect.top) / DAY_VIEW_SLOT_HEIGHT) * 15;
+
+    return Math.min(Math.max(Math.round(rawMinute), 0), MINUTES_IN_DAY);
+  };
+
+  const canStartDayViewCreateSelection = (
+    event: PointerEvent<HTMLDivElement>,
+  ) => (
+    isDesktopDayViewCreatePointer(event) &&
+    !isBlockedDayViewCreateTarget(event.target) &&
+    !draggingOccurrenceId &&
+    !draggingUnscheduledCardId &&
+    !draggingBoardCardId &&
+    !draggingDayViewBlockId &&
+    !resizingRange &&
+    !resizingDayViewBlock &&
+    !dayViewCreateSelection &&
+    !isUpdatingCardDate &&
+    !isUpdatingChecklistItemDueDate &&
+    !isCreatingCard &&
+    lists.length > 0
+  );
+
+  const handleDayViewCreatePointerDown = (
+    event: PointerEvent<HTMLDivElement>,
+  ) => {
+    if (!canStartDayViewCreateSelection(event)) {
+      return;
+    }
+
+    const minute = getDayViewMinuteFromPointer(event, event.currentTarget);
+
+    event.preventDefault();
+    event.stopPropagation();
+    event.currentTarget.setPointerCapture(event.pointerId);
+    suppressClickRef.current = true;
+    setExpandedDayKey(null);
+    setOpenDayOverflowGroupId(null);
+    setDayViewCreateSelection({
+      pointerId: event.pointerId,
+      anchorMinute: minute,
+      currentMinute: minute,
+    });
+  };
+
+  const handleDayViewCreatePointerMove = (
+    event: PointerEvent<HTMLDivElement>,
+  ) => {
+    if (
+      !dayViewCreateSelection ||
+      dayViewCreateSelection.pointerId !== event.pointerId
+    ) {
+      return;
+    }
+
+    const minute = getDayViewMinuteFromPointer(event, event.currentTarget);
+
+    event.preventDefault();
+    event.stopPropagation();
+    setDayViewCreateSelection((value) => value
+      ? {
+        ...value,
+        currentMinute: minute,
+      }
+      : value);
+  };
+
+  const resetDayViewCreateSelection = () => {
+    setDayViewCreateSelection(null);
+    window.setTimeout(() => {
+      suppressClickRef.current = false;
+    }, 0);
+  };
+
+  const handleDayViewCreatePointerEnd = (
+    event: PointerEvent<HTMLDivElement>,
+  ) => {
+    if (
+      !dayViewCreateSelection ||
+      dayViewCreateSelection.pointerId !== event.pointerId
+    ) {
+      return;
+    }
+
+    event.preventDefault();
+    event.stopPropagation();
+
+    if (event.currentTarget.hasPointerCapture(event.pointerId)) {
+      event.currentTarget.releasePointerCapture(event.pointerId);
+    }
+
+    const range = getRoundedCreateRangeFromDayViewMinutes(
+      anchorDate,
+      dayViewCreateSelection.anchorMinute,
+      dayViewCreateSelection.currentMinute,
+    );
+
+    setDayViewCreateSelection(null);
+    openCreateDialogWithRange(range.startDate, range.dueDate);
+    window.setTimeout(() => {
+      suppressClickRef.current = false;
+    }, 0);
+  };
+
   const getDayViewResizeMinute = (
     event: PointerEvent<HTMLElement>,
     handleElement: HTMLElement,
@@ -2535,9 +2888,10 @@ export const BoardCalendarView = ({
       return;
     }
 
-    const targetDate = getDayViewDateAtMinute(targetMinute);
-
     if (edge === "start") {
+      const roundedTargetMinute = roundDayViewStartMinute(targetMinute);
+      const targetDate = getDayViewDateAtMinute(roundedTargetMinute);
+
       if (targetDate.getTime() === currentStartDate.getTime()) {
         resetDayViewBlockResize();
         return;
@@ -2559,6 +2913,9 @@ export const BoardCalendarView = ({
       });
       return;
     }
+
+    const roundedTargetMinute = roundDayViewEndMinute(targetMinute);
+    const targetDate = getDayViewDateAtMinute(roundedTargetMinute);
 
     if (targetDate.getTime() === currentDueDate.getTime()) {
       resetDayViewBlockResize();
@@ -3636,6 +3993,7 @@ export const BoardCalendarView = ({
         <div
           role="button"
           tabIndex={0}
+          data-calendar-day-view-block="true"
           style={{
             ...blockStyle,
             ...(isChecklistItem ? { zIndex: 20 } : {})
@@ -3681,6 +4039,7 @@ export const BoardCalendarView = ({
                 role="separator"
                 aria-orientation="horizontal"
                 aria-label={`Resize bắt đầu thẻ ${block.item.title}`}
+                data-calendar-day-view-resize-handle="true"
                 tabIndex={0}
                 draggable={false}
                 onClick={(event) => event.stopPropagation()}
@@ -3695,6 +4054,7 @@ export const BoardCalendarView = ({
                 role="separator"
                 aria-orientation="horizontal"
                 aria-label={`Resize kết thúc thẻ ${block.item.title}`}
+                data-calendar-day-view-resize-handle="true"
                 tabIndex={0}
                 draggable={false}
                 onClick={(event) => event.stopPropagation()}
@@ -3826,6 +4186,7 @@ export const BoardCalendarView = ({
         <PopoverTrigger asChild>
           <button
             type="button"
+            data-calendar-day-view-overflow="true"
             style={{
               top: `${group.top}%`,
             }}
@@ -3901,6 +4262,10 @@ export const BoardCalendarView = ({
             className="relative min-w-0"
             data-calendar-day-key={anchorDayKey}
             data-calendar-day-view-grid="true"
+            onPointerDown={isSkeleton ? undefined : handleDayViewCreatePointerDown}
+            onPointerMove={isSkeleton ? undefined : handleDayViewCreatePointerMove}
+            onPointerUp={isSkeleton ? undefined : handleDayViewCreatePointerEnd}
+            onPointerCancel={isSkeleton ? undefined : resetDayViewCreateSelection}
             onDragOver={isSkeleton ? undefined : handleDayViewDragOver}
             onDragEnter={isSkeleton ? undefined : handleDayViewDragOver}
             onDragLeave={isSkeleton ? undefined : handleDayViewDragLeave}
@@ -3944,6 +4309,17 @@ export const BoardCalendarView = ({
               />
             )}
 
+            {!isSkeleton && dayViewCreatePreview && (
+              <div
+                className="pointer-events-none absolute left-1 right-1 z-20 rounded-md border border-violet-400 bg-violet-100/60 shadow-[inset_0_0_0_1px_rgba(139,92,246,0.16)]"
+                style={{
+                  top: `${(dayViewCreatePreview.startMinute / MINUTES_IN_DAY) * 100}%`,
+                  height: `${((dayViewCreatePreview.endMinute - dayViewCreatePreview.startMinute) / MINUTES_IN_DAY) * 100}%`,
+                }}
+                aria-hidden="true"
+              />
+            )}
+
             {!isSkeleton && dayViewBlocks.length > 0 && (
               <div className="pointer-events-none absolute inset-0">
                 {desktopDayViewLayout.visibleBlocks.map((block) =>
@@ -3967,6 +4343,7 @@ export const BoardCalendarView = ({
 
             {isCurrentGmt7Day && (
               <div
+                data-calendar-current-time-indicator="true"
                 className="pointer-events-none absolute left-0 right-0 z-30 flex items-center"
                 style={{ top: `${currentTimeTop}%` }}
                 aria-hidden="true"
@@ -4254,9 +4631,9 @@ export const BoardCalendarView = ({
     <Dialog open={!!createDialogDay} onOpenChange={closeCreateDialog}>
       <DialogContent className="max-w-md">
         <DialogHeader>
-          <DialogTitle>Thêm thẻ vào ngày {selectedCreateDayLabel}</DialogTitle>
+          <DialogTitle>Thêm thẻ vào {selectedCreateDayLabel}</DialogTitle>
           <DialogDescription>
-            Thẻ mới sẽ có hạn lúc {createTime || DEFAULT_CREATE_TIME} theo giờ địa phương.
+            Chọn danh sách và khoảng thời gian theo GMT+7.
           </DialogDescription>
         </DialogHeader>
 
@@ -4309,14 +4686,30 @@ export const BoardCalendarView = ({
           </div>
 
           <div className="space-y-1.5">
-            <label htmlFor="calendar-card-time" className="text-xs font-semibold text-neutral-600">
-              Giờ hết hạn
+            <label htmlFor="calendar-card-start" className="text-xs font-semibold text-neutral-600">
+              Bắt đầu
             </label>
             <input
-              id="calendar-card-time"
-              type="time"
-              value={createTime}
-              onChange={(event) => setCreateTime(event.target.value)}
+              id="calendar-card-start"
+              type="datetime-local"
+              step={60}
+              value={createStartValue}
+              onChange={(event) => setCreateStartValue(event.target.value)}
+              disabled={isCreatingCard}
+              className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-800 shadow-sm outline-none transition focus:border-violet-400 focus:ring-1 focus:ring-violet-200 disabled:cursor-not-allowed disabled:bg-neutral-50"
+            />
+          </div>
+
+          <div className="space-y-1.5">
+            <label htmlFor="calendar-card-due" className="text-xs font-semibold text-neutral-600">
+              Kết thúc
+            </label>
+            <input
+              id="calendar-card-due"
+              type="datetime-local"
+              step={60}
+              value={createDueValue}
+              onChange={(event) => setCreateDueValue(event.target.value)}
               disabled={isCreatingCard}
               className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-800 shadow-sm outline-none transition focus:border-violet-400 focus:ring-1 focus:ring-violet-200 disabled:cursor-not-allowed disabled:bg-neutral-50"
             />
