@@ -111,6 +111,7 @@ import type {
 interface BoardCalendarViewProps {
   boardId: string;
   lists: BoardCalendarList[];
+  currentUserId: string;
   currentBoardMemberId: string;
   defaultUnscheduledCollapsed?: boolean;
   variant?: "default" | "split";
@@ -153,7 +154,14 @@ type CalendarRangeSegment = {
 };
 
 type BoardCalendarRealtimePayload = {
+  eventId: string;
   boardId: string;
+  actorUserId: string;
+};
+
+type BoardCalendarAccessPayload = BoardCalendarRealtimePayload & {
+  orgId: string;
+  targetUserId?: string;
 };
 
 type CalendarOccurrenceDragPayload = {
@@ -258,7 +266,7 @@ const WEEK_VISIBLE_DESKTOP = 8;
 const WEEK_VISIBLE_MOBILE = 4;
 const DAY_LANE_GAP_PX = 4;
 const MAX_DAY_LANES = 4;
-const MAX_MOBILE_DAY_LANES = 1;
+const MAX_MOBILE_DAY_LANES = 3;
 const DAY_FLOATING_CARD_BLOCK_MINUTES = 30;
 const MIN_CREATE_DURATION_MINUTES = 15;
 const MIN_CREATE_DURATION_MS = MIN_CREATE_DURATION_MINUTES * 60_000;
@@ -1290,6 +1298,7 @@ const getDayViewBlockTone = (block: DayViewBlock) => {
 export const BoardCalendarView = ({
   boardId,
   lists,
+  currentUserId,
   currentBoardMemberId,
   defaultUnscheduledCollapsed = false,
   variant = "default",
@@ -1324,6 +1333,7 @@ export const BoardCalendarView = ({
   const updateSuccessToastRef = useRef<string | null>(null);
   const updatingChecklistItemCardIdRef = useRef<string | null>(null);
   const dayViewDragSlotOffsetRef = useRef(0);
+  const processedRealtimeEventIdsRef = useRef<Set<string>>(new Set());
   const filters = useBoardFilters((state) =>
     state.filtersByBoardId[boardId] ?? emptyBoardFilters,
   );
@@ -1353,13 +1363,65 @@ export const BoardCalendarView = ({
 
   const realtimeChannelName = realtimeChannels.board(boardId);
   const realtimeEnabled = isRealtimeClientConfigured();
-  const handleCalendarRealtime = useCallback((payload: BoardCalendarRealtimePayload) => {
+  const processRealtimeEvent = useCallback((
+    payload: BoardCalendarRealtimePayload,
+    options: { skipOwnEcho?: boolean } = {},
+  ) => {
     if (payload.boardId !== boardId) {
+      return false;
+    }
+
+    if (processedRealtimeEventIdsRef.current.has(payload.eventId)) {
+      return false;
+    }
+
+    processedRealtimeEventIdsRef.current.add(payload.eventId);
+
+    return options.skipOwnEcho === false || payload.actorUserId !== currentUserId;
+  }, [boardId, currentUserId]);
+  const handleCalendarRealtime = useCallback((payload: BoardCalendarRealtimePayload) => {
+    if (!processRealtimeEvent(payload)) {
       return;
     }
 
     invalidateBoardCalendar();
-  }, [boardId, invalidateBoardCalendar]);
+  }, [invalidateBoardCalendar, processRealtimeEvent]);
+  const handleCalendarRealtimeWithRefresh = useCallback((payload: BoardCalendarRealtimePayload) => {
+    if (!processRealtimeEvent(payload)) {
+      return;
+    }
+
+    invalidateBoardCalendar();
+    router.refresh();
+  }, [invalidateBoardCalendar, processRealtimeEvent, router]);
+  const handleBoardDeletedRealtime = useCallback((payload: BoardCalendarAccessPayload) => {
+    if (!processRealtimeEvent(payload)) {
+      return;
+    }
+
+    toast.error("Bảng này đã bị xóa.");
+    cardModal.onClose();
+    router.push(`/organization/${payload.orgId}`);
+  }, [cardModal, processRealtimeEvent, router]);
+  const handleAccessRevokedRealtime = useCallback((payload: BoardCalendarAccessPayload) => {
+    if (!processRealtimeEvent(payload, { skipOwnEcho: false })) {
+      return;
+    }
+
+    if (payload.targetUserId === currentUserId) {
+      toast.error("Bạn không còn quyền truy cập bảng này.");
+      cardModal.onClose();
+      router.push(`/organization/${payload.orgId}`);
+      return;
+    }
+
+    if (payload.actorUserId === currentUserId) {
+      return;
+    }
+
+    invalidateBoardCalendar();
+    router.refresh();
+  }, [cardModal, currentUserId, invalidateBoardCalendar, processRealtimeEvent, router]);
 
   useRealtimeChannel({
     channelName: realtimeChannelName,
@@ -1435,14 +1497,56 @@ export const BoardCalendarView = ({
   });
   useRealtimeChannel({
     channelName: realtimeChannelName,
+    event: REALTIME_EVENTS.BOARD_DELETED,
+    onEvent: handleBoardDeletedRealtime,
+    enabled: realtimeEnabled,
+  });
+  useRealtimeChannel({
+    channelName: realtimeChannelName,
+    event: REALTIME_EVENTS.BOARD_ACCESS_REVOKED,
+    onEvent: handleAccessRevokedRealtime,
+    enabled: realtimeEnabled,
+  });
+  useRealtimeChannel({
+    channelName: realtimeChannelName,
+    event: REALTIME_EVENTS.BOARD_MEMBER_ADDED,
+    onEvent: handleCalendarRealtimeWithRefresh,
+    enabled: realtimeEnabled,
+  });
+  useRealtimeChannel({
+    channelName: realtimeChannelName,
+    event: REALTIME_EVENTS.BOARD_MEMBER_REMOVED,
+    onEvent: handleAccessRevokedRealtime,
+    enabled: realtimeEnabled,
+  });
+  useRealtimeChannel({
+    channelName: realtimeChannelName,
+    event: REALTIME_EVENTS.BOARD_MEMBER_ROLE_UPDATED,
+    onEvent: handleCalendarRealtimeWithRefresh,
+    enabled: realtimeEnabled,
+  });
+  useRealtimeChannel({
+    channelName: realtimeChannelName,
+    event: REALTIME_EVENTS.LIST_CREATED,
+    onEvent: handleCalendarRealtimeWithRefresh,
+    enabled: realtimeEnabled,
+  });
+  useRealtimeChannel({
+    channelName: realtimeChannelName,
     event: REALTIME_EVENTS.LIST_UPDATED,
-    onEvent: handleCalendarRealtime,
+    onEvent: handleCalendarRealtimeWithRefresh,
     enabled: realtimeEnabled,
   });
   useRealtimeChannel({
     channelName: realtimeChannelName,
     event: REALTIME_EVENTS.LIST_DELETED,
-    onEvent: handleCalendarRealtime,
+    onEvent: handleCalendarRealtimeWithRefresh,
+    enabled: realtimeEnabled,
+  });
+  useRealtimeChannel({
+    channelName: realtimeChannelName,
+    event: REALTIME_EVENTS.LIST_REORDERED,
+    onEvent: handleCalendarRealtimeWithRefresh,
     enabled: realtimeEnabled,
   });
   useRealtimeChannel({
@@ -1490,6 +1594,18 @@ export const BoardCalendarView = ({
   useRealtimeChannel({
     channelName: realtimeChannelName,
     event: REALTIME_EVENTS.CHECKLIST_ITEM_DUE_DATE_UPDATED,
+    onEvent: handleCalendarRealtime,
+    enabled: realtimeEnabled,
+  });
+  useRealtimeChannel({
+    channelName: realtimeChannelName,
+    event: REALTIME_EVENTS.CHECKLIST_ITEM_REORDERED,
+    onEvent: handleCalendarRealtime,
+    enabled: realtimeEnabled,
+  });
+  useRealtimeChannel({
+    channelName: realtimeChannelName,
+    event: REALTIME_EVENTS.CHECKLIST_ITEM_MOVED,
     onEvent: handleCalendarRealtime,
     enabled: realtimeEnabled,
   });
@@ -4333,7 +4449,11 @@ export const BoardCalendarView = ({
                   renderDayOverflowGroup(group, "hidden md:block", "desktop"),
                 )}
                 {mobileDayViewLayout.visibleBlocks.map((block) =>
-                  renderDayViewBlock(block, "left-2 right-2 flex md:hidden", "mobile"),
+                  renderDayViewBlock(
+                    block,
+                    "flex md:hidden left-[var(--day-block-left)] w-[var(--day-block-width)]",
+                    "mobile",
+                  ),
                 )}
                 {mobileDayViewLayout.overflowGroups.map((group) =>
                   renderDayOverflowGroup(group, "block md:hidden", "mobile"),

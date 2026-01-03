@@ -51,6 +51,7 @@ const BoardCalendarPage = async ({
       <BoardCalendarView
         boardId={boardId}
         lists={lists}
+        currentUserId={userId}
         currentBoardMemberId={currentMembership.membership.id}
       />
     </div>
