@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { CalendarDays, Columns3, LayoutPanelLeft } from "lucide-react";
+import { BarChart3, CalendarDays, Columns3, LayoutPanelLeft } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -14,10 +14,12 @@ export const BoardViewSwitcher = ({ boardId }: BoardViewSwitcherProps) => {
   const pathname = usePathname();
   const calendarHref = `/board/${boardId}/calendar`;
   const splitHref = `/board/${boardId}/split`;
+  const analyticsHref = `/board/${boardId}/analytics`;
   const boardHref = `/board/${boardId}`;
   const isBoard = pathname === boardHref;
   const isCalendar = pathname === calendarHref;
   const isSplit = pathname === splitHref;
+  const isAnalytics = pathname === analyticsHref;
 
   const views = [
     {
@@ -38,6 +40,12 @@ export const BoardViewSwitcher = ({ boardId }: BoardViewSwitcherProps) => {
       icon: LayoutPanelLeft,
       active: isSplit,
     },
+    {
+      href: analyticsHref,
+      label: "Thống kê",
+      icon: BarChart3,
+      active: isAnalytics,
+    },
   ];
 
   return (
@@ -53,13 +61,14 @@ export const BoardViewSwitcher = ({ boardId }: BoardViewSwitcherProps) => {
             key={view.href}
             href={view.href}
             aria-current={view.active ? "page" : undefined}
+            title={view.label}
             className={cn(
-              "inline-flex h-7 min-w-7 items-center justify-center gap-x-1.5 rounded-md px-2 text-xs font-semibold text-white/75 transition hover:bg-white/15 hover:text-white",
+              "inline-flex h-7 min-w-7 items-center justify-center gap-x-1.5 rounded-md px-1.5 text-xs font-semibold text-white/75 transition hover:bg-white/15 hover:text-white lg:px-2",
               view.active && "bg-white text-neutral-800 shadow-sm hover:bg-white hover:text-neutral-900",
             )}
           >
             <Icon className="h-3.5 w-3.5 shrink-0" />
-            <span className="hidden sm:inline">{view.label}</span>
+            <span className="hidden lg:inline">{view.label}</span>
           </Link>
         );
       })}
