@@ -76,10 +76,8 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { useRealtimeChannel } from "@/hooks/use-realtime-channel";
 import { realtimeChannels } from "@/lib/realtime/channels";
 import { isRealtimeClientConfigured } from "@/lib/realtime/client";
-import { REALTIME_EVENTS } from "@/lib/realtime/events";
 import { useBoardCalendarInvalidation } from "@/hooks/use-board-calendar-invalidation";
 import { emptyBoardFilters, useBoardFilters } from "@/hooks/use-board-filters";
 import {
@@ -169,6 +167,7 @@ import {
   getRangeSegmentsForWeeks,
   getWeekRows,
 } from "./board-calendar/range-layout";
+import { BoardCalendarRealtimeSubscriptions } from "./board-calendar/realtime-subscriptions";
 import type {
   BoardCalendarAccessPayload,
   BoardCalendarRealtimePayload,
@@ -317,193 +316,7 @@ export const BoardCalendarView = ({
     router.refresh();
   }, [cardModal, currentUserId, invalidateBoardCalendar, processRealtimeEvent, router]);
 
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.CARD_CREATED,
-    onEvent: handleCalendarRealtime,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.CARD_UPDATED,
-    onEvent: handleCalendarRealtime,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.CARD_DELETED,
-    onEvent: handleCalendarRealtime,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.CARD_MOVED,
-    onEvent: handleCalendarRealtime,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.CARD_REORDERED,
-    onEvent: handleCalendarRealtime,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.CARD_COMMENT_COUNT_UPDATED,
-    onEvent: handleCalendarRealtime,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.CARD_MEMBER_ASSIGNED,
-    onEvent: handleCalendarRealtime,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.CARD_MEMBER_UNASSIGNED,
-    onEvent: handleCalendarRealtime,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.CARD_LABEL_ATTACHED,
-    onEvent: handleCalendarRealtime,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.CARD_LABEL_DETACHED,
-    onEvent: handleCalendarRealtime,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.LABEL_UPDATED,
-    onEvent: handleCalendarRealtime,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.LABEL_DELETED,
-    onEvent: handleCalendarRealtime,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.BOARD_DELETED,
-    onEvent: handleBoardDeletedRealtime,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.BOARD_ACCESS_REVOKED,
-    onEvent: handleAccessRevokedRealtime,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.BOARD_MEMBER_ADDED,
-    onEvent: handleCalendarRealtimeWithRefresh,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.BOARD_MEMBER_REMOVED,
-    onEvent: handleAccessRevokedRealtime,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.BOARD_MEMBER_ROLE_UPDATED,
-    onEvent: handleCalendarRealtimeWithRefresh,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.LIST_CREATED,
-    onEvent: handleCalendarRealtimeWithRefresh,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.LIST_UPDATED,
-    onEvent: handleCalendarRealtimeWithRefresh,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.LIST_DELETED,
-    onEvent: handleCalendarRealtimeWithRefresh,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.LIST_REORDERED,
-    onEvent: handleCalendarRealtimeWithRefresh,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.CHECKLIST_UPDATED,
-    onEvent: handleCalendarRealtime,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.CHECKLIST_DELETED,
-    onEvent: handleCalendarRealtime,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.CHECKLIST_ITEM_CREATED,
-    onEvent: handleCalendarRealtime,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.CHECKLIST_ITEM_UPDATED,
-    onEvent: handleCalendarRealtime,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.CHECKLIST_ITEM_DELETED,
-    onEvent: handleCalendarRealtime,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.CHECKLIST_ITEM_TOGGLED,
-    onEvent: handleCalendarRealtime,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.CHECKLIST_ITEM_ASSIGNEE_UPDATED,
-    onEvent: handleCalendarRealtime,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.CHECKLIST_ITEM_DUE_DATE_UPDATED,
-    onEvent: handleCalendarRealtime,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.CHECKLIST_ITEM_REORDERED,
-    onEvent: handleCalendarRealtime,
-    enabled: realtimeEnabled,
-  });
-  useRealtimeChannel({
-    channelName: realtimeChannelName,
-    event: REALTIME_EVENTS.CHECKLIST_ITEM_MOVED,
-    onEvent: handleCalendarRealtime,
-    enabled: realtimeEnabled,
-  });
-
+  // Calendar data derived from the API response and active board filters.
   const responseItems = query.data?.items;
   const unfilteredItems = useMemo(() => responseItems ?? [], [responseItems]);
   const unscheduledCards = useMemo(
@@ -577,6 +390,8 @@ export const BoardCalendarView = ({
 
     return () => window.clearInterval(intervalId);
   }, []);
+
+  // Lookup maps used by drag/drop, day expansion, and range rendering.
   const weekRows = useMemo(() => getWeekRows(days), [days]);
   const daysByKey = useMemo(() => {
     return days.reduce<Record<string, Date>>((acc, day) => {
@@ -3400,6 +3215,14 @@ export const BoardCalendarView = ({
 
   return (
     <>
+    <BoardCalendarRealtimeSubscriptions
+      channelName={realtimeChannelName}
+      enabled={realtimeEnabled}
+      onInvalidate={handleCalendarRealtime}
+      onRefresh={handleCalendarRealtimeWithRefresh}
+      onBoardDeleted={handleBoardDeletedRealtime}
+      onAccessRevoked={handleAccessRevokedRealtime}
+    />
     <div className="flex h-full min-h-0 flex-col gap-3 lg:flex-row">
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-white/20 bg-white/95 shadow-xl backdrop-blur">
       <div className="flex shrink-0 flex-col gap-3 border-b border-neutral-200 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">

@@ -1,7 +1,15 @@
 "use server";
 
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { ACTION, ENTITY_TYPE, NOTIFICATION_TYPE, Notification } from "@prisma/client";
+import {
+  ACTION,
+  ENTITY_TYPE,
+  NOTIFICATION_TYPE,
+  type BoardMember,
+  type CardAssignee,
+  type ChecklistItem,
+  type Notification,
+} from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 import { createSafeAction } from "@/lib/create-safe-action";
@@ -63,8 +71,8 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     }
 
     let cardMemberAdded = false;
-    let cardAssigneeAdded: any = null;
-    let item: any = null;
+    let cardAssigneeAdded: (CardAssignee & { boardMember: BoardMember }) | null = null;
+    let item: ChecklistItem & { assignee: BoardMember | null } = access.item;
     const createdNotifications: Notification[] = [];
 
     await db.$transaction(async (tx) => {
