@@ -46,6 +46,18 @@
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  --color-violet-50: #eff6ff;
+  --color-violet-100: #dbeafe;
+  --color-violet-200: #bfdbfe;
+  --color-violet-300: #93c5fd;
+  --color-violet-400: #60a5fa;
+  --color-violet-500: #3b82f6;
+  --color-violet-600: #2563eb;
+  --color-violet-700: #1d4ed8;
+  --color-violet-800: #1e40af;
+  --color-violet-900: #1e3a8a;
+  --color-violet-950: #172554;
 }
 
 :root {

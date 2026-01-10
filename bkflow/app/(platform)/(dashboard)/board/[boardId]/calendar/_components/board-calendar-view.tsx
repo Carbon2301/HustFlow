@@ -36,14 +36,10 @@ import {
   ChevronLeft,
   ChevronRight,
   ChevronUp,
-  Circle,
   Clock,
-  ExternalLink,
   ListChecks,
   MessageSquare,
-  MoreHorizontal,
   Plus,
-  UsersRound,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -96,7 +92,6 @@ import {
   type BoardCardCalendarDragPayload,
 } from "@/lib/calendar-dnd";
 import type {
-  BoardCalendarItem,
   BoardCalendarResponse,
   BoardCalendarUnscheduledCard,
 } from "@/types";
@@ -117,9 +112,10 @@ import {
   WEEK_VISIBLE_DESKTOP,
   WEEK_VISIBLE_MOBILE,
 } from "./board-calendar/constants";
+import { CalendarOccurrenceItem } from "./board-calendar/calendar-occurrence";
+import { CalendarRangeSegmentItem } from "./board-calendar/calendar-range-segment";
 import {
   copyDateToDay,
-  formatCalendarTime,
   formatDayTitle,
   formatGmt7DateTimeInput,
   getCreateRangeFromDayViewMinutes,
@@ -150,12 +146,6 @@ import {
   getOverlappingDayBlockLayout,
 } from "./board-calendar/day-view-layout";
 import {
-  getCalendarItemAssigneeCount,
-  getCalendarItemCommentCount,
-  getCalendarItemTitle,
-  getOccurrenceLabel,
-  getOccurrenceTimeLabel,
-  getOccurrenceTone,
   isCalendarCardItem,
   isCalendarChecklistItem,
   isOverdue,
@@ -167,6 +157,7 @@ import {
   getRangeSegmentsForWeeks,
   getWeekRows,
 } from "./board-calendar/range-layout";
+import { ExpandedOccurrence } from "./board-calendar/expanded-occurrence";
 import { BoardCalendarRealtimeSubscriptions } from "./board-calendar/realtime-subscriptions";
 import type {
   BoardCalendarAccessPayload,
@@ -696,6 +687,13 @@ export const BoardCalendarView = ({
     }
 
     setExpandedDayKey(null);
+    cardModal.onOpen(cardId, options);
+  }, [cardModal]);
+
+  const openCalendarCardDirect = useCallback((
+    cardId: string,
+    options?: { checklistItemId?: string },
+  ) => {
     cardModal.onOpen(cardId, options);
   }, [cardModal]);
 
@@ -1956,416 +1954,6 @@ export const BoardCalendarView = ({
     commitRangeResize(resizingRange.range, resizingRange.edge, targetDay);
   };
 
-  const renderQuickActionsMenu = (occurrence: CalendarOccurrence) => {
-    const isCardItem = isCalendarCardItem(occurrence.item);
-
-    if (!isCardItem) {
-      const checklistItem = occurrence.item as Extract<
-        BoardCalendarItem,
-        { type: "checklist-item" }
-      >;
-
-      return (
-        <Popover>
-          <PopoverTrigger asChild>
-            <button
-              type="button"
-              onClick={(event) => {
-                event.stopPropagation();
-              }}
-              onPointerDown={(event) => event.stopPropagation()}
-              onDragStart={(event) => event.preventDefault()}
-              aria-label={`Mở thao tác nhanh cho checklist item ${occurrence.item.title}`}
-              className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-neutral-500 opacity-100 transition hover:bg-white/70 hover:text-neutral-900 focus-visible:bg-white/70 focus-visible:text-neutral-900 sm:opacity-0 sm:group-hover/event:opacity-100 sm:group-focus-within/event:opacity-100"
-            >
-              <MoreHorizontal className="h-3.5 w-3.5" />
-            </button>
-          </PopoverTrigger>
-          <PopoverContent
-            align="end"
-            sideOffset={6}
-            className="w-56 gap-1 p-1.5"
-            onClick={(event) => event.stopPropagation()}
-            onPointerDown={(event) => event.stopPropagation()}
-          >
-            <button
-              type="button"
-              onClick={(event) => handleQuickActionClick(event, () => cardModal.onOpen(checklistItem.cardId, {
-                checklistItemId: checklistItem.checklistItemId,
-              }))}
-              className="flex h-8 w-full items-center gap-x-2 rounded-md px-2 text-left text-xs font-medium text-neutral-700 transition hover:bg-neutral-100"
-            >
-              <ExternalLink className="h-3.5 w-3.5 text-neutral-500" />
-              Mở thẻ
-            </button>
-          </PopoverContent>
-        </Popover>
-      );
-    }
-
-    return (
-    <Popover>
-      <PopoverTrigger asChild>
-        <button
-          type="button"
-          onClick={(event) => {
-            event.stopPropagation();
-          }}
-          onPointerDown={(event) => event.stopPropagation()}
-          onDragStart={(event) => event.preventDefault()}
-          disabled={isUpdatingCardDate}
-          aria-label={`Mở thao tác nhanh cho thẻ ${occurrence.item.title}`}
-          className="flex h-5 w-5 shrink-0 items-center justify-center rounded text-neutral-500 opacity-100 transition hover:bg-white/70 hover:text-neutral-900 focus-visible:bg-white/70 focus-visible:text-neutral-900 disabled:cursor-wait disabled:opacity-40 sm:opacity-0 sm:group-hover/event:opacity-100 sm:group-focus-within/event:opacity-100"
-        >
-          <MoreHorizontal className="h-3.5 w-3.5" />
-        </button>
-      </PopoverTrigger>
-      <PopoverContent
-        align="end"
-        sideOffset={6}
-        className="w-56 gap-1 p-1.5"
-        onClick={(event) => event.stopPropagation()}
-        onPointerDown={(event) => event.stopPropagation()}
-      >
-        <button
-          type="button"
-          disabled={isUpdatingCardDate}
-          onClick={(event) => handleQuickActionClick(event, () => cardModal.onOpen(occurrence.item.cardId))}
-          className="flex h-8 w-full items-center gap-x-2 rounded-md px-2 text-left text-xs font-medium text-neutral-700 transition hover:bg-neutral-100 disabled:cursor-wait disabled:opacity-50"
-        >
-          <ExternalLink className="h-3.5 w-3.5 text-neutral-500" />
-          Mở thẻ
-        </button>
-        <button
-          type="button"
-          disabled={isUpdatingCardDate}
-          onClick={(event) => handleQuickActionClick(event, () => toggleCalendarCardComplete(occurrence))}
-          className="flex h-8 w-full items-center gap-x-2 rounded-md px-2 text-left text-xs font-medium text-neutral-700 transition hover:bg-neutral-100 disabled:cursor-wait disabled:opacity-50"
-        >
-          {occurrence.item.isCompleted ? (
-            <Circle className="h-3.5 w-3.5 text-neutral-500" />
-          ) : (
-            <CheckCircle2 className="h-3.5 w-3.5 text-emerald-600" />
-          )}
-          {occurrence.item.isCompleted ? "Bỏ hoàn thành" : "Đánh dấu hoàn thành"}
-        </button>
-        {isCardItem && canClearStartDate(occurrence) && (
-          <button
-            type="button"
-            disabled={isUpdatingCardDate}
-            onClick={(event) => handleQuickActionClick(event, () => clearCalendarStartDate(occurrence))}
-            className="flex h-8 w-full items-center gap-x-2 rounded-md px-2 text-left text-xs font-medium text-neutral-700 transition hover:bg-neutral-100 disabled:cursor-wait disabled:opacity-50"
-          >
-            <CalendarX2 className="h-3.5 w-3.5 text-sky-600" />
-            Xóa ngày bắt đầu
-          </button>
-        )}
-        {isCardItem && canClearDueDate(occurrence) && (
-          <button
-            type="button"
-            disabled={isUpdatingCardDate}
-            onClick={(event) => handleQuickActionClick(event, () => clearCalendarDueDate(occurrence))}
-            className="flex h-8 w-full items-center gap-x-2 rounded-md px-2 text-left text-xs font-medium text-neutral-700 transition hover:bg-neutral-100 disabled:cursor-wait disabled:opacity-50"
-          >
-            <CalendarX2 className="h-3.5 w-3.5 text-violet-600" />
-            Xóa ngày hết hạn
-          </button>
-        )}
-      </PopoverContent>
-    </Popover>
-    );
-  };
-
-  const renderExpandedOccurrence = (occurrence: CalendarOccurrence) => (
-    <Hint key={`expanded:${occurrence.id}`} description={getCalendarItemTitle(occurrence.item)} side="top" sideOffset={4} className="max-w-[280px]">
-      <div
-        className="group/event flex min-w-0 items-start gap-x-2 rounded-lg border border-neutral-200 bg-neutral-50 p-2 text-left transition hover:border-violet-200 hover:bg-violet-50"
-      >
-        <button
-          type="button"
-          onClick={(event) => openCalendarCard(
-            occurrence.item.cardId,
-            event,
-            occurrence.item.type === "checklist-item"
-              ? { checklistItemId: occurrence.item.checklistItemId }
-              : undefined,
-          )}
-          aria-label={occurrence.item.type === "checklist-item"
-            ? `Mở mục checklist ${occurrence.item.title} trong thẻ ${occurrence.item.cardTitle}`
-            : `Mở thẻ ${occurrence.item.title}`}
-          title={occurrence.item.type === "checklist-item"
-            ? `Mở mục checklist ${occurrence.item.title} trong thẻ ${occurrence.item.cardTitle}`
-            : `Mở thẻ ${occurrence.item.title}`}
-          className="flex min-w-0 flex-1 items-start gap-x-2 text-left"
-        >
-          <div className={cn(
-            "mt-0.5 flex h-8 w-8 shrink-0 items-center justify-center rounded-lg border",
-            getOccurrenceTone(occurrence),
-          )}>
-            {occurrence.item.isCompleted ? (
-              <CheckCircle2 className="h-4 w-4" />
-            ) : (
-              <Clock className="h-4 w-4" />
-            )}
-          </div>
-          <div className="min-w-0 flex-1">
-            <p className="truncate text-sm font-semibold text-neutral-900">
-              {occurrence.item.title}
-            </p>
-            <div className="mt-1 flex flex-wrap items-center gap-x-3 gap-y-1 text-xs text-neutral-500">
-              {getOccurrenceLabel(occurrence) && (
-                <span>{getOccurrenceLabel(occurrence)}</span>
-              )}
-              {getOccurrenceTimeLabel(occurrence) && (
-                <span>{getOccurrenceTimeLabel(occurrence)}</span>
-              )}
-              <span className="truncate">{occurrence.item.listTitle}</span>
-              {getCalendarItemAssigneeCount(occurrence.item) > 0 && (
-                <span className="inline-flex items-center gap-x-1">
-                  <UsersRound className="h-3.5 w-3.5" />
-                  {getCalendarItemAssigneeCount(occurrence.item)}
-                </span>
-              )}
-              {getCalendarItemCommentCount(occurrence.item) > 0 && (
-                <span className="inline-flex items-center gap-x-1">
-                  <MessageSquare className="h-3.5 w-3.5" />
-                  {getCalendarItemCommentCount(occurrence.item)}
-                </span>
-              )}
-            </div>
-          </div>
-        </button>
-        {renderQuickActionsMenu(occurrence)}
-      </div>
-    </Hint>
-  );
-
-  const renderOccurrence = (
-    occurrence: CalendarOccurrence,
-    className?: string,
-  ) => {
-    const timeLabel = getOccurrenceTimeLabel(occurrence);
-    const occurrenceLabel = variant === "split" ? null : getOccurrenceLabel(occurrence);
-    const cardItem = isCalendarCardItem(occurrence.item) ? occurrence.item : null;
-    const isChecklistItem = isCalendarChecklistItem(occurrence.item);
-    const canDragOccurrence =
-      occurrence.kind !== "range" &&
-      (!!cardItem || isChecklistItem) &&
-      !isUpdatingCardDate &&
-      !isUpdatingChecklistItemDueDate;
-
-    return (
-      <Hint
-        key={occurrence.id}
-        description={getCalendarItemTitle(occurrence.item)}
-        side="top"
-        sideOffset={4}
-        className="max-w-[280px]"
-      >
-        <div
-          draggable={canDragOccurrence}
-          onDragStart={(event) => handleOccurrenceDragStart(event, occurrence)}
-          onDragEnd={handleOccurrenceDragEnd}
-          className={cn(
-            "group/event flex h-7 w-full min-w-0 items-center gap-x-1 overflow-hidden rounded-md border px-1.5 text-left text-[11px] font-medium leading-none transition",
-            occurrence.kind === "range" || (!cardItem && !isChecklistItem)
-              ? "cursor-default"
-              : "cursor-grab active:cursor-grabbing",
-            getOccurrenceTone(occurrence),
-            draggingOccurrenceId === occurrence.id && "opacity-60 ring-2 ring-violet-300",
-            (isUpdatingCardDate || isUpdatingChecklistItemDueDate) && "cursor-wait opacity-70",
-            className,
-          )}
-        >
-          <button
-            type="button"
-            onClick={(event) => openCalendarCard(
-              occurrence.item.cardId,
-              event,
-              occurrence.item.type === "checklist-item"
-                ? { checklistItemId: occurrence.item.checklistItemId }
-                : undefined,
-            )}
-            aria-label={occurrence.item.type === "checklist-item"
-              ? `Mở mục checklist ${occurrence.item.title} trong thẻ ${occurrence.item.cardTitle}`
-              : `Mở thẻ ${occurrence.item.title}`}
-            title={occurrence.item.type === "checklist-item"
-              ? `Mở mục checklist ${occurrence.item.title} trong thẻ ${occurrence.item.cardTitle}`
-              : `Mở thẻ ${occurrence.item.title}`}
-            className="flex h-full min-w-0 flex-1 items-center gap-x-1 overflow-hidden text-left"
-          >
-            {cardItem?.labels[0] && (
-              <span
-                className="h-2 w-2 shrink-0 rounded-full"
-                style={{ backgroundColor: cardItem.labels[0].color }}
-              />
-            )}
-            {!cardItem && !occurrence.item.isCompleted && (
-              <ListChecks className="h-3 w-3 shrink-0 opacity-80" />
-            )}
-            {occurrence.item.isCompleted && (
-              <CheckCircle2 className="h-3 w-3 shrink-0 opacity-80" />
-            )}
-            {timeLabel && (
-              <span className="shrink-0 rounded bg-white/70 px-1 py-0.5 text-[10px] font-semibold tabular-nums opacity-90">
-                {timeLabel}
-              </span>
-            )}
-            {occurrenceLabel && (
-              <span className="hidden shrink-0 text-[10px] font-semibold uppercase tracking-wide opacity-70 md:inline">
-                {occurrenceLabel}
-              </span>
-            )}
-            <span className="truncate">{occurrence.item.title}</span>
-          </button>
-          {variant !== "split" && renderQuickActionsMenu(occurrence)}
-        </div>
-      </Hint>
-    );
-  };
-
-  const renderRangeSegment = (
-    segment: CalendarRangeSegment,
-    maxLanes: number,
-    mode: ViewMode,
-  ) => {
-    const isHidden = segment.lane >= maxLanes;
-
-    if (isHidden) {
-      return null;
-    }
-
-    const occurrence: CalendarOccurrence = {
-      id: segment.id,
-      kind: "range",
-      date: segment.range.startDate,
-      item: segment.range.item,
-    };
-    const leftPercent = (segment.startIndex / 7) * 100;
-    const widthPercent = ((segment.endIndex - segment.startIndex + 1) / 7) * 100;
-    const style: CSSProperties = {
-      left: `${leftPercent}%`,
-      width: `${widthPercent}%`,
-      top: 36 + segment.lane * (RANGE_LANE_HEIGHT + RANGE_LANE_GAP),
-    };
-    const isResizingThisRange = resizingRange?.range.id === segment.range.id;
-    const startDate = parseCalendarDate(segment.range.item.startDate);
-    const dueDate = parseCalendarDate(segment.range.item.dueDate);
-    const startTimeLabel = (segment.isRangeStart && startDate) ? formatCalendarTime(startDate) : null;
-    const endTimeLabel = (segment.isRangeEnd && dueDate) ? formatCalendarTime(dueDate) : null;
-
-    return (
-      <Hint
-        key={segment.id}
-        description={getCalendarItemTitle(segment.range.item)}
-        side="top"
-        sideOffset={4}
-        className="max-w-[280px]"
-      >
-        <div
-          style={style}
-          className={cn(
-            "group/event absolute z-10 h-7 min-w-0 px-0.5",
-            mode === "week" && "hidden md:block",
-            (resizingRange || draggingOccurrenceId || draggingUnscheduledCardId || draggingBoardCardId || draggingDayViewBlockId) && "pointer-events-none",
-          )}
-        >
-          <div
-            className={cn(
-              "relative flex h-full min-w-0 items-center gap-x-1 overflow-hidden border text-left text-[11px] font-medium leading-none shadow-sm transition",
-              getOccurrenceTone(occurrence),
-              segment.isRangeStart ? "rounded-l-md pl-3" : "rounded-l-none border-l-0 pl-1.5",
-              segment.isRangeEnd ? "rounded-r-md pr-3" : "rounded-r-none border-r-0 pr-1.5",
-              isResizingThisRange && "opacity-80 ring-2 ring-violet-300",
-              isUpdatingCardDate && "cursor-wait opacity-70",
-            )}
-          >
-            {segment.isRangeStart && (
-              <Hint description="Đổi ngày bắt đầu" side="top">
-                <button
-                  type="button"
-                  aria-label="Đổi ngày bắt đầu"
-                  disabled={isUpdatingCardDate}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                  }}
-                  onPointerDown={(event) => handleRangeResizeStart(event, segment.range, "start")}
-                  onPointerMove={handleRangeResizeMove}
-                  onPointerUp={handleRangeResizeEnd}
-                  onPointerCancel={resetRangeResize}
-                  className="absolute left-0 top-0 bottom-0 w-2.5 flex items-center justify-center cursor-ew-resize rounded-l-md hover:bg-neutral-500/10 active:bg-neutral-500/20 transition-colors focus-visible:outline-none disabled:cursor-wait md:flex hidden pointer-events-auto"
-                >
-                  <div className="flex gap-[1px]">
-                    <div className="h-3 w-[1px] bg-neutral-600/60 rounded-full" />
-                    <div className="h-3 w-[1px] bg-neutral-600/60 rounded-full" />
-                  </div>
-                </button>
-              </Hint>
-            )}
-            <button
-              type="button"
-              onClick={(event) => openCalendarCard(segment.range.item.cardId, event)}
-              aria-label={`Mở thẻ ${segment.range.item.title}`}
-              className="flex h-full min-w-0 flex-1 items-center gap-x-1 overflow-hidden text-left"
-            >
-              {segment.range.item.labels[0] && (
-                <span
-                  className="h-2 w-2 shrink-0 rounded-full"
-                  style={{ backgroundColor: segment.range.item.labels[0].color }}
-                />
-              )}
-              {!segment.isRangeStart && (
-                <span className="shrink-0 text-[10px] font-semibold opacity-70">↤</span>
-              )}
-              {startTimeLabel && (
-                <span className="shrink-0 rounded bg-white/70 px-1 py-0.5 text-[10px] font-semibold tabular-nums opacity-90">
-                  {startTimeLabel}
-                </span>
-              )}
-              {segment.range.item.isCompleted && (
-                <CheckCircle2 className="h-3 w-3 shrink-0 opacity-80" />
-              )}
-              <span className="truncate">{segment.range.item.title}</span>
-              {endTimeLabel && (
-                <span className="ml-auto shrink-0 rounded bg-white/70 px-1 py-0.5 text-[10px] font-semibold tabular-nums opacity-90">
-                  {endTimeLabel}
-                </span>
-              )}
-              {!segment.isRangeEnd && (
-                <span className="shrink-0 text-[10px] font-semibold opacity-70">↦</span>
-              )}
-            </button>
-            {variant !== "split" && renderQuickActionsMenu(occurrence)}
-            {segment.isRangeEnd && (
-              <Hint description="Đổi ngày hết hạn" side="top">
-                <button
-                  type="button"
-                  aria-label="Đổi ngày hết hạn"
-                  disabled={isUpdatingCardDate}
-                  onClick={(event) => {
-                    event.preventDefault();
-                    event.stopPropagation();
-                  }}
-                  onPointerDown={(event) => handleRangeResizeStart(event, segment.range, "end")}
-                  onPointerMove={handleRangeResizeMove}
-                  onPointerUp={handleRangeResizeEnd}
-                  onPointerCancel={resetRangeResize}
-                  className="absolute right-0 top-0 bottom-0 w-2.5 flex items-center justify-center cursor-ew-resize rounded-r-md hover:bg-neutral-500/10 active:bg-neutral-500/20 transition-colors focus-visible:outline-none disabled:cursor-wait md:flex hidden pointer-events-auto"
-                >
-                  <div className="flex gap-[1px]">
-                    <div className="h-3 w-[1px] bg-neutral-600/60 rounded-full" />
-                    <div className="h-3 w-[1px] bg-neutral-600/60 rounded-full" />
-                  </div>
-                </button>
-              </Hint>
-            )}
-          </div>
-        </div>
-      </Hint>
-    );
-  };
-
   const renderRangeOverflows = (
     weekDays: Date[],
     segments: CalendarRangeSegment[],
@@ -2512,13 +2100,46 @@ export const BoardCalendarView = ({
           )}
         >
           {viewMode === "week" && dayRangeOccurrences.map((occurrence) =>
-            renderOccurrence(occurrence, "md:hidden"),
+            <CalendarOccurrenceItem
+              key={occurrence.id}
+              occurrence={occurrence}
+              variant={variant}
+              className="md:hidden"
+              draggingOccurrenceId={draggingOccurrenceId}
+              isUpdatingCardDate={isUpdatingCardDate}
+              isUpdatingChecklistItemDueDate={isUpdatingChecklistItemDueDate}
+              canClearStartDate={canClearStartDate}
+              canClearDueDate={canClearDueDate}
+              onOpenCard={openCalendarCard}
+              onOpenCardDirect={openCalendarCardDirect}
+              onDragStart={handleOccurrenceDragStart}
+              onDragEnd={handleOccurrenceDragEnd}
+              onQuickActionClick={handleQuickActionClick}
+              onToggleComplete={toggleCalendarCardComplete}
+              onClearStartDate={clearCalendarStartDate}
+              onClearDueDate={clearCalendarDueDate}
+            />,
           )}
           {dayOccurrences.slice(0, maxVisibleDesktop).map((occurrence, occurrenceIndex) =>
-            renderOccurrence(
-              occurrence,
-              occurrenceIndex >= maxVisibleMobile ? "hidden sm:flex" : undefined,
-            ),
+            <CalendarOccurrenceItem
+              key={occurrence.id}
+              occurrence={occurrence}
+              variant={variant}
+              className={occurrenceIndex >= maxVisibleMobile ? "hidden sm:flex" : undefined}
+              draggingOccurrenceId={draggingOccurrenceId}
+              isUpdatingCardDate={isUpdatingCardDate}
+              isUpdatingChecklistItemDueDate={isUpdatingChecklistItemDueDate}
+              canClearStartDate={canClearStartDate}
+              canClearDueDate={canClearDueDate}
+              onOpenCard={openCalendarCard}
+              onOpenCardDirect={openCalendarCardDirect}
+              onDragStart={handleOccurrenceDragStart}
+              onDragEnd={handleOccurrenceDragEnd}
+              onQuickActionClick={handleQuickActionClick}
+              onToggleComplete={toggleCalendarCardComplete}
+              onClearStartDate={clearCalendarStartDate}
+              onClearDueDate={clearCalendarDueDate}
+            />,
           )}
           {mobileOverflow > 0 && (
             <button
@@ -3207,7 +2828,33 @@ export const BoardCalendarView = ({
         {weekDays.map((day, dayIndex) =>
           renderCalendarDay(day, weekIndex * 7 + dayIndex),
         )}
-        {segments.map((segment) => renderRangeSegment(segment, maxLanes, mode))}
+        {segments.map((segment) => (
+          <CalendarRangeSegmentItem
+            key={segment.id}
+            segment={segment}
+            maxLanes={maxLanes}
+            mode={mode}
+            variant={variant}
+            resizingRange={resizingRange}
+            draggingOccurrenceId={draggingOccurrenceId}
+            draggingUnscheduledCardId={draggingUnscheduledCardId}
+            draggingBoardCardId={draggingBoardCardId}
+            draggingDayViewBlockId={draggingDayViewBlockId}
+            isUpdatingCardDate={isUpdatingCardDate}
+            canClearStartDate={canClearStartDate}
+            canClearDueDate={canClearDueDate}
+            onOpenCard={openCalendarCard}
+            onOpenCardDirect={openCalendarCardDirect}
+            onRangeResizeStart={handleRangeResizeStart}
+            onRangeResizeMove={handleRangeResizeMove}
+            onRangeResizeEnd={handleRangeResizeEnd}
+            onRangeResizeCancel={resetRangeResize}
+            onQuickActionClick={handleQuickActionClick}
+            onToggleComplete={toggleCalendarCardComplete}
+            onClearStartDate={clearCalendarStartDate}
+            onClearDueDate={clearCalendarDueDate}
+          />
+        ))}
         {renderRangeOverflows(weekDays, segments, maxLanes, mode)}
       </div>
     );
@@ -3443,7 +3090,21 @@ export const BoardCalendarView = ({
                     <div className="mt-3 space-y-2">
                       <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400">Thẻ công việc</h4>
                       <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-                        {cards.map((occurrence) => renderExpandedOccurrence(occurrence))}
+                        {cards.map((occurrence) => (
+                          <ExpandedOccurrence
+                            key={`expanded:${occurrence.id}`}
+                            occurrence={occurrence}
+                            isUpdatingCardDate={isUpdatingCardDate}
+                            canClearStartDate={canClearStartDate}
+                            canClearDueDate={canClearDueDate}
+                            onOpenCard={openCalendarCard}
+                            onOpenCardDirect={openCalendarCardDirect}
+                            onQuickActionClick={handleQuickActionClick}
+                            onToggleComplete={toggleCalendarCardComplete}
+                            onClearStartDate={clearCalendarStartDate}
+                            onClearDueDate={clearCalendarDueDate}
+                          />
+                        ))}
                       </div>
                     </div>
                   )}
@@ -3452,7 +3113,21 @@ export const BoardCalendarView = ({
                     <div className="mt-4 space-y-2">
                       <h4 className="text-xs font-bold uppercase tracking-wider text-neutral-400">Checklist</h4>
                       <div className="grid gap-2 md:grid-cols-2 xl:grid-cols-3">
-                        {checklistItems.map((occurrence) => renderExpandedOccurrence(occurrence))}
+                        {checklistItems.map((occurrence) => (
+                          <ExpandedOccurrence
+                            key={`expanded:${occurrence.id}`}
+                            occurrence={occurrence}
+                            isUpdatingCardDate={isUpdatingCardDate}
+                            canClearStartDate={canClearStartDate}
+                            canClearDueDate={canClearDueDate}
+                            onOpenCard={openCalendarCard}
+                            onOpenCardDirect={openCalendarCardDirect}
+                            onQuickActionClick={handleQuickActionClick}
+                            onToggleComplete={toggleCalendarCardComplete}
+                            onClearStartDate={clearCalendarStartDate}
+                            onClearDueDate={clearCalendarDueDate}
+                          />
+                        ))}
                       </div>
                     </div>
                   )}

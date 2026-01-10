@@ -32,7 +32,7 @@ const MarketingPage = () => {
                 headingFont.className
             )}>
                 <h1 className="text-4xl md:text-6xl lg:text-7xl font-bold text-neutral-900 leading-tight tracking-tight mb-4">
-                    BKFlow giúp đội ngũ của bạn
+                    HustFlow giúp đội ngũ của bạn
                 </h1>
                 <div className="text-4xl md:text-6xl lg:text-7xl font-bold bg-gradient-to-r from-violet-600 via-purple-600 to-indigo-600 bg-clip-text text-transparent">
                     thúc đẩy công việc tiến lên.
@@ -55,7 +55,7 @@ const MarketingPage = () => {
                     className="bg-violet-600 hover:bg-violet-700 text-white px-8 py-6 text-base rounded-xl shadow-lg shadow-violet-200 hover:shadow-violet-300 transition-all"
                 >
                     <Link href="/sign-up" className="flex items-center gap-x-2">
-                        Trải nghiệm BKFlow miễn phí
+                        Trải nghiệm HustFlow miễn phí
                         <ArrowRight className="h-4 w-4" />
                     </Link>
                 </Button>

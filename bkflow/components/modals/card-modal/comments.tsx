@@ -516,7 +516,7 @@ export const Comments = ({
                     return "Bạn";
                   }
                   const member = boardMembers?.find((m) => m.userId === reactionUserId);
-                  return member ? member.userName : "Người dùng BKFlow";
+                  return member ? member.userName : "Người dùng HustFlow";
                 };
 
                 const reactingUsers = comment.reactions

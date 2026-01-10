@@ -43,7 +43,7 @@ export const ProModal = () => {
         <div className="aspect-video relative flex items-center justify-center overflow-hidden">
           <Image
             src="/hero.svg"
-            alt="BKFlow Pro"
+            alt="HustFlow Pro"
             className="object-cover"
             fill
           />
@@ -58,11 +58,11 @@ export const ProModal = () => {
                 <Sparkles className="h-3.5 w-3.5 text-violet-600" />
               </div>
               <DialogTitle className="font-bold text-lg text-neutral-900">
-                Nâng cấp lên BKFlow Pro
+                Nâng cấp lên HustFlow Pro
               </DialogTitle>
             </div>
             <DialogDescription className="text-sm text-neutral-500 pl-9">
-              Mở khóa mọi tính năng của BKFlow
+              Mở khóa mọi tính năng của HustFlow
             </DialogDescription>
           </div>
 

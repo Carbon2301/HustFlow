@@ -52,7 +52,7 @@ const handler = async (): Promise<ReturnType> => {
             price_data: {
               currency: "USD",
               product_data: {
-                name: "BKFlow Pro",
+                name: "HustFlow Pro",
                 description: "Không giới hạn số lượng bảng cho tổ chức của bạn"
               },
               unit_amount: 2000,

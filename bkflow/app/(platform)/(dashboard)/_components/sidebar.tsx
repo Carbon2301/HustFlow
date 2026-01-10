@@ -9,8 +9,14 @@ import { useOrganization, useUser } from "@clerk/nextjs";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Accordion } from "@/components/ui/accordion";
+import { cn } from "@/lib/utils";
+import localFont from "next/font/local";
 
 import { NavItem, Organization } from "./nav-item";
+
+const headingFont = localFont({
+  src: "../../../../public/fonts/font.woff2"
+});
 
 interface SidebarProps {
   storageKey?: string;
@@ -113,7 +119,10 @@ export const Sidebar = ({
 
   return (
     <>
-      <div className="font-semibold text-xs text-neutral-400 uppercase tracking-wider flex items-center mb-2 px-2">
+      <div className={cn(
+        "font-bold text-xl text-[#041a4e] flex items-center mb-2 px-2",
+        headingFont.className
+      )}>
         <span className="flex-1">Không gian làm việc</span>
         <Button
           asChild
