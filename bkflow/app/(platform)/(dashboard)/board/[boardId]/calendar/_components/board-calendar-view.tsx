@@ -6,7 +6,6 @@ import {
   useMemo,
   useRef,
   useState,
-  type CSSProperties,
   type DragEvent,
   type MouseEvent,
   type PointerEvent,
@@ -19,8 +18,6 @@ import {
   addWeeks,
   format,
   isSameDay,
-  isSameMonth,
-  isToday,
   startOfMonth,
   subDays,
   subMonths,
@@ -39,7 +36,6 @@ import {
   Clock,
   ListChecks,
   MessageSquare,
-  Plus,
 } from "lucide-react";
 import { toast } from "sonner";
 
@@ -102,18 +98,13 @@ import {
   MAX_MOBILE_DAY_LANES,
   MIN_CREATE_DURATION_MS,
   MINUTES_IN_DAY,
-  MONTH_RANGE_LANES,
   MONTH_VISIBLE_DESKTOP,
   MONTH_VISIBLE_MOBILE,
-  RANGE_LANE_GAP,
-  RANGE_LANE_HEIGHT,
   WEEK_DAYS,
-  WEEK_RANGE_LANES,
   WEEK_VISIBLE_DESKTOP,
   WEEK_VISIBLE_MOBILE,
 } from "./board-calendar/constants";
-import { CalendarOccurrenceItem } from "./board-calendar/calendar-occurrence";
-import { CalendarRangeSegmentItem } from "./board-calendar/calendar-range-segment";
+import { CalendarWeekRow } from "./board-calendar/calendar-week-row";
 import {
   copyDateToDay,
   formatDayTitle,
@@ -164,10 +155,8 @@ import type {
   BoardCalendarRealtimePayload,
   BoardCalendarViewProps,
   CalendarDragPayload,
-  CalendarMarkerListStyle,
   CalendarOccurrence,
   CalendarRange,
-  CalendarRangeSegment,
   CalendarResizeEdge,
   CalendarResizeState,
   DayViewBlock,
@@ -1954,218 +1943,6 @@ export const BoardCalendarView = ({
     commitRangeResize(resizingRange.range, resizingRange.edge, targetDay);
   };
 
-  const renderRangeOverflows = (
-    weekDays: Date[],
-    segments: CalendarRangeSegment[],
-    maxLanes: number,
-    mode: ViewMode,
-  ) => {
-    return weekDays.map((day, dayIndex) => {
-      const dayKey = getDayKey(day);
-      const rangeOverflowCount = segments.filter(
-        (segment) =>
-          segment.lane >= maxLanes &&
-          segment.startIndex <= dayIndex &&
-          segment.endIndex >= dayIndex
-      ).length;
-
-      if (rangeOverflowCount === 0) {
-        return null;
-      }
-
-      const leftPercent = (dayIndex / 7) * 100;
-      const widthPercent = (1 / 7) * 100;
-      const style: CSSProperties = {
-        left: `${leftPercent}%`,
-        width: `${widthPercent}%`,
-        top: 36 + maxLanes * (RANGE_LANE_HEIGHT + RANGE_LANE_GAP),
-      };
-
-      return (
-        <button
-          key={`range-overflow-${dayKey}`}
-          type="button"
-          style={style}
-          onClick={() => setExpandedDayKey(dayKey)}
-          className={cn(
-            "absolute z-10 h-7 px-0.5 focus:outline-none",
-            mode === "week" && "hidden md:block"
-          )}
-        >
-          <div className="flex h-full w-full items-center justify-center rounded-md bg-neutral-100 px-1.5 text-[11px] font-semibold text-neutral-500 hover:bg-neutral-200 transition">
-            +{rangeOverflowCount} dải
-          </div>
-        </button>
-      );
-    });
-  };
-
-  const renderCalendarDay = (day: Date, index: number) => {
-    const dayKey = getDayKey(day);
-    const dayOccurrences = occurrencesByDay[dayKey] ?? [];
-    const dayRangeOccurrences = rangeOccurrencesByDay[dayKey] ?? [];
-    const desktopOverflow = Math.max(dayOccurrences.length - maxVisibleDesktop, 0);
-    const mobileOverflow = Math.max(dayOccurrences.length - maxVisibleMobile, 0);
-
-    const dayIndex = index % 7;
-    const weekIndex = Math.floor(index / 7);
-    const weekSegments = rangeSegmentsByWeek[weekIndex] ?? [];
-    const maxLanes = viewMode === "month" ? MONTH_RANGE_LANES : WEEK_RANGE_LANES;
-
-    const activeSegments = weekSegments.filter(
-      (s) => s.startIndex <= dayIndex && s.endIndex >= dayIndex
-    );
-    const hasRangeOverflow = activeSegments.some((s) => s.lane >= maxLanes);
-    const maxVisibleLane = activeSegments
-      .filter((s) => s.lane < maxLanes)
-      .reduce((max, s) => Math.max(max, s.lane), -1);
-
-    let pt = 0;
-    if (hasRangeOverflow) {
-      pt = 36 + maxLanes * (RANGE_LANE_HEIGHT + RANGE_LANE_GAP);
-    } else if (maxVisibleLane >= 0) {
-      pt = 36 + (maxVisibleLane + 1) * (RANGE_LANE_HEIGHT + RANGE_LANE_GAP);
-    }
-
-    const markerListStyle: CalendarMarkerListStyle | undefined = pt > 0
-      ? viewMode === "month"
-        ? { paddingTop: `${pt}px` }
-        : { "--pt-desktop": `${pt}px` }
-      : undefined;
-
-    return (
-      <div
-        key={dayKey}
-        data-calendar-day-key={dayKey}
-        onDragOver={(event) => handleDayDragOver(event, dayKey)}
-        onDragEnter={(event) => handleDayDragOver(event, dayKey)}
-        onDragLeave={() => setDragOverDayKey((value) => value === dayKey ? null : value)}
-        onDrop={(event) => handleDayDrop(event, day)}
-        className={cn(
-          "group/day overflow-hidden border-neutral-200 bg-white p-1.5 transition-colors md:p-2",
-          viewMode === "month" && "min-h-[104px] border-r border-b sm:min-h-[132px]",
-          viewMode === "month" && index % 7 === 6 && "border-r-0",
-          viewMode === "week" && "min-h-[132px] rounded-lg border md:min-h-[360px]",
-          viewMode === "week" && index > 0 && "mt-2 md:mt-0",
-          viewMode === "month" && !isSameMonth(day, currentMonth) && "bg-neutral-50/80 text-neutral-400",
-          (draggingOccurrenceId || draggingUnscheduledCardId || draggingBoardCardId || draggingDayViewBlockId) && "ring-inset ring-violet-100",
-          resizingRange && "cursor-ew-resize ring-inset ring-violet-100",
-          dragOverDayKey === dayKey && "bg-violet-50 ring-2 ring-inset ring-violet-300",
-        )}
-      >
-        <div className="mb-1 flex h-7 items-center justify-between gap-x-2">
-          <div className="flex min-w-0 items-center gap-x-1.5">
-            {viewMode === "week" && (
-              <span className="truncate text-[11px] font-semibold uppercase text-neutral-500">
-                {WEEK_DAYS[index]}
-              </span>
-            )}
-            <span
-              className={cn(
-                "flex h-6 min-w-6 shrink-0 items-center justify-center rounded-full px-1.5 text-xs font-semibold text-neutral-600",
-                viewMode === "month" && !isSameMonth(day, currentMonth) && "text-neutral-400",
-                isToday(day) && "bg-violet-600 text-white",
-              )}
-            >
-              {viewMode === "week" ? format(day, "dd/MM") : format(day, "d")}
-            </span>
-          </div>
-          <Hint description={lists.length === 0 ? "Tạo danh sách trước khi thêm thẻ từ lịch" : `Thêm thẻ vào ngày ${format(day, "dd/MM/yyyy")}`} side="top">
-            <button
-              type="button"
-              onClick={(event) => openCreateDialog(day, event)}
-              disabled={
-                !!resizingRange ||
-                lists.length === 0 ||
-                isCreatingCard ||
-                isUpdatingCardDate ||
-                isUpdatingChecklistItemDueDate
-              }
-              aria-label={lists.length === 0 ? "Tạo danh sách trước khi thêm thẻ từ lịch" : `Thêm thẻ vào ngày ${format(day, "dd/MM/yyyy")}`}
-              className={cn(
-                "flex h-6 w-6 shrink-0 items-center justify-center rounded-md text-neutral-400 opacity-100 transition hover:bg-violet-50 hover:text-violet-700 focus-visible:bg-violet-50 focus-visible:text-violet-700 disabled:cursor-not-allowed disabled:opacity-30 md:opacity-0 md:group-hover/day:opacity-100 md:focus-visible:opacity-100",
-                isToday(day) && "text-violet-700",
-              )}
-            >
-              <Plus className="h-3.5 w-3.5" />
-            </button>
-          </Hint>
-        </div>
-
-        <div
-          style={markerListStyle}
-          className={cn(
-            "space-y-1",
-            viewMode === "week" && pt > 0 && "md:[padding-top:var(--pt-desktop)]",
-          )}
-        >
-          {viewMode === "week" && dayRangeOccurrences.map((occurrence) =>
-            <CalendarOccurrenceItem
-              key={occurrence.id}
-              occurrence={occurrence}
-              variant={variant}
-              className="md:hidden"
-              draggingOccurrenceId={draggingOccurrenceId}
-              isUpdatingCardDate={isUpdatingCardDate}
-              isUpdatingChecklistItemDueDate={isUpdatingChecklistItemDueDate}
-              canClearStartDate={canClearStartDate}
-              canClearDueDate={canClearDueDate}
-              onOpenCard={openCalendarCard}
-              onOpenCardDirect={openCalendarCardDirect}
-              onDragStart={handleOccurrenceDragStart}
-              onDragEnd={handleOccurrenceDragEnd}
-              onQuickActionClick={handleQuickActionClick}
-              onToggleComplete={toggleCalendarCardComplete}
-              onClearStartDate={clearCalendarStartDate}
-              onClearDueDate={clearCalendarDueDate}
-            />,
-          )}
-          {dayOccurrences.slice(0, maxVisibleDesktop).map((occurrence, occurrenceIndex) =>
-            <CalendarOccurrenceItem
-              key={occurrence.id}
-              occurrence={occurrence}
-              variant={variant}
-              className={occurrenceIndex >= maxVisibleMobile ? "hidden sm:flex" : undefined}
-              draggingOccurrenceId={draggingOccurrenceId}
-              isUpdatingCardDate={isUpdatingCardDate}
-              isUpdatingChecklistItemDueDate={isUpdatingChecklistItemDueDate}
-              canClearStartDate={canClearStartDate}
-              canClearDueDate={canClearDueDate}
-              onOpenCard={openCalendarCard}
-              onOpenCardDirect={openCalendarCardDirect}
-              onDragStart={handleOccurrenceDragStart}
-              onDragEnd={handleOccurrenceDragEnd}
-              onQuickActionClick={handleQuickActionClick}
-              onToggleComplete={toggleCalendarCardComplete}
-              onClearStartDate={clearCalendarStartDate}
-              onClearDueDate={clearCalendarDueDate}
-            />,
-          )}
-          {mobileOverflow > 0 && (
-            <button
-              type="button"
-              onClick={() => setExpandedDayKey(dayKey)}
-              aria-label={`Xem thêm ${mobileOverflow} thẻ trong ngày ${format(day, "dd/MM/yyyy")}`}
-              className="flex h-6 w-full items-center rounded-md px-1.5 text-left text-[11px] font-semibold text-neutral-500 transition hover:bg-neutral-100 sm:hidden"
-            >
-              +{mobileOverflow} thẻ
-            </button>
-          )}
-          {desktopOverflow > 0 && (
-            <button
-              type="button"
-              onClick={() => setExpandedDayKey(dayKey)}
-              aria-label={`Xem thêm ${desktopOverflow} thẻ trong ngày ${format(day, "dd/MM/yyyy")}`}
-              className="hidden h-6 w-full items-center rounded-md px-1.5 text-left text-[11px] font-semibold text-neutral-500 transition hover:bg-neutral-100 sm:flex"
-            >
-              +{desktopOverflow} thẻ
-            </button>
-          )}
-        </div>
-      </div>
-    );
-  };
-
   const renderUnscheduledCard = (card: BoardCalendarUnscheduledCard) => (
     <button
       key={card.id}
@@ -2808,57 +2585,7 @@ export const BoardCalendarView = ({
     );
   };
 
-  const renderCalendarWeekRow = (
-    weekDays: Date[],
-    weekIndex: number,
-    mode: ViewMode,
-  ) => {
-    const segments = rangeSegmentsByWeek[weekIndex] ?? [];
-    const maxLanes = mode === "month" ? MONTH_RANGE_LANES : WEEK_RANGE_LANES;
 
-    return (
-      <div
-        key={`week-row:${weekIndex}`}
-        className={cn(
-          "relative grid grid-cols-7 bg-white",
-          mode === "month" && weekIndex === weekRows.length - 1 && "rounded-b-lg",
-          mode === "week" && "grid-cols-1 gap-2 bg-transparent md:grid-cols-7",
-        )}
-      >
-        {weekDays.map((day, dayIndex) =>
-          renderCalendarDay(day, weekIndex * 7 + dayIndex),
-        )}
-        {segments.map((segment) => (
-          <CalendarRangeSegmentItem
-            key={segment.id}
-            segment={segment}
-            maxLanes={maxLanes}
-            mode={mode}
-            variant={variant}
-            resizingRange={resizingRange}
-            draggingOccurrenceId={draggingOccurrenceId}
-            draggingUnscheduledCardId={draggingUnscheduledCardId}
-            draggingBoardCardId={draggingBoardCardId}
-            draggingDayViewBlockId={draggingDayViewBlockId}
-            isUpdatingCardDate={isUpdatingCardDate}
-            canClearStartDate={canClearStartDate}
-            canClearDueDate={canClearDueDate}
-            onOpenCard={openCalendarCard}
-            onOpenCardDirect={openCalendarCardDirect}
-            onRangeResizeStart={handleRangeResizeStart}
-            onRangeResizeMove={handleRangeResizeMove}
-            onRangeResizeEnd={handleRangeResizeEnd}
-            onRangeResizeCancel={resetRangeResize}
-            onQuickActionClick={handleQuickActionClick}
-            onToggleComplete={toggleCalendarCardComplete}
-            onClearStartDate={clearCalendarStartDate}
-            onClearDueDate={clearCalendarDueDate}
-          />
-        ))}
-        {renderRangeOverflows(weekDays, segments, maxLanes, mode)}
-      </div>
-    );
-  };
 
   return (
     <>
@@ -3031,12 +2758,101 @@ export const BoardCalendarView = ({
           <>
             {viewMode === "month" ? (
               <div className="overflow-hidden rounded-b-lg border border-neutral-200 bg-white">
-                {weekRows.map((weekDays, weekIndex) =>
-                  renderCalendarWeekRow(weekDays, weekIndex, "month"),
-                )}
+                {weekRows.map((weekDays, weekIndex) => (
+                  <CalendarWeekRow
+                    key={`week-row:${weekIndex}`}
+                    weekDays={weekDays}
+                    weekIndex={weekIndex}
+                    mode="month"
+                    weekRowsLength={weekRows.length}
+                    viewMode={viewMode}
+                    variant={variant}
+                    currentMonth={currentMonth}
+                    maxVisibleDesktop={maxVisibleDesktop}
+                    maxVisibleMobile={maxVisibleMobile}
+                    listsCount={lists.length}
+                    isCreatingCard={isCreatingCard}
+                    isUpdatingCardDate={isUpdatingCardDate}
+                    isUpdatingChecklistItemDueDate={isUpdatingChecklistItemDueDate}
+                    draggingOccurrenceId={draggingOccurrenceId}
+                    draggingUnscheduledCardId={draggingUnscheduledCardId}
+                    draggingBoardCardId={draggingBoardCardId}
+                    draggingDayViewBlockId={draggingDayViewBlockId}
+                    dragOverDayKey={dragOverDayKey}
+                    resizingRange={resizingRange}
+                    occurrencesByDay={occurrencesByDay}
+                    rangeOccurrencesByDay={rangeOccurrencesByDay}
+                    rangeSegmentsByWeek={rangeSegmentsByWeek}
+                    canClearStartDate={canClearStartDate}
+                    canClearDueDate={canClearDueDate}
+                    onOpenCard={openCalendarCard}
+                    onOpenCardDirect={openCalendarCardDirect}
+                    onOccurrenceDragStart={handleOccurrenceDragStart}
+                    onOccurrenceDragEnd={handleOccurrenceDragEnd}
+                    onQuickActionClick={handleQuickActionClick}
+                    onToggleComplete={toggleCalendarCardComplete}
+                    onClearStartDate={clearCalendarStartDate}
+                    onClearDueDate={clearCalendarDueDate}
+                    onOpenCreateDialog={openCreateDialog}
+                    onSetExpandedDayKey={setExpandedDayKey}
+                    onDayDragOver={handleDayDragOver}
+                    onDayDrop={handleDayDrop}
+                    onDayDragLeave={(dayKey) =>
+                      setDragOverDayKey((value) => value === dayKey ? null : value)
+                    }
+                    onRangeResizeStart={handleRangeResizeStart}
+                    onRangeResizeMove={handleRangeResizeMove}
+                    onRangeResizeEnd={handleRangeResizeEnd}
+                    onRangeResizeCancel={resetRangeResize}
+                  />
+                ))}
               </div>
             ) : viewMode === "week" ? (
-              renderCalendarWeekRow(weekRows[0] ?? days, 0, "week")
+              <CalendarWeekRow
+                weekDays={weekRows[0] ?? days}
+                weekIndex={0}
+                mode="week"
+                weekRowsLength={weekRows.length}
+                viewMode={viewMode}
+                variant={variant}
+                currentMonth={currentMonth}
+                maxVisibleDesktop={maxVisibleDesktop}
+                maxVisibleMobile={maxVisibleMobile}
+                listsCount={lists.length}
+                isCreatingCard={isCreatingCard}
+                isUpdatingCardDate={isUpdatingCardDate}
+                isUpdatingChecklistItemDueDate={isUpdatingChecklistItemDueDate}
+                draggingOccurrenceId={draggingOccurrenceId}
+                draggingUnscheduledCardId={draggingUnscheduledCardId}
+                draggingBoardCardId={draggingBoardCardId}
+                draggingDayViewBlockId={draggingDayViewBlockId}
+                dragOverDayKey={dragOverDayKey}
+                resizingRange={resizingRange}
+                occurrencesByDay={occurrencesByDay}
+                rangeOccurrencesByDay={rangeOccurrencesByDay}
+                rangeSegmentsByWeek={rangeSegmentsByWeek}
+                canClearStartDate={canClearStartDate}
+                canClearDueDate={canClearDueDate}
+                onOpenCard={openCalendarCard}
+                onOpenCardDirect={openCalendarCardDirect}
+                onOccurrenceDragStart={handleOccurrenceDragStart}
+                onOccurrenceDragEnd={handleOccurrenceDragEnd}
+                onQuickActionClick={handleQuickActionClick}
+                onToggleComplete={toggleCalendarCardComplete}
+                onClearStartDate={clearCalendarStartDate}
+                onClearDueDate={clearCalendarDueDate}
+                onOpenCreateDialog={openCreateDialog}
+                onSetExpandedDayKey={setExpandedDayKey}
+                onDayDragOver={handleDayDragOver}
+                onDayDrop={handleDayDrop}
+                onDayDragLeave={(dayKey) =>
+                  setDragOverDayKey((value) => value === dayKey ? null : value)
+                }
+                onRangeResizeStart={handleRangeResizeStart}
+                onRangeResizeMove={handleRangeResizeMove}
+                onRangeResizeEnd={handleRangeResizeEnd}
+                onRangeResizeCancel={resetRangeResize}
+              />
             ) : (
               renderCalendarDayTimeGrid()
             )}
