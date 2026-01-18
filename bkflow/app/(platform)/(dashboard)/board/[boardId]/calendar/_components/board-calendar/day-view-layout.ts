@@ -93,8 +93,8 @@ export const getDayViewBlocks = (
       rangeStart = startDate;
       rangeEnd = dueDate;
     } else if (dueDate) {
-      rangeStart = dueDate;
-      rangeEnd = new Date(dueDate.getTime() + durationMinutes * 60_000);
+      rangeStart = new Date(dueDate.getTime() - durationMinutes * 60_000);
+      rangeEnd = dueDate;
     } else {
       rangeStart = startDate;
       rangeEnd = startDate
