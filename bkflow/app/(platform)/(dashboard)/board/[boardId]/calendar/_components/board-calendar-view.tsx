@@ -44,14 +44,6 @@ import { createCard } from "@/actions/create-card";
 import { updateCard } from "@/actions/update-card";
 import { setChecklistItemDueDate } from "@/actions/set-checklist-item-due-date";
 import { Button } from "@/components/ui/button";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogFooter,
-  DialogHeader,
-  DialogTitle,
-} from "@/components/ui/dialog";
 import { realtimeChannels } from "@/lib/realtime/channels";
 import { isRealtimeClientConfigured } from "@/lib/realtime/client";
 import { useBoardCalendarInvalidation } from "@/hooks/use-board-calendar-invalidation";
@@ -127,6 +119,7 @@ import {
 } from "./board-calendar/range-layout";
 import { ExpandedOccurrence } from "./board-calendar/expanded-occurrence";
 import { BoardCalendarRealtimeSubscriptions } from "./board-calendar/realtime-subscriptions";
+import { CreateCardDialog } from "./board-calendar/create-card-dialog";
 import { DayViewTimeGrid } from "./board-calendar/day-view-time-grid";
 import { UnscheduledPanel } from "./board-calendar/unscheduled-panel";
 import type {
@@ -2355,113 +2348,23 @@ export const BoardCalendarView = ({
       onCardDragEnd={handleUnscheduledCardDragEnd}
     />
     </div>
-    <Dialog open={!!createDialogDay} onOpenChange={closeCreateDialog}>
-      <DialogContent className="max-w-md">
-        <DialogHeader>
-          <DialogTitle>Thêm thẻ vào {selectedCreateDayLabel}</DialogTitle>
-          <DialogDescription>
-            Chọn danh sách và khoảng thời gian theo GMT+7.
-          </DialogDescription>
-        </DialogHeader>
-
-        <form
-          className="space-y-4"
-          onSubmit={(event) => {
-            event.preventDefault();
-            submitCreateCard();
-          }}
-        >
-          <div className="space-y-1.5">
-            <label htmlFor="calendar-card-title" className="text-xs font-semibold text-neutral-600">
-              Tiêu đề
-            </label>
-            <input
-              id="calendar-card-title"
-              value={createTitle}
-              onChange={(event) => setCreateTitle(event.target.value)}
-              disabled={isCreatingCard}
-              autoFocus
-              placeholder="Nhập tiêu đề thẻ..."
-              className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-800 shadow-sm outline-none transition placeholder:text-neutral-400 focus:border-violet-400 focus:ring-1 focus:ring-violet-200 disabled:cursor-not-allowed disabled:bg-neutral-50"
-            />
-            {createFieldErrors?.title?.[0] && (
-              <p className="text-xs text-red-600">{createFieldErrors.title[0]}</p>
-            )}
-          </div>
-
-          <div className="space-y-1.5">
-            <label htmlFor="calendar-card-list" className="text-xs font-semibold text-neutral-600">
-              Danh sách
-            </label>
-            <select
-              id="calendar-card-list"
-              value={createListId}
-              onChange={(event) => setCreateListId(event.target.value)}
-              disabled={isCreatingCard || lists.length === 0}
-              className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-800 shadow-sm outline-none transition focus:border-violet-400 focus:ring-1 focus:ring-violet-200 disabled:cursor-not-allowed disabled:bg-neutral-50"
-            >
-              {lists.length === 0 ? (
-                <option value="">Tạo danh sách trước khi thêm thẻ từ lịch</option>
-              ) : (
-                lists.map((list) => (
-                  <option key={list.id} value={list.id}>
-                    {list.title}
-                  </option>
-                ))
-              )}
-            </select>
-          </div>
-
-          <div className="space-y-1.5">
-            <label htmlFor="calendar-card-start" className="text-xs font-semibold text-neutral-600">
-              Bắt đầu
-            </label>
-            <input
-              id="calendar-card-start"
-              type="datetime-local"
-              step={60}
-              value={createStartValue}
-              onChange={(event) => setCreateStartValue(event.target.value)}
-              disabled={isCreatingCard}
-              className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-800 shadow-sm outline-none transition focus:border-violet-400 focus:ring-1 focus:ring-violet-200 disabled:cursor-not-allowed disabled:bg-neutral-50"
-            />
-          </div>
-
-          <div className="space-y-1.5">
-            <label htmlFor="calendar-card-due" className="text-xs font-semibold text-neutral-600">
-              Kết thúc
-            </label>
-            <input
-              id="calendar-card-due"
-              type="datetime-local"
-              step={60}
-              value={createDueValue}
-              onChange={(event) => setCreateDueValue(event.target.value)}
-              disabled={isCreatingCard}
-              className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-800 shadow-sm outline-none transition focus:border-violet-400 focus:ring-1 focus:ring-violet-200 disabled:cursor-not-allowed disabled:bg-neutral-50"
-            />
-          </div>
-
-          <DialogFooter className="mt-2">
-            <Button
-              type="button"
-              variant="outline"
-              disabled={isCreatingCard}
-              onClick={() => closeCreateDialog(false)}
-            >
-              Hủy
-            </Button>
-            <Button
-              type="submit"
-              variant="primary"
-              disabled={isCreatingCard || lists.length === 0}
-            >
-              Tạo thẻ
-            </Button>
-          </DialogFooter>
-        </form>
-      </DialogContent>
-    </Dialog>
+    <CreateCardDialog
+      open={!!createDialogDay}
+      selectedDayLabel={selectedCreateDayLabel}
+      title={createTitle}
+      startValue={createStartValue}
+      dueValue={createDueValue}
+      listId={createListId}
+      lists={lists}
+      fieldErrors={createFieldErrors}
+      isLoading={isCreatingCard}
+      onOpenChange={closeCreateDialog}
+      onTitleChange={setCreateTitle}
+      onStartValueChange={setCreateStartValue}
+      onDueValueChange={setCreateDueValue}
+      onListIdChange={setCreateListId}
+      onSubmit={submitCreateCard}
+    />
     </>
   );
 };
