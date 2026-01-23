@@ -135,9 +135,13 @@ import type {
   DayViewCreateSelectionState,
   DayViewResizeState,
   PositionedDayViewBlock,
-  UnscheduledCardDragPayload,
   ViewMode,
 } from "./board-calendar/types";
+
+type SchedulableCardPayload = {
+  cardId: string;
+  isCompleted: boolean;
+};
 
 export const BoardCalendarView = ({
   boardId,
@@ -1154,8 +1158,8 @@ export const BoardCalendarView = ({
     });
   };
 
-  const scheduleUnscheduledCard = (
-    card: Pick<UnscheduledCardDragPayload, "cardId" | "isCompleted">,
+  const scheduleCardForDay = (
+    card: SchedulableCardPayload,
     targetDay: Date,
   ) => {
     const dueDate = getDefaultDueDateForDay(targetDay);
@@ -1171,43 +1175,8 @@ export const BoardCalendarView = ({
     });
   };
 
-  const scheduleUnscheduledCardAtDate = (
-    card: Pick<UnscheduledCardDragPayload, "cardId" | "isCompleted">,
-    startDate: Date,
-  ) => {
-    const dueDate = new Date(startDate.getTime() + 60 * 60 * 1000);
-
-    updateSuccessToastRef.current = "Đã lên lịch thẻ";
-
-    executeUpdateCard({
-      id: card.cardId,
-      boardId,
-      startDate,
-      dueDate,
-      dueDateTimezoneOffset: -GMT7_OFFSET_MINUTES,
-      isCompleted: card.isCompleted,
-    });
-  };
-
-  const scheduleBoardCard = (
-    card: Pick<BoardCardCalendarDragPayload, "cardId" | "isCompleted">,
-    targetDay: Date,
-  ) => {
-    const dueDate = getDefaultDueDateForDay(targetDay);
-
-    updateSuccessToastRef.current = "Đã lên lịch thẻ";
-
-    executeUpdateCard({
-      id: card.cardId,
-      boardId,
-      dueDate,
-      dueDateTimezoneOffset: getDateTimezoneOffset(dueDate),
-      isCompleted: card.isCompleted,
-    });
-  };
-
-  const scheduleBoardCardAtDate = (
-    card: Pick<BoardCardCalendarDragPayload, "cardId" | "isCompleted">,
+  const scheduleCardAtDate = (
+    card: SchedulableCardPayload,
     startDate: Date,
   ) => {
     const dueDate = new Date(startDate.getTime() + 60 * 60 * 1000);
@@ -1322,14 +1291,14 @@ export const BoardCalendarView = ({
     const unscheduledCard = getDraggedUnscheduledCard(event);
 
     if (unscheduledCard) {
-      scheduleUnscheduledCard(unscheduledCard, day);
+      scheduleCardForDay(unscheduledCard, day);
       return;
     }
 
     const boardCard = getDraggedBoardCard(event);
 
     if (boardCard) {
-      scheduleBoardCard(boardCard, day);
+      scheduleCardForDay(boardCard, day);
       return;
     }
 
@@ -1393,14 +1362,14 @@ export const BoardCalendarView = ({
     const unscheduledCard = getDraggedUnscheduledCard(event);
 
     if (unscheduledCard) {
-      scheduleUnscheduledCardAtDate(unscheduledCard, startDate);
+      scheduleCardAtDate(unscheduledCard, startDate);
       return;
     }
 
     const boardCard = getDraggedBoardCard(event);
 
     if (boardCard) {
-      scheduleBoardCardAtDate(boardCard, startDate);
+      scheduleCardAtDate(boardCard, startDate);
       return;
     }
 

@@ -134,6 +134,62 @@ const getGmt7AnchorDateFromDayKey = (dayKey: string) => {
   return new Date(Date.UTC(year, month - 1, day, 0, 0, 0, 0) - 7 * 60 * 60 * 1000);
 };
 
+type CalendarDragPoint = {
+  x: number;
+  y: number;
+};
+
+type CalendarDropTarget = {
+  date: Date;
+  isDayViewSlot: boolean;
+};
+
+const getCalendarDropTargetFromPoint = (
+  point: CalendarDragPoint,
+): CalendarDropTarget | null => {
+  const elements = document.elementsFromPoint(point.x, point.y);
+  const dayViewGridElement = elements
+    .map((element) => element.closest<HTMLElement>("[data-calendar-day-view-grid]"))
+    .find(Boolean);
+  const dayViewDayKey = dayViewGridElement?.dataset.calendarDayKey;
+
+  if (dayViewGridElement && dayViewDayKey) {
+    const anchorDate = getGmt7AnchorDateFromDayKey(dayViewDayKey);
+
+    if (anchorDate) {
+      const slotIndex = getDayViewSlotFromPointer(
+        { clientY: point.y },
+        dayViewGridElement,
+      );
+
+      return {
+        date: getDayViewDropDate(anchorDate, slotIndex),
+        isDayViewSlot: true,
+      };
+    }
+  }
+
+  const dayElement = elements
+    .map((element) => element.closest<HTMLElement>("[data-calendar-day-key]"))
+    .find(Boolean);
+  const dayKey = dayElement?.dataset.calendarDayKey;
+
+  if (!dayKey) {
+    return null;
+  }
+
+  const [year, month, day] = dayKey.split("-").map(Number);
+
+  if (!year || !month || !day) {
+    return null;
+  }
+
+  return {
+    date: new Date(year, month - 1, day),
+    isDayViewSlot: false,
+  };
+};
+
 export const ListContainer = ({
   data,
   boardId,
@@ -147,7 +203,8 @@ export const ListContainer = ({
   const invalidateBoardCalendar = useBoardCalendarInvalidation(boardId);
   const [orderedData, setOrderedData] = useState(data);
   const processedCardEventIdsRef = useRef<Set<string>>(new Set());
-  const lastDragPointRef = useRef<{ x: number; y: number } | null>(null);
+  const lastDragPointRef = useRef<CalendarDragPoint | null>(null);
+  const lockedCalendarDropTargetRef = useRef<CalendarDropTarget | null | undefined>(undefined);
   const activeCalendarDragCardIdRef = useRef<string | null>(null);
   const highlightedCalendarDayRef = useRef<HTMLElement | null>(null);
   const filters = useBoardFilters((state) =>
@@ -245,6 +302,10 @@ export const ListContainer = ({
     };
 
     const updateLastDragPoint = (event: MouseEvent | PointerEvent) => {
+      if (lockedCalendarDropTargetRef.current !== undefined) {
+        return;
+      }
+
       lastDragPointRef.current = {
         x: event.clientX,
         y: event.clientY,
@@ -252,12 +313,31 @@ export const ListContainer = ({
       updateHighlightedCalendarDay(event.clientX, event.clientY);
     };
 
+    const lockCalendarDropTarget = (event: MouseEvent | PointerEvent) => {
+      if (!activeCalendarDragCardIdRef.current) {
+        return;
+      }
+
+      const point = {
+        x: event.clientX,
+        y: event.clientY,
+      };
+
+      lastDragPointRef.current = point;
+      lockedCalendarDropTargetRef.current = getCalendarDropTargetFromPoint(point);
+      updateHighlightedCalendarDay(event.clientX, event.clientY);
+    };
+
     window.addEventListener("pointermove", updateLastDragPoint, true);
     window.addEventListener("mousemove", updateLastDragPoint, true);
+    window.addEventListener("pointerup", lockCalendarDropTarget, true);
+    window.addEventListener("mouseup", lockCalendarDropTarget, true);
 
     return () => {
       window.removeEventListener("pointermove", updateLastDragPoint, true);
       window.removeEventListener("mousemove", updateLastDragPoint, true);
+      window.removeEventListener("pointerup", lockCalendarDropTarget, true);
+      window.removeEventListener("mouseup", lockCalendarDropTarget, true);
       clearHighlightedCalendarDay();
     };
   }, [enableCalendarDragHandle]);
@@ -725,53 +805,17 @@ export const ListContainer = ({
   ), [filteredData]);
 
   const getCalendarDropDateUnderLastDragPoint = useCallback(() => {
+    if (lockedCalendarDropTargetRef.current !== undefined) {
+      return lockedCalendarDropTargetRef.current;
+    }
+
     const point = lastDragPointRef.current;
 
     if (!point) {
       return null;
     }
 
-    const elements = document.elementsFromPoint(point.x, point.y);
-    const dayViewGridElement = elements
-      .map((element) => element.closest<HTMLElement>("[data-calendar-day-view-grid]"))
-      .find(Boolean);
-    const dayViewDayKey = dayViewGridElement?.dataset.calendarDayKey;
-
-    if (dayViewGridElement && dayViewDayKey) {
-      const anchorDate = getGmt7AnchorDateFromDayKey(dayViewDayKey);
-
-      if (anchorDate) {
-        const slotIndex = getDayViewSlotFromPointer(
-          { clientY: point.y },
-          dayViewGridElement,
-        );
-
-        return {
-          date: getDayViewDropDate(anchorDate, slotIndex),
-          isDayViewSlot: true,
-        };
-      }
-    }
-
-    const dayElement = elements
-      .map((element) => element.closest<HTMLElement>("[data-calendar-day-key]"))
-      .find(Boolean);
-    const dayKey = dayElement?.dataset.calendarDayKey;
-
-    if (!dayKey) {
-      return null;
-    }
-
-    const [year, month, day] = dayKey.split("-").map(Number);
-
-    if (!year || !month || !day) {
-      return null;
-    }
-
-    return {
-      date: new Date(year, month - 1, day),
-      isDayViewSlot: false,
-    };
+    return getCalendarDropTargetFromPoint(point);
   }, []);
 
   const scheduleDraggedCardOnCalendar = useCallback((cardId: string) => {
@@ -831,11 +875,13 @@ export const ListContainer = ({
     }
     highlightedCalendarDayRef.current = null;
     activeCalendarDragCardIdRef.current = null;
+    lockedCalendarDropTargetRef.current = undefined;
   }, []);
 
   const onDragStart = (start: DragStart) => {
     if (enableCalendarDragHandle && start.type === "card") {
       activeCalendarDragCardIdRef.current = start.draggableId;
+      lockedCalendarDropTargetRef.current = undefined;
     }
   };
 
