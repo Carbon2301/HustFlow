@@ -83,6 +83,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityTitle: `detail:đã thêm ${boardMember.userName} vào bảng "${board.title}"`,
       entityType: ENTITY_TYPE.BOARD,
       action: ACTION.UPDATE,
+      boardId,
     });
 
     await createNotification({

@@ -8,6 +8,7 @@ interface Props {
   entityType: ENTITY_TYPE,
   entityTitle: string;
   action: ACTION;
+  boardId?: string | null;
   cardId?: string | null;
 };
 
@@ -20,11 +21,12 @@ export const createAuditLog = async (props: Props) => {
       throw new Error("User not found!");
     }
 
-    const { entityId, entityType, entityTitle, action, cardId } = props;
+    const { entityId, entityType, entityTitle, action, boardId, cardId } = props;
 
     await db.auditLog.create({
       data: {
         orgId,
+        boardId,
         cardId,
         entityId,
         entityType,

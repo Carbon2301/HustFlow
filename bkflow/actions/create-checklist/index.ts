@@ -104,6 +104,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityTitle: `detail:đã thêm danh sách công việc ${title} vào thẻ này`,
       entityType: ENTITY_TYPE.CHECKLIST,
       action: ACTION.UPDATE,
+      boardId,
       cardId: card.id,
     });
 

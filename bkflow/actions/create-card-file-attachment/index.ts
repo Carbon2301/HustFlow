@@ -123,6 +123,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityType: ENTITY_TYPE.CARD,
       entityTitle: `detail:đã thêm đính kèm "${attachment.name}"`,
       action: ACTION.UPDATE,
+      boardId,
       cardId: card.id,
     });
 

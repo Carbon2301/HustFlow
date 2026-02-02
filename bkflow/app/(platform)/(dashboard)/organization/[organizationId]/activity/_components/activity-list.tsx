@@ -1,15 +1,20 @@
-import { auth } from "@clerk/nextjs/server"
-import { redirect } from "next/navigation";
+import { auth } from "@clerk/nextjs/server";
+import { Prisma } from "@prisma/client";
 import Link from "next/link";
+import { redirect } from "next/navigation";
 import { Activity, ChevronLeft, ChevronRight } from "lucide-react";
 
-import { db } from "@/lib/db";
 import { ActivityItem } from "@/components/activity-item";
 import { Skeleton } from "@/components/ui/skeleton";
+import { db } from "@/lib/db";
 import { cn } from "@/lib/utils";
+
+import { ActivityFilters } from "./activity-filters";
 
 interface ActivityListProps {
   page: number;
+  boardId?: string;
+  searchParams?: Record<string, string | undefined>;
 }
 
 const getPages = (currentPage: number, totalPages: number) => {
@@ -32,11 +37,39 @@ const getPages = (currentPage: number, totalPages: number) => {
     currentPage,
     currentPage + 1,
     "...",
-    totalPages
+    totalPages,
   ];
 };
 
-export const ActivityList = async ({ page }: ActivityListProps) => {
+const buildPageHref = (
+  searchParams: Record<string, string | undefined> | undefined,
+  page: number,
+  boardId?: string,
+) => {
+  const params = new URLSearchParams();
+
+  Object.entries(searchParams ?? {}).forEach(([key, value]) => {
+    if (value) {
+      params.set(key, value);
+    }
+  });
+
+  if (boardId) {
+    params.set("boardId", boardId);
+  } else {
+    params.delete("boardId");
+  }
+
+  params.set("page", String(page));
+
+  return `?${params.toString()}`;
+};
+
+export const ActivityList = async ({
+  page,
+  boardId,
+  searchParams,
+}: ActivityListProps) => {
   const { orgId } = await auth();
 
   if (!orgId) {
@@ -44,21 +77,36 @@ export const ActivityList = async ({ page }: ActivityListProps) => {
   }
 
   const itemsPerPage = 50;
-
-  const totalLogs = await db.auditLog.count({
+  const boards = await db.board.findMany({
     where: {
       orgId,
     },
+    select: {
+      id: true,
+      title: true,
+    },
+    orderBy: {
+      createdAt: "desc",
+    },
+  });
+  const validBoardId = boards.some((board) => board.id === boardId)
+    ? boardId
+    : undefined;
+  const where: Prisma.AuditLogWhereInput = {
+    orgId,
+    ...(validBoardId ? { boardId: validBoardId } : {}),
+  };
+
+  const totalLogs = await db.auditLog.count({
+    where,
   });
 
   const totalPages = Math.ceil(totalLogs / itemsPerPage);
 
   const auditLogs = await db.auditLog.findMany({
-    where: {
-      orgId,
-    },
+    where,
     orderBy: {
-      createdAt: "desc"
+      createdAt: "desc",
     },
     skip: (page - 1) * itemsPerPage,
     take: itemsPerPage,
@@ -66,14 +114,19 @@ export const ActivityList = async ({ page }: ActivityListProps) => {
 
   if (auditLogs.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center min-h-[300px] border border-dashed border-neutral-200 rounded-2xl p-8 text-center bg-neutral-50/50 mt-4">
-        <div className="w-12 h-12 bg-neutral-100 rounded-2xl flex items-center justify-center mb-4">
-          <Activity className="h-6 w-6 text-neutral-400" />
+      <div className="flex flex-col gap-y-4">
+        <ActivityFilters boards={boards} selectedBoardId={validBoardId} />
+        <div className="flex flex-col items-center justify-center min-h-[300px] border border-dashed border-neutral-200 rounded-2xl p-8 text-center bg-neutral-50/50">
+          <div className="w-12 h-12 bg-neutral-100 rounded-2xl flex items-center justify-center mb-4">
+            <Activity className="h-6 w-6 text-neutral-400" />
+          </div>
+          <h3 className="font-semibold text-neutral-800 text-base">Không tìm thấy hoạt động nào</h3>
+          <p className="text-sm text-neutral-400 max-w-sm mt-1">
+            {validBoardId
+              ? "Không có hoạt động phù hợp với bộ lọc bảng hiện tại."
+              : "Thực hiện một số thao tác trên bảng của bạn để bắt đầu xem nhật ký hoạt động."}
+          </p>
         </div>
-        <h3 className="font-semibold text-neutral-800 text-base">Không tìm thấy hoạt động nào</h3>
-        <p className="text-sm text-neutral-400 max-w-sm mt-1">
-          Thực hiện một số thao tác trên bảng của bạn (như tạo danh sách hoặc thẻ) để bắt đầu xem nhật ký hoạt động.
-        </p>
       </div>
     );
   }
@@ -82,6 +135,7 @@ export const ActivityList = async ({ page }: ActivityListProps) => {
 
   return (
     <div className="flex flex-col gap-y-6">
+      <ActivityFilters boards={boards} selectedBoardId={validBoardId} />
       <ol className="space-y-4 mt-4">
         {auditLogs.map((log) => (
           <ActivityItem key={log.id} data={log} />
@@ -90,7 +144,7 @@ export const ActivityList = async ({ page }: ActivityListProps) => {
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-x-2 pt-6 pb-8">
           <Link
-            href={`?page=${Math.max(1, page - 1)}`}
+            href={buildPageHref(searchParams, Math.max(1, page - 1), validBoardId)}
             className={cn(
               "flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-200 bg-white hover:bg-neutral-50 transition-all text-neutral-600 shadow-sm",
               page <= 1 && "pointer-events-none opacity-40"
@@ -100,7 +154,7 @@ export const ActivityList = async ({ page }: ActivityListProps) => {
             <ChevronLeft className="h-4 w-4" />
           </Link>
           {pages.map((p, index) => {
-            if (p === "...") {
+            if (typeof p === "string") {
               return (
                 <span
                   key={`ellipsis-${index}`}
@@ -110,10 +164,11 @@ export const ActivityList = async ({ page }: ActivityListProps) => {
                 </span>
               );
             }
+
             return (
               <Link
                 key={`page-${p}`}
-                href={`?page=${p}`}
+                href={buildPageHref(searchParams, p, validBoardId)}
                 className={cn(
                   "flex h-9 w-9 items-center justify-center rounded-lg border text-sm font-medium transition-all shadow-sm",
                   p === page
@@ -126,7 +181,7 @@ export const ActivityList = async ({ page }: ActivityListProps) => {
             );
           })}
           <Link
-            href={`?page=${Math.min(totalPages, page + 1)}`}
+            href={buildPageHref(searchParams, Math.min(totalPages, page + 1), validBoardId)}
             className={cn(
               "flex h-9 w-9 items-center justify-center rounded-lg border border-neutral-200 bg-white hover:bg-neutral-50 transition-all text-neutral-600 shadow-sm",
               page >= totalPages && "pointer-events-none opacity-40"

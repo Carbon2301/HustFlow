@@ -47,6 +47,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityId: list.id,
       entityType: ENTITY_TYPE.LIST,
       action: ACTION.DELETE,
+      boardId,
     })
 
     await triggerListDeleted({

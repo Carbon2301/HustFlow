@@ -81,6 +81,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityTitle,
       entityType: ENTITY_TYPE.CHECKLIST_ITEM,
       action: ACTION.UPDATE,
+      boardId,
       cardId,
     });
 

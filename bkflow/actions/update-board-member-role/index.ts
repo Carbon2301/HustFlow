@@ -90,6 +90,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityTitle: `detail:${actionLabel} ${existingBoardMember.userName} thành ${getRoleLabel(role).toLowerCase()} trong bảng "${existingBoardMember.board.title}"`,
       entityType: ENTITY_TYPE.BOARD,
       action: ACTION.UPDATE,
+      boardId,
     });
 
     await triggerBoardMemberRoleUpdated({

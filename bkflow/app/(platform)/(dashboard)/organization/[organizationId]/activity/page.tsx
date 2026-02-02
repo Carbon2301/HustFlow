@@ -8,12 +8,14 @@ import { ActivityList } from "./_components/activity-list";
 import { checkSubscription } from "@/lib/subscription";
 
 interface ActivityPageProps {
-  searchParams: Promise<{ page?: string }>;
+  searchParams: Promise<{ page?: string; boardId?: string }>;
 }
 
 const ActivityPage = async ({ searchParams }: ActivityPageProps) => {
   const resolvedSearchParams = await searchParams;
-  const page = resolvedSearchParams.page ? parseInt(resolvedSearchParams.page, 10) : 1;
+  const parsedPage = resolvedSearchParams.page ? parseInt(resolvedSearchParams.page, 10) : 1;
+  const page = Number.isFinite(parsedPage) && parsedPage > 0 ? parsedPage : 1;
+  const boardId = resolvedSearchParams.boardId;
   const isPro = await checkSubscription();
 
   return (
@@ -21,7 +23,11 @@ const ActivityPage = async ({ searchParams }: ActivityPageProps) => {
       <Info isPro={isPro} />
       <Separator className="my-2" />
       <Suspense fallback={<ActivityList.Skeleton />}>
-        <ActivityList page={page} />
+        <ActivityList
+          page={page}
+          boardId={boardId}
+          searchParams={resolvedSearchParams}
+        />
       </Suspense>
     </div>
   );

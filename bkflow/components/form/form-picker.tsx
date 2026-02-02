@@ -39,7 +39,9 @@ export const FormPicker = ({
 
   const [images, setImages] = useState<BoardImage[]>(defaultImages);
   const [isLoading, setIsLoading] = useState(true);
-  const [selectedImageId, setSelectedImageId] = useState<string | null>(null);
+  const [selectedImageId, setSelectedImageId] = useState<string | null>(
+    defaultImages[0]?.id || null
+  );
 
   useEffect(() => {
     const fetchImages = async () => {
@@ -54,12 +56,18 @@ export const FormPicker = ({
             ? result.response
             : [result.response];
           setImages(newImages);
+          if (newImages.length > 0) {
+            setSelectedImageId(newImages[0].id);
+          }
         } else {
           console.error("Failed to get images from Unsplash");
         }
       } catch (error) {
         console.log(error);
         setImages(defaultImages);
+        if (defaultImages.length > 0) {
+          setSelectedImageId(defaultImages[0].id);
+        }
       } finally {
         setIsLoading(false);
       }
@@ -76,8 +84,19 @@ export const FormPicker = ({
     );
   }
 
+  const selectedImage = images.find((image) => image.id === selectedImageId);
+  const hiddenValue = selectedImage
+    ? `${selectedImage.id}|${selectedImage.urls.thumb}|${selectedImage.urls.full}|${selectedImage.links.html}|${selectedImage.user.name}`
+    : "";
+
   return (
     <div className="relative">
+      <input 
+        type="hidden"
+        id={id}
+        name={id}
+        value={hiddenValue}
+      />
       <div className="grid grid-cols-3 gap-2 mb-2">
         {images.map((image) => (
           <div 
@@ -91,19 +110,6 @@ export const FormPicker = ({
               setSelectedImageId(image.id);
             }}
           >
-            <input 
-              type="radio"
-              id={id}
-              name={id}
-              className="hidden"
-              checked={selectedImageId === image.id}
-              onChange={() => {
-                if (pending) return;
-                setSelectedImageId(image.id);
-              }}
-              disabled={pending}
-              value={`${image.id}|${image.urls.thumb}|${image.urls.full}|${image.links.html}|${image.user.name}`}
-            />
             <Image
               src={image.urls.thumb}
               alt="Unsplash image"

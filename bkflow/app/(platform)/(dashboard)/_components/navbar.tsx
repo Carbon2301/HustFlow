@@ -18,7 +18,7 @@ export const Navbar = () => {
     const boardId = params.boardId as string;
 
     return (
-        <nav className="fixed z-50 top-0 px-4 w-full h-14 border-b border-neutral-200/80 bg-white/95 backdrop-blur-sm flex items-center justify-between gap-x-4">
+        <nav className="fixed z-50 top-0 px-4 md:px-6 w-full h-14 border-b border-neutral-200/80 bg-white/95 backdrop-blur-sm flex items-center justify-between gap-x-4">
             <RealtimeNotificationSync />
             <NotificationToasts />
 

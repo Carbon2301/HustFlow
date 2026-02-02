@@ -76,6 +76,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityTitle: `detail:đã xóa ${boardMember.userName} khỏi bảng "${boardMember.board.title}"`,
       entityType: ENTITY_TYPE.BOARD,
       action: ACTION.UPDATE,
+      boardId,
     });
 
     await triggerBoardMemberRemoved({

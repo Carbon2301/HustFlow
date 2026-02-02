@@ -116,6 +116,8 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityTitle: `detail:đã giao ${boardMember.userName} cho thẻ "${card.title}"`,
       entityType: ENTITY_TYPE.CARD,
       action: ACTION.UPDATE,
+      boardId,
+      cardId: card.id,
     });
 
     await createNotification({

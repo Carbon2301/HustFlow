@@ -72,6 +72,8 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityTitle: `detail:đã bỏ giao ${cardAssignee.boardMember.userName} khỏi thẻ "${cardAssignee.card.title}"`,
       entityType: ENTITY_TYPE.CARD,
       action: ACTION.UPDATE,
+      boardId,
+      cardId: cardAssignee.card.id,
     });
 
     await triggerCardMemberUnassigned({

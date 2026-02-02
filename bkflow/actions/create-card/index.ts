@@ -81,6 +81,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityTitle: card.title,
       entityType: ENTITY_TYPE.CARD,
       action: ACTION.CREATE,
+      boardId,
     });
 
     await triggerCardCreated({

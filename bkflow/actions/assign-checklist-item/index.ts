@@ -125,6 +125,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
           await tx.auditLog.create({
             data: {
               orgId,
+              boardId: list.boardId,
               cardId,
               entityId: card.id,
               entityType: ENTITY_TYPE.CARD,
@@ -162,6 +163,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       await tx.auditLog.create({
         data: {
           orgId,
+          boardId: list.boardId,
           cardId,
           entityId: item.id,
           entityType: ENTITY_TYPE.CHECKLIST_ITEM,

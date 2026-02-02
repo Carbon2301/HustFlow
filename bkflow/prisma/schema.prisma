@@ -241,6 +241,7 @@ enum ENTITY_TYPE {
 model AuditLog {
   id          String      @id @default(uuid())
   orgId       String
+  boardId     String?
   cardId      String?
   action      ACTION
   entityId    String
@@ -254,6 +255,7 @@ model AuditLog {
   updatedAt DateTime @updatedAt
 
   @@index([cardId])
+  @@index([orgId, boardId, createdAt])
 }
 
 model OrgLimit {

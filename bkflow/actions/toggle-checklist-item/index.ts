@@ -55,6 +55,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         : `detail:đã bỏ hoàn thành "${access.item.title}"`,
       entityType: ENTITY_TYPE.CHECKLIST_ITEM,
       action: ACTION.UPDATE,
+      boardId,
       cardId,
     });
 

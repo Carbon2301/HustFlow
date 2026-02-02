@@ -1,1 +1,0 @@
-ALTER TABLE `Card` ADD COLUMN `startDate` DATETIME(3) NULL;

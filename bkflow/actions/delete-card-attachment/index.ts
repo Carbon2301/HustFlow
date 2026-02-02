@@ -88,6 +88,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityType: ENTITY_TYPE.CARD,
       entityTitle: `detail:đã xóa đính kèm "${deletedAttachment.name}"`,
       action: ACTION.UPDATE,
+      boardId,
       cardId,
     });
 

@@ -603,8 +603,8 @@ export const BoardCalendarView = ({
   const submitCreateCard = () => {
     const title = createTitle.trim();
 
-    if (!title || title.length < 3) {
-      toast.error("Tiêu đề quá ngắn (tối thiểu 3 ký tự).");
+    if (!title || title.length < 1) {
+      toast.error("Tiêu đề quá ngắn (tối thiểu 1 ký tự).");
       return;
     }
 

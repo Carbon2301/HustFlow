@@ -53,6 +53,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityTitle: `detail:đã đổi tên danh sách công việc thành "${title}"`,
       entityType: ENTITY_TYPE.CHECKLIST,
       action: ACTION.UPDATE,
+      boardId,
       cardId,
     });
 

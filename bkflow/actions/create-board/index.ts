@@ -102,6 +102,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityId: board.id,
       entityType: ENTITY_TYPE.BOARD,
       action: ACTION.CREATE,
+      boardId: board.id,
     })
   } catch {
     return {
