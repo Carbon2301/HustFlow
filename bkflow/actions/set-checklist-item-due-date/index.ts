@@ -1,7 +1,7 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { ACTION, ENTITY_TYPE } from "@prisma/client";
+import { ACTION, AUDIT_EVENT_TYPE, ENTITY_TYPE } from "@prisma/client";
 import { format } from "date-fns";
 import { revalidatePath } from "next/cache";
 
@@ -81,6 +81,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityTitle,
       entityType: ENTITY_TYPE.CHECKLIST_ITEM,
       action: ACTION.UPDATE,
+      eventType: AUDIT_EVENT_TYPE.DUE_DATE,
       boardId,
       cardId,
     });

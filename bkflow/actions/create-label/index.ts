@@ -1,8 +1,10 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
+import { ACTION, AUDIT_EVENT_TYPE, ENTITY_TYPE } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
+import { createAuditLog } from "@/lib/create-audit-log";
 import { db } from "@/lib/db";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { requireBoardMember } from "@/lib/permissions";
@@ -41,6 +43,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       },
       select: {
         id: true,
+        title: true,
         list: {
           select: {
             boardId: true,
@@ -64,6 +67,16 @@ const handler = async (data: InputType): Promise<ReturnType> => {
           },
         },
       },
+    });
+
+    await createAuditLog({
+      entityId: card.id,
+      entityTitle: `detail:đã tạo nhãn "${label.title || label.color}" và gắn vào thẻ "${card.title}"`,
+      entityType: ENTITY_TYPE.CARD,
+      action: ACTION.UPDATE,
+      eventType: AUDIT_EVENT_TYPE.LABEL,
+      boardId: card.list.boardId,
+      cardId: card.id,
     });
 
     await triggerLabelCreated({

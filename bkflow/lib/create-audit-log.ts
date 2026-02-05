@@ -1,5 +1,5 @@
 import { auth, currentUser } from "@clerk/nextjs/server"
-import { ACTION, ENTITY_TYPE } from "@prisma/client";
+import { ACTION, AUDIT_EVENT_TYPE, ENTITY_TYPE } from "@prisma/client";
 
 import { db } from "@/lib/db";
 
@@ -8,8 +8,21 @@ interface Props {
   entityType: ENTITY_TYPE,
   entityTitle: string;
   action: ACTION;
+  eventType?: AUDIT_EVENT_TYPE;
   boardId?: string | null;
   cardId?: string | null;
+};
+
+const getDefaultEventType = (action: ACTION) => {
+  switch (action) {
+    case ACTION.CREATE:
+      return AUDIT_EVENT_TYPE.CREATE;
+    case ACTION.DELETE:
+      return AUDIT_EVENT_TYPE.DELETE;
+    case ACTION.UPDATE:
+    default:
+      return AUDIT_EVENT_TYPE.UPDATE;
+  }
 };
 
 export const createAuditLog = async (props: Props) => {
@@ -21,7 +34,7 @@ export const createAuditLog = async (props: Props) => {
       throw new Error("User not found!");
     }
 
-    const { entityId, entityType, entityTitle, action, boardId, cardId } = props;
+    const { entityId, entityType, entityTitle, action, eventType, boardId, cardId } = props;
 
     await db.auditLog.create({
       data: {
@@ -32,6 +45,7 @@ export const createAuditLog = async (props: Props) => {
         entityType,
         entityTitle,
         action,
+        eventType: eventType ?? getDefaultEventType(action),
         userId: user.id,
         userImage: user?.imageUrl,
         userName: user?.firstName + " " + user?.lastName,

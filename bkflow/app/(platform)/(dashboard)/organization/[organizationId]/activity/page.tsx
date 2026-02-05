@@ -8,7 +8,15 @@ import { ActivityList } from "./_components/activity-list";
 import { checkSubscription } from "@/lib/subscription";
 
 interface ActivityPageProps {
-  searchParams: Promise<{ page?: string; boardId?: string }>;
+  searchParams: Promise<{
+    page?: string;
+    boardId?: string;
+    eventType?: string;
+    userId?: string;
+    range?: string;
+    from?: string;
+    to?: string;
+  }>;
 }
 
 const ActivityPage = async ({ searchParams }: ActivityPageProps) => {
@@ -26,6 +34,11 @@ const ActivityPage = async ({ searchParams }: ActivityPageProps) => {
         <ActivityList
           page={page}
           boardId={boardId}
+          eventType={resolvedSearchParams.eventType}
+          userId={resolvedSearchParams.userId}
+          range={resolvedSearchParams.range}
+          from={resolvedSearchParams.from}
+          to={resolvedSearchParams.to}
           searchParams={resolvedSearchParams}
         />
       </Suspense>

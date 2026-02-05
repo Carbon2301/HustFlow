@@ -1,8 +1,10 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
+import { ACTION, AUDIT_EVENT_TYPE, ENTITY_TYPE } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
+import { createAuditLog } from "@/lib/create-audit-log";
 import { db } from "@/lib/db";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { requireBoardMember } from "@/lib/permissions";
@@ -28,6 +30,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   let movedCard:
     | {
         id: string;
+        title: string;
         sourceListId: string;
         destinationListId: string;
       }
@@ -102,6 +105,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       movedCard = nextCard
         ? {
             id: movedExistingCard.id,
+            title: movedExistingCard.title,
             sourceListId: movedExistingCard.listId,
             destinationListId: nextCard.listId,
           }
@@ -138,6 +142,16 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
   revalidatePath(`/board/${boardId}`);
   if (movedCard) {
+    await createAuditLog({
+      entityId: movedCard.id,
+      entityTitle: `detail:đã di chuyển thẻ "${movedCard.title}"`,
+      entityType: ENTITY_TYPE.CARD,
+      action: ACTION.UPDATE,
+      eventType: AUDIT_EVENT_TYPE.MOVE,
+      boardId,
+      cardId: movedCard.id,
+    });
+
     await triggerCardMoved({
       boardId,
       actorUserId: userId,
@@ -146,6 +160,15 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       destinationListId: movedCard.destinationListId,
     });
   } else {
+    await createAuditLog({
+      entityId: boardId,
+      entityTitle: "detail:đã sắp xếp lại thứ tự thẻ",
+      entityType: ENTITY_TYPE.BOARD,
+      action: ACTION.UPDATE,
+      eventType: AUDIT_EVENT_TYPE.MOVE,
+      boardId,
+    });
+
     await triggerCardReordered({
       boardId,
       actorUserId: userId,

@@ -1,7 +1,7 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { ACTION, ENTITY_TYPE } from "@prisma/client";
+import { ACTION, AUDIT_EVENT_TYPE, ENTITY_TYPE } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 import { createAuditLog } from "@/lib/create-audit-log";
@@ -55,6 +55,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         : `detail:đã bỏ hoàn thành "${access.item.title}"`,
       entityType: ENTITY_TYPE.CHECKLIST_ITEM,
       action: ACTION.UPDATE,
+      eventType: AUDIT_EVENT_TYPE.CHECKLIST,
       boardId,
       cardId,
     });

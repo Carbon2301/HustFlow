@@ -230,6 +230,19 @@ enum ACTION {
   DELETE
 }
 
+enum AUDIT_EVENT_TYPE {
+  CREATE
+  UPDATE
+  DELETE
+  MOVE
+  ASSIGN_MEMBER
+  COMMENT
+  ATTACHMENT
+  CHECKLIST
+  DUE_DATE
+  LABEL
+}
+
 enum ENTITY_TYPE {
   BOARD
   LIST
@@ -244,6 +257,7 @@ model AuditLog {
   boardId     String?
   cardId      String?
   action      ACTION
+  eventType   AUDIT_EVENT_TYPE @default(UPDATE)
   entityId    String
   entityType  ENTITY_TYPE
   entityTitle String
@@ -256,6 +270,9 @@ model AuditLog {
 
   @@index([cardId])
   @@index([orgId, boardId, createdAt])
+  @@index([orgId, boardId, eventType, createdAt])
+  @@index([orgId, userId, createdAt])
+  @@index([orgId, createdAt])
 }
 
 model OrgLimit {

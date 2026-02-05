@@ -1,7 +1,7 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { ACTION, AttachmentType, ENTITY_TYPE } from "@prisma/client";
+import { ACTION, AUDIT_EVENT_TYPE, AttachmentType, ENTITY_TYPE } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 import { createSafeAction } from "@/lib/create-safe-action";
@@ -78,6 +78,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityType: ENTITY_TYPE.CARD,
       entityTitle: `detail:đã thêm đính kèm "${attachment.name}"`,
       action: ACTION.UPDATE,
+      eventType: AUDIT_EVENT_TYPE.ATTACHMENT,
       boardId,
       cardId: card.id,
     });

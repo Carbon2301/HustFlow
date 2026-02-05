@@ -1,8 +1,10 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
+import { ACTION, AUDIT_EVENT_TYPE, ENTITY_TYPE } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
+import { createAuditLog } from "@/lib/create-audit-log";
 import { db } from "@/lib/db";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { requireBoardMember } from "@/lib/permissions";
@@ -77,6 +79,16 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         order: newOrder,
         isCompleted: false,
       },
+    });
+
+    await createAuditLog({
+      entityId: checklistItem.id,
+      entityTitle: `detail:đã thêm "${checklistItem.title}" vào checklist "${checklist.title}"`,
+      entityType: ENTITY_TYPE.CHECKLIST_ITEM,
+      action: ACTION.UPDATE,
+      eventType: AUDIT_EVENT_TYPE.CHECKLIST,
+      boardId,
+      cardId: card.id,
     });
 
     await triggerChecklistItemCreated({

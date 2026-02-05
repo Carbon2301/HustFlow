@@ -3,6 +3,7 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import {
   ACTION,
+  AUDIT_EVENT_TYPE,
   ENTITY_TYPE,
   NOTIFICATION_TYPE,
   type BoardMember,
@@ -131,6 +132,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
               entityType: ENTITY_TYPE.CARD,
               entityTitle: `detail:đã tự động thêm ${nextAssignee.userName} vào thẻ "${card.title}"`,
               action: ACTION.UPDATE,
+              eventType: AUDIT_EVENT_TYPE.ASSIGN_MEMBER,
               userId: user.id,
               userImage: user.imageUrl,
               userName: logUserName,
@@ -169,6 +171,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
           entityType: ENTITY_TYPE.CHECKLIST_ITEM,
           entityTitle,
           action: ACTION.UPDATE,
+          eventType: AUDIT_EVENT_TYPE.CHECKLIST,
           userId: user.id,
           userImage: user.imageUrl,
           userName: logUserName,

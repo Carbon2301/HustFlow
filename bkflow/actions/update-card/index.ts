@@ -1,7 +1,7 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { ACTION, ENTITY_TYPE } from "@prisma/client";
+import { ACTION, AUDIT_EVENT_TYPE, ENTITY_TYPE } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 import { createAuditLog } from "@/lib/create-audit-log";
@@ -283,6 +283,14 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityId: card.id,
       entityType: ENTITY_TYPE.CARD,
       action: ACTION.UPDATE,
+      eventType: (
+        startDateChanged ||
+        dueDateChanged ||
+        reminderConfigChanged ||
+        isCompleted !== undefined
+      )
+        ? AUDIT_EVENT_TYPE.DUE_DATE
+        : AUDIT_EVENT_TYPE.UPDATE,
       boardId,
     });
 

@@ -2,7 +2,7 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { revalidatePath } from "next/cache";
-import { ACTION, ENTITY_TYPE, NOTIFICATION_TYPE } from "@prisma/client";
+import { ACTION, AUDIT_EVENT_TYPE, ENTITY_TYPE, NOTIFICATION_TYPE } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { createSafeAction } from "@/lib/create-safe-action";
@@ -90,6 +90,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityTitle: `detail:đã xóa danh sách công việc ${checklist.title} khỏi thẻ này`,
       entityType: ENTITY_TYPE.CHECKLIST,
       action: ACTION.UPDATE,
+      eventType: AUDIT_EVENT_TYPE.CHECKLIST,
       boardId,
       cardId: card.id,
     });

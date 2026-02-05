@@ -1,8 +1,10 @@
 "use server";
 
 import { auth, currentUser } from "@clerk/nextjs/server";
+import { ACTION, AUDIT_EVENT_TYPE, ENTITY_TYPE } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
+import { createAuditLog } from "@/lib/create-audit-log";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { requireBoardMember } from "@/lib/permissions";
@@ -78,6 +80,16 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         data: {
           content,
         },
+      });
+
+      await createAuditLog({
+        entityId: cardId,
+        entityTitle: "detail:đã cập nhật bình luận trong thẻ này",
+        entityType: ENTITY_TYPE.CARD,
+        action: ACTION.UPDATE,
+        eventType: AUDIT_EVENT_TYPE.COMMENT,
+        boardId,
+        cardId,
       });
 
       await triggerCommentUpdated({

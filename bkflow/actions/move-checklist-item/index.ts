@@ -1,8 +1,10 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
+import { ACTION, AUDIT_EVENT_TYPE, ENTITY_TYPE } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
+import { createAuditLog } from "@/lib/create-audit-log";
 import { triggerChecklistItemMoved } from "@/lib/boards/realtime";
 import { validateChecklistItemMove } from "@/lib/checklist-access";
 import { createSafeAction } from "@/lib/create-safe-action";
@@ -85,6 +87,16 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
     const verifiedCard = access.sourceChecklist.card;
     const verifiedBoardId = verifiedCard.list.boardId;
+
+    await createAuditLog({
+      entityId: itemId,
+      entityTitle: "detail:đã di chuyển mục checklist",
+      entityType: ENTITY_TYPE.CHECKLIST_ITEM,
+      action: ACTION.UPDATE,
+      eventType: AUDIT_EVENT_TYPE.CHECKLIST,
+      boardId: verifiedBoardId,
+      cardId: verifiedCard.id,
+    });
 
     await triggerChecklistItemMoved({
       boardId: verifiedBoardId,

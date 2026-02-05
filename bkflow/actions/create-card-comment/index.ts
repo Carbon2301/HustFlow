@@ -1,10 +1,11 @@
 "use server";
 
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { CardComment, NOTIFICATION_TYPE } from "@prisma/client";
+import { ACTION, AUDIT_EVENT_TYPE, CardComment, ENTITY_TYPE, NOTIFICATION_TYPE } from "@prisma/client";
 import { revalidatePath } from "next/cache";
 
 import { createNotifications } from "@/lib/create-notification";
+import { createAuditLog } from "@/lib/create-audit-log";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { findMentionedBoardMembers } from "@/lib/mentions";
@@ -194,6 +195,18 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     });
 
     await createNotifications(notifications);
+
+    await createAuditLog({
+      entityId: card.id,
+      entityTitle: parentId
+        ? `detail:đã trả lời bình luận trong thẻ "${card.title}"`
+        : `detail:đã bình luận trong thẻ "${card.title}"`,
+      entityType: ENTITY_TYPE.CARD,
+      action: ACTION.UPDATE,
+      eventType: AUDIT_EVENT_TYPE.COMMENT,
+      boardId,
+      cardId: card.id,
+    });
 
     await triggerCommentCreated({
       boardId,
