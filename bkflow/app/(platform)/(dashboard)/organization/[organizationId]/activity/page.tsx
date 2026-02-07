@@ -16,6 +16,7 @@ interface ActivityPageProps {
     range?: string;
     from?: string;
     to?: string;
+    q?: string;
   }>;
 }
 
@@ -39,6 +40,7 @@ const ActivityPage = async ({ searchParams }: ActivityPageProps) => {
           range={resolvedSearchParams.range}
           from={resolvedSearchParams.from}
           to={resolvedSearchParams.to}
+          q={resolvedSearchParams.q}
           searchParams={resolvedSearchParams}
         />
       </Suspense>

@@ -1,6 +1,8 @@
 "use client";
 
+import { Search, X } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
+import { useEffect, useState } from "react";
 
 type BoardOption = {
   id: string;
@@ -20,8 +22,7 @@ interface ActivityFiltersProps {
   selectedEventType?: string;
   selectedUserId?: string;
   selectedRange: string;
-  from?: string;
-  to?: string;
+  searchQuery?: string;
 }
 
 const eventTypeOptions = [
@@ -51,10 +52,42 @@ export const ActivityFilters = ({
   selectedEventType,
   selectedUserId,
   selectedRange,
+  searchQuery,
 }: ActivityFiltersProps) => {
   const router = useRouter();
   const pathname = usePathname();
   const searchParams = useSearchParams();
+  const currentQuery = searchParams.get("q") ?? "";
+  const [searchValue, setSearchValue] = useState(searchQuery ?? "");
+
+  useEffect(() => {
+    setSearchValue(currentQuery);
+  }, [currentQuery]);
+
+  useEffect(() => {
+    const timeout = window.setTimeout(() => {
+      const trimmedSearch = searchValue.trim();
+
+      if (trimmedSearch === currentQuery.trim()) {
+        return;
+      }
+
+      const params = new URLSearchParams(searchParams.toString());
+
+      if (trimmedSearch) {
+        params.set("q", trimmedSearch);
+      } else {
+        params.delete("q");
+      }
+
+      params.set("page", "1");
+
+      const queryString = params.toString();
+      router.replace(queryString ? `${pathname}?${queryString}` : pathname);
+    }, 300);
+
+    return () => window.clearTimeout(timeout);
+  }, [currentQuery, pathname, router, searchParams, searchValue]);
 
   const updateFilter = (key: string, value: string) => {
     const params = new URLSearchParams(searchParams.toString());
@@ -75,8 +108,42 @@ export const ActivityFilters = ({
     router.push(pathname);
   };
 
+  const clearSearch = () => {
+    setSearchValue("");
+    updateFilter("q", "");
+  };
+
   return (
     <div className="mt-4 flex flex-col gap-3 rounded-lg border border-neutral-200 bg-white p-3 shadow-sm">
+      <div className="flex flex-col gap-1.5">
+        <label
+          htmlFor="activity-search"
+          className="text-xs font-medium uppercase tracking-wide text-neutral-500"
+        >
+          Tìm kiếm
+        </label>
+        <div className="relative">
+          <Search className="pointer-events-none absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-neutral-400" />
+          <input
+            id="activity-search"
+            value={searchValue}
+            onChange={(event) => setSearchValue(event.target.value)}
+            placeholder="Tìm hoạt động..."
+            className="h-9 w-full rounded-lg border border-neutral-200 bg-white pl-9 pr-9 text-sm text-neutral-700 outline-none transition placeholder:text-neutral-400 focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
+          />
+          {searchValue && (
+            <button
+              type="button"
+              onClick={clearSearch}
+              className="absolute right-2 top-1/2 flex h-6 w-6 -translate-y-1/2 items-center justify-center rounded-md text-neutral-400 transition hover:bg-neutral-100 hover:text-neutral-700"
+              aria-label="Xóa tìm kiếm"
+            >
+              <X className="h-4 w-4" />
+            </button>
+          )}
+        </div>
+      </div>
+
       <div className="grid gap-3 md:grid-cols-4">
         <div className="flex flex-col gap-1.5">
           <label

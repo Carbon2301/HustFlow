@@ -1,5 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { AUDIT_EVENT_TYPE, Prisma } from "@prisma/client";
+import { format, isToday, isYesterday } from "date-fns";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Activity, ChevronLeft, ChevronRight } from "lucide-react";
@@ -19,6 +20,7 @@ interface ActivityListProps {
   range?: string;
   from?: string;
   to?: string;
+  q?: string;
   searchParams?: Record<string, string | undefined>;
 }
 
@@ -145,6 +147,41 @@ const getCreatedAtFilter = (
   return undefined;
 };
 
+const getGroupLabel = (date: Date) => {
+  if (isToday(date)) {
+    return "Hôm nay";
+  }
+
+  if (isYesterday(date)) {
+    return "Hôm qua";
+  }
+
+  return format(date, "dd/MM/yyyy");
+};
+
+const groupAuditLogsByDay = <T extends { createdAt: Date }>(logs: T[]) => {
+  const groups = new Map<string, { key: string; label: string; items: T[] }>();
+
+  logs.forEach((log) => {
+    const date = new Date(log.createdAt);
+    const key = format(date, "yyyy-MM-dd");
+    const existingGroup = groups.get(key);
+
+    if (existingGroup) {
+      existingGroup.items.push(log);
+      return;
+    }
+
+    groups.set(key, {
+      key,
+      label: getGroupLabel(date),
+      items: [log],
+    });
+  });
+
+  return Array.from(groups.values());
+};
+
 export const ActivityList = async ({
   page,
   boardId,
@@ -153,6 +190,7 @@ export const ActivityList = async ({
   range,
   from,
   to,
+  q,
   searchParams,
 }: ActivityListProps) => {
   const { orgId } = await auth();
@@ -199,6 +237,7 @@ export const ActivityList = async ({
     ? userId
     : undefined;
   const createdAt = getCreatedAtFilter(selectedRange, from, to);
+  const search = q?.trim();
   const normalizedParams = {
     boardId: validBoardId,
     eventType: selectedEventType,
@@ -206,6 +245,7 @@ export const ActivityList = async ({
     range: selectedRange === "30d" && !range ? undefined : selectedRange,
     from: selectedRange === "custom" ? from : undefined,
     to: selectedRange === "custom" ? to : undefined,
+    q: search || undefined,
   };
   const where: Prisma.AuditLogWhereInput = {
     orgId,
@@ -213,6 +253,24 @@ export const ActivityList = async ({
     ...(selectedEventType ? { eventType: selectedEventType } : {}),
     ...(validUserId ? { userId: validUserId } : {}),
     ...(createdAt ? { createdAt } : {}),
+    ...(search ? {
+      AND: [
+        {
+          OR: [
+            {
+              entityTitle: {
+                contains: search,
+              },
+            },
+            {
+              userName: {
+                contains: search,
+              },
+            },
+          ],
+        },
+      ],
+    } : {}),
   };
 
   const totalLogs = await db.auditLog.count({
@@ -236,7 +294,8 @@ export const ActivityList = async ({
     validUserId ||
     range ||
     from ||
-    to,
+    to ||
+    search,
   );
   const filters = (
     <ActivityFilters
@@ -246,8 +305,7 @@ export const ActivityList = async ({
       selectedEventType={selectedEventType}
       selectedUserId={validUserId}
       selectedRange={selectedRange}
-      from={from}
-      to={to}
+      searchQuery={search}
     />
   );
 
@@ -261,7 +319,9 @@ export const ActivityList = async ({
           </div>
           <h3 className="font-semibold text-neutral-800 text-base">Không tìm thấy hoạt động nào</h3>
           <p className="text-sm text-neutral-400 max-w-sm mt-1">
-            {hasExplicitFilter
+            {search
+              ? `Không tìm thấy hoạt động nào cho "${search}".`
+              : hasExplicitFilter
               ? "Không có hoạt động phù hợp với bộ lọc hiện tại."
               : "Chưa có hoạt động nào trong 30 ngày qua."}
           </p>
@@ -271,15 +331,25 @@ export const ActivityList = async ({
   }
 
   const pages = getPages(page, totalPages);
+  const groupedAuditLogs = groupAuditLogsByDay(auditLogs);
 
   return (
     <div className="flex flex-col gap-y-6">
       {filters}
-      <ol className="space-y-4 mt-4">
-        {auditLogs.map((log) => (
-          <ActivityItem key={log.id} data={log} />
+      <div className="mt-2 flex flex-col gap-y-7">
+        {groupedAuditLogs.map((group) => (
+          <section key={group.key} className="flex flex-col gap-y-3">
+            <h3 className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+              {group.label}
+            </h3>
+            <ol className="space-y-4">
+              {group.items.map((log) => (
+                <ActivityItem key={log.id} data={log} />
+              ))}
+            </ol>
+          </section>
         ))}
-      </ol>
+      </div>
       {totalPages > 1 && (
         <div className="flex items-center justify-center gap-x-2 pt-6 pb-8">
           <Link
