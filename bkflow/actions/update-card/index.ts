@@ -239,40 +239,40 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       const dueText = card.dueDate
         ? formatFriendlyDate(card.dueDate, dueDateTimezoneOffset)
         : "không có ngày hết hạn";
-      auditLogMessage = `detail:đã cập nhật khoảng thời gian của thẻ này từ ${startText} đến ${dueText}`;
+      auditLogMessage = `detail:đã cập nhật khoảng thời gian của thẻ "${card.title}" từ ${startText} đến ${dueText}`;
     } else if (isCompleted !== undefined && isCompleted !== currentCard.isCompleted) {
       if (isCompleted) {
-        auditLogMessage = "detail:đã đánh dấu thẻ này là hoàn thành";
+        auditLogMessage = `detail:đã đánh dấu thẻ "${card.title}" là hoàn thành`;
       } else {
-        auditLogMessage = "detail:đã bỏ đánh dấu hoàn thành cho thẻ này";
+        auditLogMessage = `detail:đã bỏ đánh dấu hoàn thành cho thẻ "${card.title}"`;
       }
     } else if (startDateChanged) {
       if (startDate === null) {
-        auditLogMessage = "detail:đã bỏ ngày bắt đầu của thẻ này";
+        auditLogMessage = `detail:đã bỏ ngày bắt đầu của thẻ "${card.title}"`;
       } else if (card.startDate) {
         const formatted = formatFriendlyDate(
           card.startDate,
           dueDateTimezoneOffset,
         );
-        auditLogMessage = `detail:đã đặt ngày bắt đầu cho thẻ này là ${formatted}`;
+        auditLogMessage = `detail:đã đặt ngày bắt đầu cho thẻ "${card.title}" là ${formatted}`;
       }
     } else if (dueDateChanged) {
       if (dueDate === null) {
-        auditLogMessage = "detail:đã bỏ ngày hết hạn của thẻ này";
+        auditLogMessage = `detail:đã bỏ ngày hết hạn của thẻ "${card.title}"`;
       } else if (card.dueDate) {
         const formatted = formatFriendlyDate(
           card.dueDate,
           dueDateTimezoneOffset,
         );
-        auditLogMessage = `detail:đã đặt ngày hết hạn cho thẻ này là ${formatted}`;
+        auditLogMessage = `detail:đã đặt ngày hết hạn cho thẻ "${card.title}" là ${formatted}`;
       }
     } else if (values.description !== undefined && values.description !== currentCard.description) {
       if (!currentCard.description && values.description) {
-        auditLogMessage = "detail:đã thêm mô tả cho thẻ này";
+        auditLogMessage = `detail:đã thêm mô tả cho thẻ "${card.title}"`;
       } else if (currentCard.description && !values.description) {
-        auditLogMessage = "detail:đã xóa mô tả của thẻ này";
+        auditLogMessage = `detail:đã xóa mô tả của thẻ "${card.title}"`;
       } else {
-        auditLogMessage = "detail:đã cập nhật mô tả cho thẻ này";
+        auditLogMessage = `detail:đã cập nhật mô tả cho thẻ "${card.title}"`;
       }
     } else if (values.title !== undefined && values.title !== currentCard.title) {
       auditLogMessage = `detail:đã đổi tên thẻ thành "${values.title}"`;
@@ -292,6 +292,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         ? AUDIT_EVENT_TYPE.DUE_DATE
         : AUDIT_EVENT_TYPE.UPDATE,
       boardId,
+      cardId: card.id,
     });
 
     await triggerCardUpdated({

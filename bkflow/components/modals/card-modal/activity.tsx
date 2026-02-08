@@ -8,10 +8,14 @@ import { ActivityItem } from "@/components/activity-item";
 
 interface ActivityProps {
   items: AuditLog[];
+  cardTitle?: string;
+  memberNames?: string[];
 };
 
 export const Activity = ({
   items,
+  cardTitle,
+  memberNames,
 }: ActivityProps) => {
   return (
     <div className="w-full">
@@ -30,6 +34,9 @@ export const Activity = ({
               <ActivityItem
                 key={item.id}
                 data={item}
+                cardTitle={cardTitle}
+                memberNames={memberNames}
+                isCardModal
               />
             ))}
           </ol>

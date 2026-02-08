@@ -88,9 +88,12 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     const verifiedCard = access.sourceChecklist.card;
     const verifiedBoardId = verifiedCard.list.boardId;
 
+    const movedItem = updatedItems.find((item) => item.id === itemId);
+    const itemTitle = movedItem ? movedItem.title : "Mục công việc";
+
     await createAuditLog({
       entityId: itemId,
-      entityTitle: "detail:đã di chuyển mục checklist",
+      entityTitle: `detail:đã di chuyển mục công việc "${itemTitle}" từ danh sách công việc "${access.sourceChecklist.title}" sang danh sách công việc "${access.destinationChecklist.title}"`,
       entityType: ENTITY_TYPE.CHECKLIST_ITEM,
       action: ACTION.UPDATE,
       eventType: AUDIT_EVENT_TYPE.CHECKLIST,

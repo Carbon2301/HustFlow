@@ -155,11 +155,11 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       });
 
       // 3. Create audit log for checklist item assignment
-      let entityTitle = `detail:đã bỏ giao "${access.item.title}"`;
+      let entityTitle = `detail:đã bỏ giao mục công việc "${access.item.title}" ở thẻ "${card.title}"`;
       if (nextAssignee && access.item.assignee) {
-        entityTitle = `detail:đã đổi người phụ trách "${access.item.title}" từ ${access.item.assignee.userName} sang ${nextAssignee.userName}`;
+        entityTitle = `detail:đã đổi người phụ trách mục công việc "${access.item.title}" từ ${access.item.assignee.userName} sang ${nextAssignee.userName} ở thẻ "${card.title}"`;
       } else if (nextAssignee) {
-        entityTitle = `detail:đã giao ${nextAssignee.userName} vào checklist "${access.item.title}"`;
+        entityTitle = `detail:đã giao ${nextAssignee.userName} cho mục công việc "${access.item.title}" ở thẻ "${card.title}"`;
       }
 
       await tx.auditLog.create({

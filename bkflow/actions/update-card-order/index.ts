@@ -142,9 +142,27 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
   revalidatePath(`/board/${boardId}`);
   if (movedCard) {
+    const lists = await db.list.findMany({
+      where: {
+        id: {
+          in: [movedCard.sourceListId, movedCard.destinationListId],
+        },
+      },
+      select: {
+        id: true,
+        title: true,
+      },
+    });
+
+    const sourceList = lists.find((l) => l.id === movedCard!.sourceListId);
+    const destList = lists.find((l) => l.id === movedCard!.destinationListId);
+
+    const sourceTitle = sourceList ? sourceList.title : "Không xác định";
+    const destTitle = destList ? destList.title : "Không xác định";
+
     await createAuditLog({
       entityId: movedCard.id,
-      entityTitle: `detail:đã di chuyển thẻ "${movedCard.title}"`,
+      entityTitle: `detail:đã di chuyển thẻ "${movedCard.title}" từ danh sách "${sourceTitle}" tới danh sách "${destTitle}"`,
       entityType: ENTITY_TYPE.CARD,
       action: ACTION.UPDATE,
       eventType: AUDIT_EVENT_TYPE.MOVE,

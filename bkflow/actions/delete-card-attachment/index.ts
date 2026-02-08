@@ -45,6 +45,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
           },
         },
       },
+      include: {
+        card: {
+          select: {
+            title: true,
+          },
+        },
+      },
     });
 
     if (!attachment) {
@@ -86,7 +93,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     await createAuditLog({
       entityId: cardId,
       entityType: ENTITY_TYPE.CARD,
-      entityTitle: `detail:đã xóa đính kèm "${deletedAttachment.name}"`,
+      entityTitle: `detail:đã xoá tập tin đính kèm "${deletedAttachment.name}" khỏi thẻ "${attachment.card.title}"`,
       action: ACTION.UPDATE,
       eventType: AUDIT_EVENT_TYPE.ATTACHMENT,
       boardId,

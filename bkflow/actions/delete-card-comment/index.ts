@@ -44,6 +44,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
           },
         },
       },
+      include: {
+        card: {
+          select: {
+            title: true,
+          },
+        },
+      },
     });
 
     if (!existingComment) {
@@ -72,7 +79,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
     await createAuditLog({
       entityId: cardId,
-      entityTitle: "detail:đã xóa bình luận trong thẻ này",
+      entityTitle: `detail:đã xóa bình luận trong thẻ "${existingComment.card.title}"`,
       entityType: ENTITY_TYPE.CARD,
       action: ACTION.UPDATE,
       eventType: AUDIT_EVENT_TYPE.COMMENT,

@@ -51,8 +51,8 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     await createAuditLog({
       entityId: item.id,
       entityTitle: isCompleted
-        ? `detail:đã hoàn thành "${access.item.title}"`
-        : `detail:đã bỏ hoàn thành "${access.item.title}"`,
+        ? `detail:đã hoàn tất "${access.item.title}" ở thẻ "${access.item.checklist.card.title}"`
+        : `detail:đã đánh dấu "${access.item.title}" là chưa hoàn tất ở thẻ "${access.item.checklist.card.title}"`,
       entityType: ENTITY_TYPE.CHECKLIST_ITEM,
       action: ACTION.UPDATE,
       eventType: AUDIT_EVENT_TYPE.CHECKLIST,

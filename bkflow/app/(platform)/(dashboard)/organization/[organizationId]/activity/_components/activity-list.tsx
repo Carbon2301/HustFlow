@@ -76,14 +76,15 @@ const buildPageHref = (
   return `?${params.toString()}`;
 };
 
-const parseEventType = (value?: string) => {
+const parseEventTypes = (value?: string): AUDIT_EVENT_TYPE[] => {
   if (!value) {
-    return undefined;
+    return [];
   }
 
-  return Object.values(AUDIT_EVENT_TYPE).includes(value as AUDIT_EVENT_TYPE)
-    ? value as AUDIT_EVENT_TYPE
-    : undefined;
+  return value
+    .split(",")
+    .map((val) => val.trim())
+    .filter((val) => Object.values(AUDIT_EVENT_TYPE).includes(val as AUDIT_EVENT_TYPE)) as AUDIT_EVENT_TYPE[];
 };
 
 const parseDateParam = (value?: string) => {
@@ -201,7 +202,7 @@ export const ActivityList = async ({
 
   const itemsPerPage = 50;
   const selectedRange = range && validRanges.has(range) ? range : "30d";
-  const selectedEventType = parseEventType(eventType);
+  const selectedEventTypes = parseEventTypes(eventType);
   const boards = await db.board.findMany({
     where: {
       orgId,
@@ -214,12 +215,14 @@ export const ActivityList = async ({
       createdAt: "desc",
     },
   });
-  const validBoardId = boards.some((board) => board.id === boardId)
-    ? boardId
-    : undefined;
+  const boardIds = boardId ? boardId.split(",") : [];
+  const validBoardIds = boards
+    .map((b) => b.id)
+    .filter((id) => boardIds.includes(id));
+
   const actorBaseWhere: Prisma.AuditLogWhereInput = {
     orgId,
-    ...(validBoardId ? { boardId: validBoardId } : {}),
+    ...(validBoardIds.length > 0 ? { boardId: { in: validBoardIds } } : {}),
   };
   const actors = await db.auditLog.findMany({
     where: actorBaseWhere,
@@ -233,15 +236,17 @@ export const ActivityList = async ({
       userName: "asc",
     },
   });
-  const validUserId = actors.some((actor) => actor.userId === userId)
-    ? userId
-    : undefined;
+  const userIds = userId ? userId.split(",") : [];
+  const validUserIds = actors
+    .map((actor) => actor.userId)
+    .filter((id) => userIds.includes(id));
+
   const createdAt = getCreatedAtFilter(selectedRange, from, to);
   const search = q?.trim();
   const normalizedParams = {
-    boardId: validBoardId,
-    eventType: selectedEventType,
-    userId: validUserId,
+    boardId: validBoardIds.length > 0 ? validBoardIds.join(",") : undefined,
+    eventType: selectedEventTypes.length > 0 ? selectedEventTypes.join(",") : undefined,
+    userId: validUserIds.length > 0 ? validUserIds.join(",") : undefined,
     range: selectedRange === "30d" && !range ? undefined : selectedRange,
     from: selectedRange === "custom" ? from : undefined,
     to: selectedRange === "custom" ? to : undefined,
@@ -249,9 +254,9 @@ export const ActivityList = async ({
   };
   const where: Prisma.AuditLogWhereInput = {
     orgId,
-    ...(validBoardId ? { boardId: validBoardId } : {}),
-    ...(selectedEventType ? { eventType: selectedEventType } : {}),
-    ...(validUserId ? { userId: validUserId } : {}),
+    ...(validBoardIds.length > 0 ? { boardId: { in: validBoardIds } } : {}),
+    ...(selectedEventTypes.length > 0 ? { eventType: { in: selectedEventTypes } } : {}),
+    ...(validUserIds.length > 0 ? { userId: { in: validUserIds } } : {}),
     ...(createdAt ? { createdAt } : {}),
     ...(search ? {
       AND: [
@@ -287,11 +292,67 @@ export const ActivityList = async ({
     skip: (page - 1) * itemsPerPage,
     take: itemsPerPage,
   });
+  const cardIds = Array.from(
+    new Set(
+      auditLogs
+        .map((log) => log.cardId || (log.entityType === "CARD" ? log.entityId : null))
+        .filter(Boolean)
+    )
+  ) as string[];
+  const existingCards = cardIds.length > 0
+    ? await db.card.findMany({
+        where: {
+          id: {
+            in: cardIds,
+          },
+          list: {
+            board: {
+              orgId,
+            },
+          },
+        },
+        select: {
+          id: true,
+          title: true,
+        },
+      })
+    : [];
+  const cardMap = new Map(existingCards.map((card) => [card.id, card.title]));
+  const boardMap = new Map(boards.map((board) => [board.id, board.title]));
+
+  const boardMembers = await db.boardMember.findMany({
+    where: {
+      board: {
+        orgId,
+      },
+    },
+    select: {
+      userName: true,
+    },
+  });
+  const memberNames = Array.from(
+    new Set([
+      ...actors.map((actor) => actor.userName),
+      ...boardMembers.map((member) => member.userName),
+    ])
+  ).filter(Boolean);
+
+  const lists = await db.list.findMany({
+    where: {
+      board: {
+        orgId,
+      },
+    },
+    select: {
+      id: true,
+    },
+  });
+  const existingListIds = new Set(lists.map((list) => list.id));
 
   const hasExplicitFilter = Boolean(
-    validBoardId ||
-    selectedEventType ||
-    validUserId ||
+    validBoardIds.length > 0 ||
+    selectedEventTypes.length > 0 ||
+    validUserIds.length > 0 ||
     range ||
     from ||
     to ||
@@ -301,9 +362,9 @@ export const ActivityList = async ({
     <ActivityFilters
       boards={boards}
       actors={actors}
-      selectedBoardId={validBoardId}
-      selectedEventType={selectedEventType}
-      selectedUserId={validUserId}
+      selectedBoardIds={validBoardIds}
+      selectedEventTypes={selectedEventTypes}
+      selectedUserIds={validUserIds}
       selectedRange={selectedRange}
       searchQuery={search}
     />
@@ -343,9 +404,22 @@ export const ActivityList = async ({
               {group.label}
             </h3>
             <ol className="space-y-4">
-              {group.items.map((log) => (
-                <ActivityItem key={log.id} data={log} />
-              ))}
+              {group.items.map((log) => {
+                const resolvedCardId = log.cardId || (log.entityType === "CARD" ? log.entityId : null);
+                const boardTitle = log.boardId ? boardMap.get(log.boardId) : undefined;
+                const cardTitle = resolvedCardId ? cardMap.get(resolvedCardId) : undefined;
+                const listExists = log.entityType === "LIST" ? existingListIds.has(log.entityId) : true;
+                return (
+                  <ActivityItem
+                    key={log.id}
+                    data={log}
+                    boardTitle={boardTitle}
+                    cardTitle={cardTitle}
+                    listExists={listExists}
+                    memberNames={memberNames}
+                  />
+                );
+              })}
             </ol>
           </section>
         ))}

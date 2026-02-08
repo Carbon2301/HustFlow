@@ -59,6 +59,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
           select: {
             id: true,
             cardId: true,
+            title: true,
           },
         },
       },
@@ -84,7 +85,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
     await createAuditLog({
       entityId: checklistItem.id,
-      entityTitle: `detail:đã xóa "${checklistItem.title}" khỏi checklist`,
+      entityTitle: `detail:đã xóa mục công việc "${checklistItem.title}" khỏi danh sách công việc "${checklistItem.checklist.title}"`,
       entityType: ENTITY_TYPE.CHECKLIST_ITEM,
       action: ACTION.UPDATE,
       eventType: AUDIT_EVENT_TYPE.CHECKLIST,

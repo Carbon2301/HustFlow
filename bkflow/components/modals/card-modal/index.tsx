@@ -108,7 +108,11 @@ export const CardModal = () => {
           <div className="col-span-1 md:col-span-5 pl-0 md:pl-2 space-y-6">
             {!auditLogsData
               ? <Activity.Skeleton />
-              : <Activity items={auditLogsData} />
+              : <Activity 
+                  items={auditLogsData} 
+                  cardTitle={cardData?.title} 
+                  memberNames={cardData?.boardMembers?.map((m) => m.userName) || []} 
+                />
             }
             {!id
               ? <Comments.Skeleton />

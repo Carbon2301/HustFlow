@@ -44,6 +44,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       },
       select: {
         id: true,
+        title: true,
       },
     });
 
@@ -76,7 +77,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     await createAuditLog({
       entityId: card.id,
       entityType: ENTITY_TYPE.CARD,
-      entityTitle: `detail:đã thêm đính kèm "${attachment.name}"`,
+      entityTitle: `detail:đã đính kèm tập tin "${attachment.name}" vào thẻ "${card.title}"`,
       action: ACTION.UPDATE,
       eventType: AUDIT_EVENT_TYPE.ATTACHMENT,
       boardId,

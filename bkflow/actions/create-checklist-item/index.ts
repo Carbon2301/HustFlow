@@ -83,7 +83,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
     await createAuditLog({
       entityId: checklistItem.id,
-      entityTitle: `detail:đã thêm "${checklistItem.title}" vào checklist "${checklist.title}"`,
+      entityTitle: `detail:đã thêm mục công việc "${checklistItem.title}" vào danh sách công việc "${checklist.title}"`,
       entityType: ENTITY_TYPE.CHECKLIST_ITEM,
       action: ACTION.UPDATE,
       eventType: AUDIT_EVENT_TYPE.CHECKLIST,

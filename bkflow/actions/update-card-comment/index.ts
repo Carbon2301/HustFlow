@@ -59,6 +59,11 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         userImage: true,
         createdAt: true,
         updatedAt: true,
+        card: {
+          select: {
+            title: true,
+          },
+        },
       },
     });
 
@@ -84,7 +89,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
       await createAuditLog({
         entityId: cardId,
-        entityTitle: "detail:đã cập nhật bình luận trong thẻ này",
+        entityTitle: `detail:đã cập nhật bình luận trong thẻ "${existingComment.card.title}"`,
         entityType: ENTITY_TYPE.CARD,
         action: ACTION.UPDATE,
         eventType: AUDIT_EVENT_TYPE.COMMENT,

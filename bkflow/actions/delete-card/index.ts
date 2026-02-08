@@ -42,14 +42,22 @@ const handler = async (data: InputType): Promise<ReturnType> => {
           },
         },
       },
+      include: {
+        list: {
+          select: {
+            title: true,
+          },
+        },
+      },
     });
 
     await createAuditLog({
-      entityTitle: card.title,
+      entityTitle: `detail:đã xoá thẻ "${card.title}" từ danh sách "${card.list.title}"`,
       entityId: card.id,
       entityType: ENTITY_TYPE.CARD,
       action: ACTION.DELETE,
       boardId,
+      cardId: card.id,
     })
 
     await triggerCardDeleted({

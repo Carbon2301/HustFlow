@@ -78,10 +78,11 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
     await createAuditLog({
       entityId: card.id,
-      entityTitle: card.title,
+      entityTitle: `detail:đã thêm thẻ "${card.title}" vào danh sách "${list.title}"`,
       entityType: ENTITY_TYPE.CARD,
       action: ACTION.CREATE,
       boardId,
+      cardId: card.id,
     });
 
     await triggerCardCreated({

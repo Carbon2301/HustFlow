@@ -1,8 +1,9 @@
 "use client";
 
-import { Search, X } from "lucide-react";
+import { Search, X, Check, ChevronDown } from "lucide-react";
 import { usePathname, useRouter, useSearchParams } from "next/navigation";
-import { useEffect, useState } from "react";
+import { useEffect, useState, useRef } from "react";
+import { Avatar, AvatarImage } from "@/components/ui/avatar";
 
 type BoardOption = {
   id: string;
@@ -18,12 +19,118 @@ type ActorOption = {
 interface ActivityFiltersProps {
   boards: BoardOption[];
   actors: ActorOption[];
-  selectedBoardId?: string;
-  selectedEventType?: string;
-  selectedUserId?: string;
+  selectedBoardIds: string[];
+  selectedEventTypes: string[];
+  selectedUserIds: string[];
   selectedRange: string;
   searchQuery?: string;
 }
+
+interface MultiSelectFilterProps {
+  label: string;
+  placeholder: string;
+  options: { value: string; label: string; image?: string }[];
+  selectedValues: string[];
+  onChange: (values: string[]) => void;
+}
+
+const MultiSelectFilter = ({
+  label,
+  placeholder,
+  options,
+  selectedValues,
+  onChange,
+}: MultiSelectFilterProps) => {
+  const [isOpen, setIsOpen] = useState(false);
+  const containerRef = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    const handleClickOutside = (event: MouseEvent) => {
+      if (containerRef.current && !containerRef.current.contains(event.target as Node)) {
+        setIsOpen(false);
+      }
+    };
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
+
+  const handleToggle = (value: string) => {
+    if (selectedValues.includes(value)) {
+      onChange(selectedValues.filter((v) => v !== value));
+    } else {
+      onChange([...selectedValues, value]);
+    }
+  };
+
+  const getDisplayText = () => {
+    if (selectedValues.length === 0) {
+      return placeholder;
+    }
+    if (selectedValues.length === 1) {
+      const option = options.find((o) => o.value === selectedValues[0]);
+      return option ? option.label : placeholder;
+    }
+    return `Đã chọn ${selectedValues.length}`;
+  };
+
+  return (
+    <div className="flex flex-col gap-1.5" ref={containerRef}>
+      <span className="text-xs font-medium uppercase tracking-wide text-neutral-500">
+        {label}
+      </span>
+      <div className="relative">
+        <button
+          type="button"
+          onClick={() => setIsOpen(!isOpen)}
+          className="flex h-9 w-full items-center justify-between rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-700 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100 text-left cursor-pointer hover:bg-neutral-50/50"
+        >
+          <span className="truncate">{getDisplayText()}</span>
+          <ChevronDown className="h-4 w-4 text-neutral-500 flex-shrink-0" />
+        </button>
+
+        {isOpen && (
+          <div className="absolute left-0 right-0 z-50 mt-1 max-h-60 overflow-y-auto rounded-lg border border-neutral-200 bg-white p-1.5 shadow-md">
+            <button
+              type="button"
+              onClick={() => onChange([])}
+              className="flex w-full items-center rounded-md px-2 py-1.5 text-xs font-semibold text-neutral-500 hover:bg-neutral-50 text-left cursor-pointer"
+            >
+              Tất cả (Mặc định)
+            </button>
+            <div className="my-1 border-t border-neutral-100" />
+            <div className="space-y-0.5">
+              {options.map((option) => {
+                const isSelected = selectedValues.includes(option.value);
+                return (
+                  <button
+                    key={option.value}
+                    type="button"
+                    onClick={() => handleToggle(option.value)}
+                    className="flex w-full items-center justify-between rounded-md px-2 py-1.5 text-sm text-neutral-700 hover:bg-neutral-50 text-left cursor-pointer"
+                  >
+                    <div className="flex items-center gap-x-2 truncate">
+                      {option.image && (
+                        <Avatar className="h-4 w-4 min-w-4 size-4">
+                          <AvatarImage src={option.image} alt={option.label} />
+                        </Avatar>
+                      )}
+                      <span className="truncate">{option.label}</span>
+                    </div>
+                    {isSelected && (
+                      <Check className="h-4 w-4 text-violet-600 flex-shrink-0" />
+                    )}
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        )}
+      </div>
+    </div>
+  );
+};
 
 const eventTypeOptions = [
   { value: "CREATE", label: "Tạo mới" },
@@ -48,9 +155,9 @@ const rangeOptions = [
 export const ActivityFilters = ({
   boards,
   actors,
-  selectedBoardId,
-  selectedEventType,
-  selectedUserId,
+  selectedBoardIds,
+  selectedEventTypes,
+  selectedUserIds,
   selectedRange,
   searchQuery,
 }: ActivityFiltersProps) => {
@@ -59,10 +166,16 @@ export const ActivityFilters = ({
   const searchParams = useSearchParams();
   const currentQuery = searchParams.get("q") ?? "";
   const [searchValue, setSearchValue] = useState(searchQuery ?? "");
+  const [prevQuery, setPrevQuery] = useState(currentQuery);
+  const [lastSetQuery, setLastSetQuery] = useState(searchQuery ?? "");
 
-  useEffect(() => {
-    setSearchValue(currentQuery);
-  }, [currentQuery]);
+  if (currentQuery !== prevQuery) {
+    setPrevQuery(currentQuery);
+    if (currentQuery !== lastSetQuery) {
+      setSearchValue(currentQuery);
+      setLastSetQuery(currentQuery);
+    }
+  }
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -83,19 +196,29 @@ export const ActivityFilters = ({
       params.set("page", "1");
 
       const queryString = params.toString();
+      setLastSetQuery(trimmedSearch);
       router.replace(queryString ? `${pathname}?${queryString}` : pathname);
     }, 300);
 
     return () => window.clearTimeout(timeout);
   }, [currentQuery, pathname, router, searchParams, searchValue]);
 
-  const updateFilter = (key: string, value: string) => {
+  const updateFilter = (key: string, value: string | string[]) => {
     const params = new URLSearchParams(searchParams.toString());
 
-    if (value) {
-      params.set(key, value);
+    if (Array.isArray(value)) {
+      const val = value.join(",");
+      if (val) {
+        params.set(key, val);
+      } else {
+        params.delete(key);
+      }
     } else {
-      params.delete(key);
+      if (value) {
+        params.set(key, value);
+      } else {
+        params.delete(key);
+      }
     }
 
     params.set("page", "1");
@@ -105,10 +228,13 @@ export const ActivityFilters = ({
   };
 
   const clearFilters = () => {
+    setLastSetQuery("");
+    setSearchValue("");
     router.push(pathname);
   };
 
   const clearSearch = () => {
+    setLastSetQuery("");
     setSearchValue("");
     updateFilter("q", "");
   };
@@ -145,71 +271,33 @@ export const ActivityFilters = ({
       </div>
 
       <div className="grid gap-3 md:grid-cols-4">
-        <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="activity-board-filter"
-            className="text-xs font-medium uppercase tracking-wide text-neutral-500"
-          >
-            Bảng
-          </label>
-          <select
-            id="activity-board-filter"
-            value={selectedBoardId ?? ""}
-            onChange={(event) => updateFilter("boardId", event.target.value)}
-            className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-700 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-          >
-            <option value="">Tất cả bảng</option>
-            {boards.map((board) => (
-              <option key={board.id} value={board.id}>
-                {board.title}
-              </option>
-            ))}
-          </select>
-        </div>
+        <MultiSelectFilter
+          label="Bảng"
+          placeholder="Tất cả bảng"
+          options={boards.map((board) => ({ value: board.id, label: board.title }))}
+          selectedValues={selectedBoardIds}
+          onChange={(values) => updateFilter("boardId", values)}
+        />
 
-        <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="activity-event-filter"
-            className="text-xs font-medium uppercase tracking-wide text-neutral-500"
-          >
-            Hành động
-          </label>
-          <select
-            id="activity-event-filter"
-            value={selectedEventType ?? ""}
-            onChange={(event) => updateFilter("eventType", event.target.value)}
-            className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-700 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-          >
-            <option value="">Tất cả hành động</option>
-            {eventTypeOptions.map((option) => (
-              <option key={option.value} value={option.value}>
-                {option.label}
-              </option>
-            ))}
-          </select>
-        </div>
+        <MultiSelectFilter
+          label="Hành động"
+          placeholder="Tất cả hành động"
+          options={eventTypeOptions}
+          selectedValues={selectedEventTypes}
+          onChange={(values) => updateFilter("eventType", values)}
+        />
 
-        <div className="flex flex-col gap-1.5">
-          <label
-            htmlFor="activity-user-filter"
-            className="text-xs font-medium uppercase tracking-wide text-neutral-500"
-          >
-            Người thực hiện
-          </label>
-          <select
-            id="activity-user-filter"
-            value={selectedUserId ?? ""}
-            onChange={(event) => updateFilter("userId", event.target.value)}
-            className="h-9 w-full rounded-lg border border-neutral-200 bg-white px-3 text-sm text-neutral-700 outline-none transition focus:border-violet-400 focus:ring-2 focus:ring-violet-100"
-          >
-            <option value="">Tất cả thành viên</option>
-            {actors.map((actor) => (
-              <option key={actor.userId} value={actor.userId}>
-                {actor.userName}
-              </option>
-            ))}
-          </select>
-        </div>
+        <MultiSelectFilter
+          label="Người thực hiện"
+          placeholder="Tất cả thành viên"
+          options={actors.map((actor) => ({
+            value: actor.userId,
+            label: actor.userName,
+            image: actor.userImage,
+          }))}
+          selectedValues={selectedUserIds}
+          onChange={(values) => updateFilter("userId", values)}
+        />
 
         <div className="flex flex-col gap-1.5">
           <label

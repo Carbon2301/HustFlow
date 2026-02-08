@@ -4,6 +4,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireBoardMember } from "@/lib/permissions";
 
+import { BoardCardModalFromUrl } from "./_components/board-card-modal-from-url";
 import { ListContainer } from "./_components/list-container";
 
 interface BoardIdPageProps {
@@ -100,6 +101,7 @@ const BoardIdPage = async ({
 
   return (
     <div className="p-4 h-full overflow-x-auto">
+      <BoardCardModalFromUrl />
       <ListContainer
         boardId={boardId}
         data={lists}
