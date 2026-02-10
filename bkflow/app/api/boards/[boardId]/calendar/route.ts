@@ -114,7 +114,9 @@ export async function GET(
     const [cards, checklistItems, unscheduledCards] = await Promise.all([
       db.card.findMany({
         where: {
+          archivedAt: null,
           list: {
+            archivedAt: null,
             board: {
               id: boardId,
               orgId,
@@ -211,7 +213,9 @@ export async function GET(
           },
           checklist: {
             card: {
+              archivedAt: null,
               list: {
+                archivedAt: null,
                 board: {
                   id: boardId,
                   orgId,
@@ -275,9 +279,11 @@ export async function GET(
       includeUnscheduled
         ? db.card.findMany({
             where: {
+              archivedAt: null,
               startDate: null,
               dueDate: null,
               list: {
+                archivedAt: null,
                 board: {
                   id: boardId,
                   orgId,

@@ -53,7 +53,9 @@ export const ensureDueReminderNotifications = async ({
 }) => {
   const cards = await db.card.findMany({
     where: {
+      archivedAt: null,
       list: {
+        archivedAt: null,
         board: {
           orgId,
         },

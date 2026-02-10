@@ -67,10 +67,12 @@ export async function GET(
       await Promise.all([
         db.card.findMany({
           where: {
+            archivedAt: null,
             title: {
               contains: query,
             },
             list: {
+              archivedAt: null,
               board: {
                 id: boardId,
                 orgId,
@@ -104,10 +106,12 @@ export async function GET(
         }),
         db.card.findMany({
           where: {
+            archivedAt: null,
             description: {
               contains: query,
             },
             list: {
+              archivedAt: null,
               board: {
                 id: boardId,
                 orgId,
@@ -145,7 +149,9 @@ export async function GET(
               contains: query,
             },
             card: {
+              archivedAt: null,
               list: {
+                archivedAt: null,
                 board: {
                   id: boardId,
                   orgId,
@@ -198,7 +204,9 @@ export async function GET(
             },
             checklist: {
               card: {
+                archivedAt: null,
                 list: {
+                  archivedAt: null,
                   board: {
                     id: boardId,
                     orgId,
@@ -266,7 +274,9 @@ export async function GET(
               contains: query,
             },
             card: {
+              archivedAt: null,
               list: {
+                archivedAt: null,
                 board: {
                   id: boardId,
                   orgId,
@@ -315,7 +325,9 @@ export async function GET(
               },
             ],
             card: {
+              archivedAt: null,
               list: {
+                archivedAt: null,
                 board: {
                   id: boardId,
                   orgId,

@@ -46,7 +46,10 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     }
 
     const lastList = await db.list.findFirst({
-      where: { boardId: boardId },
+      where: {
+        boardId,
+        archivedAt: null,
+      },
       orderBy: { order: "desc" },
       select: { order: true },
     });

@@ -51,6 +51,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
           in: destinationListIds,
         },
         boardId,
+        archivedAt: null,
         board: {
           orgId,
         },
@@ -66,7 +67,9 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         id: {
           in: items.map((card) => card.id),
         },
+        archivedAt: null,
         list: {
+          archivedAt: null,
           board: {
             id: boardId,
             orgId,
@@ -119,7 +122,9 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       db.card.update({
         where: {
           id: card.id,
+          archivedAt: null,
           list: {
+            archivedAt: null,
             board: {
               id: boardId,
               orgId,
@@ -147,6 +152,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         id: {
           in: [movedCard.sourceListId, movedCard.destinationListId],
         },
+        archivedAt: null,
       },
       select: {
         id: true,

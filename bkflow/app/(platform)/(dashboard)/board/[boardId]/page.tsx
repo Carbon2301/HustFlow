@@ -33,12 +33,16 @@ const BoardIdPage = async ({
   const lists = await db.list.findMany({
     where: {
       boardId,
+      archivedAt: null,
       board: {
         orgId,
       },
     },
     include: {
       cards: {
+        where: {
+          archivedAt: null,
+        },
         include: {
           assignees: {
             include: {

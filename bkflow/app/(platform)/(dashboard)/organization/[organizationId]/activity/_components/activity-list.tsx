@@ -194,9 +194,9 @@ export const ActivityList = async ({
   q,
   searchParams,
 }: ActivityListProps) => {
-  const { orgId } = await auth();
+  const { orgId, userId: currentUserId } = await auth();
 
-  if (!orgId) {
+  if (!orgId || !currentUserId) {
     redirect("/select-org");
   }
 
@@ -206,6 +206,11 @@ export const ActivityList = async ({
   const boards = await db.board.findMany({
     where: {
       orgId,
+      members: {
+        some: {
+          userId: currentUserId,
+        },
+      },
     },
     select: {
       id: true,
@@ -222,7 +227,9 @@ export const ActivityList = async ({
 
   const actorBaseWhere: Prisma.AuditLogWhereInput = {
     orgId,
-    ...(validBoardIds.length > 0 ? { boardId: { in: validBoardIds } } : {}),
+    boardId: {
+      in: validBoardIds.length > 0 ? validBoardIds : boards.map((b) => b.id),
+    },
   };
   const actors = await db.auditLog.findMany({
     where: actorBaseWhere,
@@ -254,7 +261,9 @@ export const ActivityList = async ({
   };
   const where: Prisma.AuditLogWhereInput = {
     orgId,
-    ...(validBoardIds.length > 0 ? { boardId: { in: validBoardIds } } : {}),
+    boardId: {
+      in: validBoardIds.length > 0 ? validBoardIds : boards.map((b) => b.id),
+    },
     ...(selectedEventTypes.length > 0 ? { eventType: { in: selectedEventTypes } } : {}),
     ...(validUserIds.length > 0 ? { userId: { in: validUserIds } } : {}),
     ...(createdAt ? { createdAt } : {}),
@@ -305,7 +314,9 @@ export const ActivityList = async ({
           id: {
             in: cardIds,
           },
+          archivedAt: null,
           list: {
+            archivedAt: null,
             board: {
               orgId,
             },
@@ -339,6 +350,7 @@ export const ActivityList = async ({
 
   const lists = await db.list.findMany({
     where: {
+      archivedAt: null,
       board: {
         orgId,
       },

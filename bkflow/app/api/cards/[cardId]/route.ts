@@ -17,10 +17,12 @@ export async function GET(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const card = await db.card.findUnique({
+    const card = await db.card.findFirst({
       where: {
         id: cardId,
+        archivedAt: null,
         list: {
+          archivedAt: null,
           board: {
             orgId,
           },
@@ -109,7 +111,9 @@ export async function GET(
     const boardChecklists = await db.checklist.findMany({
       where: {
         card: {
+          archivedAt: null,
           list: {
+            archivedAt: null,
             boardId: card.list.boardId,
           },
         },

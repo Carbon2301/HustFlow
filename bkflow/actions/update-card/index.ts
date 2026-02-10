@@ -95,10 +95,12 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       return { error: permission.error };
     }
 
-    const currentCard = await db.card.findUnique({
+    const currentCard = await db.card.findFirst({
       where: {
         id,
+        archivedAt: null,
         list: {
+          archivedAt: null,
           board: {
             id: boardId,
             orgId,
@@ -212,7 +214,9 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     card = await db.card.update({
       where: {
         id,
+        archivedAt: null,
         list: {
+          archivedAt: null,
           board: {
             id: boardId,
             orgId,

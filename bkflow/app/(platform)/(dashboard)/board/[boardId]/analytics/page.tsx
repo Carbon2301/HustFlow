@@ -33,6 +33,7 @@ const BoardAnalyticsPage = async ({
     db.list.findMany({
       where: {
         boardId,
+        archivedAt: null,
         board: {
           orgId,
         },
@@ -42,6 +43,9 @@ const BoardAnalyticsPage = async ({
         title: true,
         order: true,
         cards: {
+          where: {
+            archivedAt: null,
+          },
           select: {
             id: true,
             title: true,

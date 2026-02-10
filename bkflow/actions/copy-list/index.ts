@@ -32,16 +32,21 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       return { error: permission.error };
     }
 
-    const listToCopy = await db.list.findUnique({
+    const listToCopy = await db.list.findFirst({
       where: {
         id,
         boardId,
+        archivedAt: null,
         board: {
           orgId,
         },
       },
       include: {
-        cards: true,
+        cards: {
+          where: {
+            archivedAt: null,
+          },
+        },
       },
     });
 
@@ -50,7 +55,10 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     }
 
     const lastList = await db.list.findFirst({
-      where: { boardId },
+      where: {
+        boardId,
+        archivedAt: null,
+      },
       orderBy: { order: "desc" },
       select: { order: true },
     });

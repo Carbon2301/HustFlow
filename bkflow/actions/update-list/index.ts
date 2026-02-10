@@ -32,10 +32,11 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       return { error: permission.error };
     }
 
-    const existingList = await db.list.findUnique({
+    const existingList = await db.list.findFirst({
       where: {
         id,
         boardId,
+        archivedAt: null,
         board: {
           orgId,
         },
@@ -54,6 +55,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       where: {
         id,
         boardId,
+        archivedAt: null,
         board: {
           orgId,
         },
