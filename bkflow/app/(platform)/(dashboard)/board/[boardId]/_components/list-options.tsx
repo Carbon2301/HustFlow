@@ -3,7 +3,8 @@
 import { toast } from "sonner";
 import { List } from "@prisma/client";
 import { useRef } from "react";
-import { MoreHorizontal, X, Plus, Copy, Trash2 } from "lucide-react";
+import { useRouter } from "next/navigation";
+import { Archive, MoreHorizontal, X, Plus, Copy } from "lucide-react";
 
 import {
   Popover,
@@ -14,7 +15,8 @@ import {
 import { useAction } from "@/hooks/use-action";
 import { Button } from "@/components/ui/button";
 import { copyList } from "@/actions/copy-list";
-import { deleteList } from "@/actions/delete-list";
+import { archiveList } from "@/actions/archive-list";
+import { archiveListCards } from "@/actions/archive-list-cards";
 import { FormSubmit } from "@/components/form/form-submit";
 import { Separator } from "@/components/ui/separator";
 
@@ -28,32 +30,55 @@ export const ListOptions = ({
   onAddCard,
 }: ListOptionsProps) => {
   const closeRef = useRef<HTMLButtonElement>(null);
+  const router = useRouter();
 
-  const { execute: executeDelete } = useAction(deleteList, {
+  const { execute: executeArchiveList, isLoading: isLoadingArchiveList } = useAction(archiveList, {
     onSuccess: (data) => {
-      toast.success(`Đã xóa danh sách "${data.title}"`);
+      toast.success(`Đã lưu trữ danh sách "${data.title}"`);
       closeRef.current?.click();
+      router.refresh();
     },
     onError: (error) => {
       toast.error(error)
     }
   });
 
-  const { execute: executeCopy } = useAction(copyList, {
+  const { execute: executeArchiveListCards, isLoading: isLoadingArchiveListCards } = useAction(archiveListCards, {
+    onSuccess: (data) => {
+      toast.success(`Đã lưu trữ các thẻ trong danh sách "${data.title}"`);
+      closeRef.current?.click();
+      router.refresh();
+    },
+    onError: (error) => {
+      toast.error(error)
+    }
+  });
+
+  const { execute: executeCopy, isLoading: isLoadingCopy } = useAction(copyList, {
     onSuccess: (data) => {
       toast.success(`Đã sao chép danh sách "${data.title}"`);
       closeRef.current?.click();
+      router.refresh();
     },
     onError: (error) => {
       toast.error(error)
     }
   });
 
-  const onDelete = (formData: FormData) => {
+  const isArchiving = isLoadingArchiveList || isLoadingArchiveListCards;
+
+  const onArchiveList = (formData: FormData) => {
     const id = formData.get("id") as string;
     const boardId = formData.get("boardId") as string;
 
-    executeDelete({ id, boardId });
+    executeArchiveList({ id, boardId });
+  };
+
+  const onArchiveListCards = (formData: FormData) => {
+    const id = formData.get("id") as string;
+    const boardId = formData.get("boardId") as string;
+
+    executeArchiveListCards({ id, boardId });
   };
 
   const onCopy = (formData: FormData) => {
@@ -73,7 +98,7 @@ export const ListOptions = ({
           <MoreHorizontal className="h-3.5 w-3.5" />
         </Button>
       </PopoverTrigger>
-      <PopoverContent className="px-0 pt-3 pb-2 w-52 shadow-lg rounded-xl border border-neutral-200" side="bottom" align="start">
+      <PopoverContent className="px-0 pt-3 pb-2 w-60 shadow-lg rounded-xl border border-neutral-200" side="bottom" align="start">
         <div className="text-xs font-semibold text-center text-neutral-400 uppercase tracking-wider pb-2 px-4">
           Thao tác danh sách
         </div>
@@ -87,6 +112,7 @@ export const ListOptions = ({
         </PopoverClose>
         <Button
           onClick={onAddCard}
+          disabled={isArchiving || isLoadingCopy}
           className="w-full h-9 px-4 justify-start font-normal text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 gap-x-2 rounded-none"
           variant="ghost"
         >
@@ -98,6 +124,7 @@ export const ListOptions = ({
           <input hidden name="boardId" id="boardId" value={data.boardId} readOnly />
           <FormSubmit
             variant="ghost"
+            disabled={isArchiving || isLoadingCopy}
             className="w-full h-9 px-4 justify-start font-normal text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 gap-x-2 rounded-none"
           >
             <Copy className="h-4 w-4 text-neutral-400" />
@@ -105,15 +132,32 @@ export const ListOptions = ({
           </FormSubmit>
         </form>
         <Separator className="my-1" />
-        <form action={onDelete}>
+        <form action={onArchiveList}>
           <input hidden name="id" id="id" value={data.id} readOnly />
           <input hidden name="boardId" id="boardId" value={data.boardId} readOnly />
           <FormSubmit
             variant="ghost"
-            className="w-full h-9 px-4 justify-start font-normal text-sm text-red-500 hover:bg-red-50 hover:text-red-600 gap-x-2 rounded-none"
+            disabled={isArchiving || isLoadingCopy}
+            className="w-full min-h-9 px-4 justify-start font-normal text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 gap-x-2 rounded-none"
           >
-            <Trash2 className="h-4 w-4" />
-            Xóa danh sách
+            <Archive className="h-4 w-4 text-neutral-400 shrink-0" />
+            <span className="text-left whitespace-normal">
+              {isLoadingArchiveList ? "Đang lưu trữ…" : "Lưu trữ danh sách này"}
+            </span>
+          </FormSubmit>
+        </form>
+        <form action={onArchiveListCards}>
+          <input hidden name="id" id="id" value={data.id} readOnly />
+          <input hidden name="boardId" id="boardId" value={data.boardId} readOnly />
+          <FormSubmit
+            variant="ghost"
+            disabled={isArchiving || isLoadingCopy}
+            className="w-full min-h-9 px-4 justify-start font-normal text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 gap-x-2 rounded-none"
+          >
+            <Archive className="h-4 w-4 text-neutral-400 shrink-0" />
+            <span className="text-left whitespace-normal">
+              {isLoadingArchiveListCards ? "Đang lưu trữ…" : "Lưu trữ tất cả thẻ trong danh sách này"}
+            </span>
           </FormSubmit>
         </form>
       </PopoverContent>

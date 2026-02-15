@@ -314,9 +314,7 @@ export const ActivityList = async ({
           id: {
             in: cardIds,
           },
-          archivedAt: null,
           list: {
-            archivedAt: null,
             board: {
               orgId,
             },
@@ -325,10 +323,24 @@ export const ActivityList = async ({
         select: {
           id: true,
           title: true,
+          archivedAt: true,
+          list: {
+            select: {
+              archivedAt: true,
+            },
+          },
         },
       })
     : [];
-  const cardMap = new Map(existingCards.map((card) => [card.id, card.title]));
+  const cardMap = new Map(
+    existingCards.map((card) => [
+      card.id,
+      {
+        title: card.title,
+        isArchived: card.archivedAt !== null || card.list.archivedAt !== null,
+      },
+    ])
+  );
   const boardMap = new Map(boards.map((board) => [board.id, board.title]));
 
   const boardMembers = await db.boardMember.findMany({
@@ -419,7 +431,9 @@ export const ActivityList = async ({
               {group.items.map((log) => {
                 const resolvedCardId = log.cardId || (log.entityType === "CARD" ? log.entityId : null);
                 const boardTitle = log.boardId ? boardMap.get(log.boardId) : undefined;
-                const cardTitle = resolvedCardId ? cardMap.get(resolvedCardId) : undefined;
+                const cardInfo = resolvedCardId ? cardMap.get(resolvedCardId) : undefined;
+                const cardTitle = cardInfo?.title;
+                const cardArchived = cardInfo?.isArchived;
                 const listExists = log.entityType === "LIST" ? existingListIds.has(log.entityId) : true;
                 return (
                   <ActivityItem
@@ -427,6 +441,7 @@ export const ActivityList = async ({
                     data={log}
                     boardTitle={boardTitle}
                     cardTitle={cardTitle}
+                    cardArchived={cardArchived}
                     listExists={listExists}
                     memberNames={memberNames}
                   />

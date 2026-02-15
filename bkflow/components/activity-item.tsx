@@ -10,6 +10,7 @@ interface ActivityItemProps {
   data: AuditLog;
   boardTitle?: string;
   cardTitle?: string;
+  cardArchived?: boolean;
   listExists?: boolean;
   memberNames?: string[];
   isCardModal?: boolean;
@@ -141,7 +142,8 @@ const renderMessageWithLinks = (
   boardTitle?: string,
   listExists?: boolean,
   memberNames: string[] = [],
-  isCardModal?: boolean
+  isCardModal?: boolean,
+  cardArchived?: boolean
 ) => {
   let elements: React.ReactNode[] = [message];
   const resolvedCardTitle = cardTitle || 
@@ -154,18 +156,20 @@ const renderMessageWithLinks = (
     const resolvedCardId = log.cardId || (log.entityType === "CARD" ? log.entityId : null);
     const cardHref = log.boardId && resolvedCardId ? `/board/${log.boardId}?cardId=${resolvedCardId}` : null;
 
-    // 1. Handle Card Links / Deleted notice
+    // 1. Handle Card Links / Deleted / Archived notice
     if (resolvedCardId) {
-      if (cardHref && cardTitle) {
+      if (cardHref && cardTitle && !cardArchived) {
         elements = replaceTextWithLink(elements, "thẻ này", cardHref, cardTitle, "thẻ");
         elements = replaceTextWithLink(elements, `"${cardTitle}"`, cardHref, cardTitle);
         elements = replaceTextWithLink(elements, `“${cardTitle}”`, cardHref, cardTitle);
       } else if (resolvedCardTitle) {
-        elements = replaceTextWithLabel(elements, "thẻ này", `${resolvedCardTitle} (đã bị xóa)`, "thẻ");
-        elements = replaceTextWithLabel(elements, `"${resolvedCardTitle}"`, `${resolvedCardTitle} (đã bị xóa)`);
-        elements = replaceTextWithLabel(elements, `“${resolvedCardTitle}”`, `${resolvedCardTitle} (đã bị xóa)`);
+        const labelText = cardArchived ? `${resolvedCardTitle} (đã lưu trữ)` : `${resolvedCardTitle} (đã bị xóa)`;
+        elements = replaceTextWithLabel(elements, "thẻ này", labelText, "thẻ");
+        elements = replaceTextWithLabel(elements, `"${resolvedCardTitle}"`, labelText);
+        elements = replaceTextWithLabel(elements, `“${resolvedCardTitle}”`, labelText);
       } else {
-        elements = replaceTextWithLabel(elements, "thẻ này", "(đã bị xóa)", "thẻ");
+        const labelText = cardArchived ? "(đã lưu trữ)" : "(đã bị xóa)";
+        elements = replaceTextWithLabel(elements, "thẻ này", labelText, "thẻ");
       }
     }
 
@@ -220,6 +224,7 @@ export const ActivityItem = ({
   data,
   boardTitle,
   cardTitle,
+  cardArchived = false,
   listExists = true,
   memberNames = [],
   isCardModal = false,
@@ -247,7 +252,7 @@ export const ActivityItem = ({
           <span className="font-semibold text-neutral-900">
             {data.userName}
           </span>{" "}
-          {renderMessageWithLinks(message, data, cardTitle, boardTitle, listExists, memberNames, isCardModal)}
+          {renderMessageWithLinks(message, data, cardTitle, boardTitle, listExists, memberNames, isCardModal, cardArchived)}
         </p>
         <p className="text-xs text-neutral-400 flex items-center gap-x-1.5 mt-0.5">
           <span>{format(new Date(data.createdAt), "HH:mm dd 'thg' M, yyyy")}</span>

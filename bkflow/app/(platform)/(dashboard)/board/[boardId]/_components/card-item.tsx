@@ -2,10 +2,10 @@
 
 import { useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useParams } from "next/navigation";
+import { useParams, useRouter } from "next/navigation";
 import { toast } from "sonner";
 import { Draggable } from "@hello-pangea/dnd";
-import { AlignLeft, ExternalLink, Copy, Trash2, MessageSquare, CheckSquare, Paperclip } from "lucide-react";
+import { AlignLeft, Archive, ExternalLink, Copy, MessageSquare, CheckSquare, Paperclip } from "lucide-react";
 
 import { useCardModal } from "@/hooks/use-card-modal";
 import { DueDateBadge } from "@/components/due-date-badge";
@@ -19,7 +19,7 @@ import {
 } from "@/components/ui/avatar";
 import { useAction } from "@/hooks/use-action";
 import { copyCard } from "@/actions/copy-card";
-import { deleteCard } from "@/actions/delete-card";
+import { archiveCard } from "@/actions/archive-card";
 import { cn, getColorName } from "@/lib/utils";
 
 interface CardItemProps {
@@ -40,6 +40,7 @@ export const CardItem = ({
 }: CardItemProps) => {
   const cardModal = useCardModal();
   const params = useParams();
+  const router = useRouter();
   
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
@@ -76,10 +77,11 @@ export const CardItem = ({
     },
   });
 
-  const { execute: executeDeleteCard, isLoading: isLoadingDelete } = useAction(deleteCard, {
-    onSuccess: (deletedCard) => {
-      toast.success(`Đã xóa thẻ "${deletedCard.title}"`);
+  const { execute: executeArchiveCard, isLoading: isLoadingArchive } = useAction(archiveCard, {
+    onSuccess: (archivedCard) => {
+      toast.success(`Đã lưu trữ thẻ "${archivedCard.title}"`);
       setShowMenu(false);
+      router.refresh();
     },
     onError: (error) => {
       toast.error(error);
@@ -100,10 +102,10 @@ export const CardItem = ({
     executeCopyCard({ id: data.id, boardId });
   };
 
-  const onDelete = (e: React.MouseEvent) => {
+  const onArchive = (e: React.MouseEvent) => {
     e.stopPropagation();
     const boardId = params.boardId as string;
-    executeDeleteCard({ id: data.id, boardId });
+    executeArchiveCard({ id: data.id, boardId });
   };
 
   const visibleAssignees = data.assignees.slice(0, 3);
@@ -293,19 +295,19 @@ export const CardItem = ({
                   </button>
                   <button
                     onClick={onCopy}
-                    disabled={isLoadingCopy || isLoadingDelete}
+                    disabled={isLoadingCopy || isLoadingArchive}
                     className="w-full flex items-center gap-x-2.5 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-50 rounded-lg transition-colors cursor-pointer"
                   >
                     <Copy className="h-4 w-4 text-neutral-400" />
                     {isLoadingCopy ? "Đang sao chép…" : "Sao chép thẻ"}
                   </button>
                   <button
-                    onClick={onDelete}
-                    disabled={isLoadingCopy || isLoadingDelete}
-                    className="w-full flex items-center gap-x-2.5 px-3 py-2 text-sm font-medium text-red-600 hover:bg-red-50 disabled:opacity-50 rounded-lg transition-colors cursor-pointer"
+                    onClick={onArchive}
+                    disabled={isLoadingCopy || isLoadingArchive}
+                    className="w-full flex items-center gap-x-2.5 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-50 rounded-lg transition-colors cursor-pointer"
                   >
-                    <Trash2 className="h-4 w-4" />
-                    {isLoadingDelete ? "Đang xóa…" : "Xóa thẻ"}
+                    <Archive className="h-4 w-4 text-neutral-400" />
+                    {isLoadingArchive ? "Đang lưu trữ thẻ…" : "Lưu trữ thẻ"}
                   </button>
                 </div>
               </>

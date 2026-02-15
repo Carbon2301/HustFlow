@@ -10,6 +10,8 @@ import { cn, formatNotificationText } from "@/lib/utils";
 import { useCardModal } from "@/hooks/use-card-modal";
 import { useNotifications } from "@/hooks/use-notifications";
 import { NotificationItem } from "@/components/notifications/types";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 const SHOWN_STORAGE_KEY = "shown-notification-toasts";
 const AUTO_DISMISS_MS = 5600;
@@ -55,6 +57,7 @@ const formatNotificationTime = (date: string | null) => {
 export const NotificationToasts = () => {
   const router = useRouter();
   const cardModal = useCardModal();
+  const queryClient = useQueryClient();
   const {
     unreadNotifications,
     isStorageReady,
@@ -207,12 +210,32 @@ export const NotificationToasts = () => {
 
   const visibleToasts = useMemo(() => toasts.slice(0, MAX_VISIBLE_TOASTS), [toasts]);
 
-  const openNotification = (notification: NotificationItem) => {
+  const openNotification = async (notification: NotificationItem) => {
     markAsRead(notification.id);
     dismissToast(notification.id);
 
     if (notification.cardId) {
-      cardModal.onOpen(notification.cardId);
+      const toastId = toast.loading("Đang mở thẻ...");
+      try {
+        const response = await fetch(`/api/cards/${notification.cardId}`);
+        if (!response.ok) {
+          if (response.status === 404) {
+            toast.error("Thẻ không tồn tại hoặc đã bị xóa.", { id: toastId });
+          } else if (response.status === 403) {
+            toast.error("Bạn không có quyền truy cập thẻ này.", { id: toastId });
+          } else {
+            toast.error("Có lỗi xảy ra khi tải dữ liệu thẻ.", { id: toastId });
+          }
+          return;
+        }
+
+        const data = await response.json();
+        queryClient.setQueryData(["card", notification.cardId], data);
+        toast.dismiss(toastId);
+        cardModal.onOpen(notification.cardId);
+      } catch (err) {
+        toast.error("Có lỗi xảy ra khi tải dữ liệu thẻ.", { id: toastId });
+      }
       return;
     }
 

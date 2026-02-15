@@ -31,6 +31,8 @@ import { cn, formatNotificationText } from "@/lib/utils";
 import { useCardModal } from "@/hooks/use-card-modal";
 import { useNotifications } from "@/hooks/use-notifications";
 import { NotificationItem } from "@/components/notifications/types";
+import { toast } from "sonner";
+import { useQueryClient } from "@tanstack/react-query";
 
 const getNotificationIcon = (type: NotificationItem["type"]) => {
   switch (type) {
@@ -85,6 +87,7 @@ const formatReminderStatus = (dueDateStr: string | null) => {
 export const NotificationsPopover = () => {
   const router = useRouter();
   const cardModal = useCardModal();
+  const queryClient = useQueryClient();
   const [open, setOpen] = useState(false);
   const [onlyUnread, setOnlyUnread] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -123,7 +126,7 @@ export const NotificationsPopover = () => {
     markAsRead(id);
   };
 
-  const handleClickNotification = (
+  const handleClickNotification = async (
     notification: NotificationItem,
     notificationIsRead: boolean,
   ) => {
@@ -134,7 +137,27 @@ export const NotificationsPopover = () => {
     setOpen(false);
 
     if (notification.cardId) {
-      cardModal.onOpen(notification.cardId);
+      const toastId = toast.loading("Đang mở thẻ...");
+      try {
+        const response = await fetch(`/api/cards/${notification.cardId}`);
+        if (!response.ok) {
+          if (response.status === 404) {
+            toast.error("Thẻ không tồn tại hoặc đã bị xóa.", { id: toastId });
+          } else if (response.status === 403) {
+            toast.error("Bạn không có quyền truy cập thẻ này.", { id: toastId });
+          } else {
+            toast.error("Có lỗi xảy ra khi tải dữ liệu thẻ.", { id: toastId });
+          }
+          return;
+        }
+
+        const data = await response.json();
+        queryClient.setQueryData(["card", notification.cardId], data);
+        toast.dismiss(toastId);
+        cardModal.onOpen(notification.cardId);
+      } catch (err) {
+        toast.error("Có lỗi xảy ra khi tải dữ liệu thẻ.", { id: toastId });
+      }
       return;
     }
 
