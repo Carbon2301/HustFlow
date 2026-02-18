@@ -19,6 +19,7 @@ import { isRealtimeClientConfigured } from "@/lib/realtime/client";
 
 import { ListForm } from "./list-form";
 import { ListItem } from "./list-item";
+import { BoardStateProvider } from "./list-container/board-state-context";
 import { BoardRealtimeSubscriptions } from "./list-container/board-realtime-subscriptions";
 import { useBoardRealtimeSync } from "./list-container/use-board-realtime-sync";
 import { useCalendarDropBridge } from "./list-container/use-calendar-drop-bridge";
@@ -49,18 +50,12 @@ export const ListContainer = ({
   );
 
   const { execute: executeUpdateListOrder } = useAction(updateListOrder, {
-    onSuccess: () => {
-      toast.success("Đã sắp xếp lại thứ tự danh sách");
-    },
     onError: (error) => {
       toast.error(error);
     },
   });
 
   const { execute: executeUpdateCardOrder } = useAction(updateCardOrder, {
-    onSuccess: () => {
-      toast.success("Đã sắp xếp lại thứ tự thẻ");
-    },
     onError: (error) => {
       toast.error(error);
     },
@@ -68,7 +63,6 @@ export const ListContainer = ({
 
   const { execute: executeScheduleCardDate } = useAction(updateCard, {
     onSuccess: (data) => {
-      toast.success("Đã lên lịch thẻ");
       invalidateBoardCalendar();
       queryClient.invalidateQueries({ queryKey: ["card", data.id] });
       queryClient.invalidateQueries({ queryKey: ["card-logs", data.id] });
@@ -85,6 +79,7 @@ export const ListContainer = ({
   });
 
   const {
+    orderedData,
     setOrderedData,
     filteredData,
     filtersAreActive,
@@ -117,7 +112,8 @@ export const ListContainer = ({
   const enabled = isRealtimeClientConfigured();
 
   return (
-    <div className="h-full">
+    <BoardStateProvider boardId={boardId} data={orderedData} setData={setOrderedData}>
+      <div className="h-full">
       <BoardRealtimeSubscriptions
         channelName={channelName}
         enabled={enabled}
@@ -152,6 +148,7 @@ export const ListContainer = ({
           )}
         </Droppable>
       </DragDropContext>
-    </div>
+      </div>
+    </BoardStateProvider>
   );
 };

@@ -2,7 +2,7 @@
 
 import { useState, useRef } from "react";
 import { createPortal } from "react-dom";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { Draggable } from "@hello-pangea/dnd";
 import { AlignLeft, Archive, ExternalLink, Copy, MessageSquare, CheckSquare, Paperclip } from "lucide-react";
@@ -21,6 +21,9 @@ import { useAction } from "@/hooks/use-action";
 import { copyCard } from "@/actions/copy-card";
 import { archiveCard } from "@/actions/archive-card";
 import { cn, getColorName } from "@/lib/utils";
+import type { ListWithCards } from "@/types";
+
+import { useBoardState } from "./list-container/board-state-context";
 
 interface CardItemProps {
   data: CardWithAssignees;
@@ -34,17 +37,46 @@ const getInitials = (name: string) => {
   return initials.toUpperCase() || "U";
 };
 
+const normalizeCopiedCard = (card: Partial<CardWithAssignees>): CardWithAssignees => {
+  const now = new Date();
+
+  return {
+    id: card.id ?? `temp-card-${now.getTime()}`,
+    title: card.title ?? "",
+    order: card.order ?? 0,
+    description: card.description ?? null,
+    startDate: card.startDate ?? null,
+    dueDate: card.dueDate ?? null,
+    isCompleted: card.isCompleted ?? false,
+    reminder: card.reminder ?? null,
+    reminderSetAt: card.reminderSetAt ?? null,
+    archivedAt: card.archivedAt ?? null,
+    archivedByListId: card.archivedByListId ?? null,
+    listId: card.listId ?? "",
+    createdAt: card.createdAt ?? now,
+    updatedAt: card.updatedAt ?? now,
+    assignees: card.assignees ?? [],
+    labels: card.labels ?? [],
+    checklists: card.checklists ?? [],
+    _count: card._count ?? {
+      comments: 0,
+      attachments: 0,
+    },
+  };
+};
+
 export const CardItem = ({
   data,
   index,
 }: CardItemProps) => {
   const cardModal = useCardModal();
   const params = useParams();
-  const router = useRouter();
+  const boardState = useBoardState();
   
   const [showMenu, setShowMenu] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const cardRef = useRef<HTMLDivElement>(null);
+  const archiveRollbackRef = useRef<ListWithCards[] | null>(null);
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -69,6 +101,9 @@ export const CardItem = ({
 
   const { execute: executeCopyCard, isLoading: isLoadingCopy } = useAction(copyCard, {
     onSuccess: (copiedCard) => {
+      const normalizedCard = normalizeCopiedCard(copiedCard);
+
+      boardState.appendCard(normalizedCard.listId, normalizedCard);
       toast.success(`Đã sao chép thẻ "${copiedCard.title}"`);
       setShowMenu(false);
     },
@@ -78,13 +113,24 @@ export const CardItem = ({
   });
 
   const { execute: executeArchiveCard, isLoading: isLoadingArchive } = useAction(archiveCard, {
-    onSuccess: (archivedCard) => {
-      toast.success(`Đã lưu trữ thẻ "${archivedCard.title}"`);
+    onSuccess: () => {
       setShowMenu(false);
-      router.refresh();
+      archiveRollbackRef.current = null;
     },
     onError: (error) => {
+      if (archiveRollbackRef.current) {
+        boardState.resetToSnapshot(archiveRollbackRef.current);
+      }
+
       toast.error(error);
+      archiveRollbackRef.current = null;
+    },
+    onComplete: () => {
+      if (archiveRollbackRef.current) {
+        boardState.resetToSnapshot(archiveRollbackRef.current);
+      }
+
+      archiveRollbackRef.current = null;
     },
   });
 
@@ -105,6 +151,8 @@ export const CardItem = ({
   const onArchive = (e: React.MouseEvent) => {
     e.stopPropagation();
     const boardId = params.boardId as string;
+    archiveRollbackRef.current = boardState.getSnapshot();
+    boardState.removeCard(data.id);
     executeArchiveCard({ id: data.id, boardId });
   };
 

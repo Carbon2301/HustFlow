@@ -6,6 +6,7 @@ import { useRef } from "react";
 import { useRouter } from "next/navigation";
 import { Archive, MoreHorizontal, X, Plus, Copy } from "lucide-react";
 
+import type { ListWithCards } from "@/types";
 import {
   Popover,
   PopoverContent,
@@ -19,6 +20,7 @@ import { archiveList } from "@/actions/archive-list";
 import { archiveListCards } from "@/actions/archive-list-cards";
 import { FormSubmit } from "@/components/form/form-submit";
 import { Separator } from "@/components/ui/separator";
+import { useBoardState } from "./list-container/board-state-context";
 
 interface ListOptionsProps {
   data: List;
@@ -31,27 +33,52 @@ export const ListOptions = ({
 }: ListOptionsProps) => {
   const closeRef = useRef<HTMLButtonElement>(null);
   const router = useRouter();
+  const boardState = useBoardState();
+  const archiveListRollbackRef = useRef<ListWithCards[] | null>(null);
+  const archiveCardsRollbackRef = useRef<ListWithCards[] | null>(null);
 
   const { execute: executeArchiveList, isLoading: isLoadingArchiveList } = useAction(archiveList, {
-    onSuccess: (data) => {
-      toast.success(`Đã lưu trữ danh sách "${data.title}"`);
+    onSuccess: () => {
       closeRef.current?.click();
-      router.refresh();
+      archiveListRollbackRef.current = null;
     },
     onError: (error) => {
+      if (archiveListRollbackRef.current) {
+        boardState.resetToSnapshot(archiveListRollbackRef.current);
+      }
+
       toast.error(error)
-    }
+      archiveListRollbackRef.current = null;
+    },
+    onComplete: () => {
+      if (archiveListRollbackRef.current) {
+        boardState.resetToSnapshot(archiveListRollbackRef.current);
+      }
+
+      archiveListRollbackRef.current = null;
+    },
   });
 
   const { execute: executeArchiveListCards, isLoading: isLoadingArchiveListCards } = useAction(archiveListCards, {
-    onSuccess: (data) => {
-      toast.success(`Đã lưu trữ các thẻ trong danh sách "${data.title}"`);
+    onSuccess: () => {
       closeRef.current?.click();
-      router.refresh();
+      archiveCardsRollbackRef.current = null;
     },
     onError: (error) => {
+      if (archiveCardsRollbackRef.current) {
+        boardState.resetToSnapshot(archiveCardsRollbackRef.current);
+      }
+
       toast.error(error)
-    }
+      archiveCardsRollbackRef.current = null;
+    },
+    onComplete: () => {
+      if (archiveCardsRollbackRef.current) {
+        boardState.resetToSnapshot(archiveCardsRollbackRef.current);
+      }
+
+      archiveCardsRollbackRef.current = null;
+    },
   });
 
   const { execute: executeCopy, isLoading: isLoadingCopy } = useAction(copyList, {
@@ -70,6 +97,8 @@ export const ListOptions = ({
   const onArchiveList = (formData: FormData) => {
     const id = formData.get("id") as string;
     const boardId = formData.get("boardId") as string;
+    archiveListRollbackRef.current = boardState.getSnapshot();
+    boardState.removeList(id);
 
     executeArchiveList({ id, boardId });
   };
@@ -77,6 +106,8 @@ export const ListOptions = ({
   const onArchiveListCards = (formData: FormData) => {
     const id = formData.get("id") as string;
     const boardId = formData.get("boardId") as string;
+    archiveCardsRollbackRef.current = boardState.getSnapshot();
+    boardState.removeCardsInList(id);
 
     executeArchiveListCards({ id, boardId });
   };
@@ -132,7 +163,10 @@ export const ListOptions = ({
           </FormSubmit>
         </form>
         <Separator className="my-1" />
-        <form action={onArchiveList}>
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          onArchiveList(new FormData(e.currentTarget));
+        }}>
           <input hidden name="id" id="id" value={data.id} readOnly />
           <input hidden name="boardId" id="boardId" value={data.boardId} readOnly />
           <FormSubmit
@@ -146,7 +180,10 @@ export const ListOptions = ({
             </span>
           </FormSubmit>
         </form>
-        <form action={onArchiveListCards}>
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          onArchiveListCards(new FormData(e.currentTarget));
+        }}>
           <input hidden name="id" id="id" value={data.id} readOnly />
           <input hidden name="boardId" id="boardId" value={data.boardId} readOnly />
           <FormSubmit

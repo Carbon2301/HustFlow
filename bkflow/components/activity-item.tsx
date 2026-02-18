@@ -202,7 +202,8 @@ const renderMessageWithLinks = (
     }
   } else {
     // Inside card modal: replace card title with "này"
-    if (resolvedCardTitle) {
+    const isCardRename = log.entityType === "CARD" && log.entityTitle.startsWith("detail:đã đổi tên thẻ thành ");
+    if (resolvedCardTitle && !isCardRename) {
       elements = replaceTextWithPlain(elements, `"${resolvedCardTitle}"`, "này");
       elements = replaceTextWithPlain(elements, `“${resolvedCardTitle}”`, "này");
     }

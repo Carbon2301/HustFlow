@@ -1,7 +1,6 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useParams, useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { CardWithList } from "@/types";
@@ -27,9 +26,7 @@ interface MetadataProps {
 export const Metadata = ({
   data,
 }: MetadataProps) => {
-  const params = useParams();
-  const boardId = params.boardId as string;
-  const router = useRouter();
+  const boardId = data.list.boardId;
   const queryClient = useQueryClient();
   const invalidateBoardCalendar = useBoardCalendarInvalidation(boardId);
 
@@ -60,7 +57,6 @@ export const Metadata = ({
   } = useCardMetadataActions({
     data,
     boardId,
-    router,
     queryClient,
     invalidateBoardCalendar,
     reminderValue,

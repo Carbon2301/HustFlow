@@ -3,7 +3,6 @@
 import { toast } from "sonner";
 import { useRef, useState } from "react";
 import { Layout } from "lucide-react";
-import { useParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { CardWithList } from "@/types";
@@ -13,6 +12,8 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { FormInput } from "@/components/form/form-input";
 import { useBoardCalendarInvalidation } from "@/hooks/use-board-calendar-invalidation";
 
+import { patchBoardCardPreview, patchCardQueryData } from "./card-cache-utils";
+
 interface HeaderProps {
   data: CardWithList;
 }
@@ -21,21 +22,22 @@ export const Header = ({
   data,
 }: HeaderProps) => {
   const queryClient = useQueryClient();
-  const params = useParams();
-  const boardId = params.boardId as string;
+  const boardId = data.list.boardId;
   const invalidateBoardCalendar = useBoardCalendarInvalidation(boardId);
 
   const { execute } = useAction(updateCard, {
     onSuccess: (data) => {
-      queryClient.invalidateQueries({
-        queryKey: ["card", data.id]
+      patchCardQueryData(queryClient, data.id, {
+        title: data.title,
+      });
+      patchBoardCardPreview(boardId, data.id, {
+        title: data.title,
       });
 
       queryClient.invalidateQueries({
         queryKey: ["card-logs", data.id]
       });
 
-      toast.success(`Đã đổi tên thành "${data.title}"`);
       invalidateBoardCalendar();
       setTitle(data.title);
     },
@@ -72,7 +74,10 @@ export const Header = ({
         <Layout className="h-5 w-5 text-violet-600" />
       </div>
       <div className="w-full min-w-0">
-        <form action={onSubmit}>
+        <form onSubmit={(e) => {
+          e.preventDefault();
+          onSubmit(new FormData(e.currentTarget));
+        }}>
           <FormInput
             ref={inputRef}
             onBlur={onBlur}

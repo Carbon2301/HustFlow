@@ -118,6 +118,7 @@ export const CardModal = () => {
               ? <Comments.Skeleton />
               : <Comments
                   cardId={id}
+                  boardId={cardData?.list.boardId}
                   items={commentsData ?? []}
                   boardMembers={cardData?.boardMembers}
                 />

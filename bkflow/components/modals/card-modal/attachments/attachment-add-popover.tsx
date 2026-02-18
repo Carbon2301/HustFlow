@@ -19,6 +19,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { UploadButton } from "@/lib/uploadthing";
+import { patchBoardCardCount } from "../card-cache-utils";
 
 interface AttachmentAddPopoverProps {
   cardId: string;
@@ -44,7 +45,26 @@ export const AttachmentAddPopover = ({
     fieldErrors,
     isLoading: isCreating,
   } = useAction(createCardAttachment, {
-    onSuccess: () => {
+    onSuccess: (attachment) => {
+      queryClient.setQueryData(
+        ["card", cardId],
+        (current: unknown) => {
+          if (!current || typeof current !== "object") {
+            return current;
+          }
+
+          const currentCard = current as { attachments?: CardAttachment[] };
+
+          return {
+            ...currentCard,
+            attachments: [
+              attachment,
+              ...(currentCard.attachments ?? []).filter((item) => item.id !== attachment.id),
+            ],
+          };
+        },
+      );
+      patchBoardCardCount(boardId, cardId, "attachments", 1);
       queryClient.invalidateQueries({ queryKey: ["card", cardId] });
       queryClient.invalidateQueries({ queryKey: ["card-logs", cardId] });
       toast.success("Đã thêm liên kết đính kèm.", { id: "card-attachment-link" });
@@ -78,6 +98,7 @@ export const AttachmentAddPopover = ({
           };
         },
       );
+      patchBoardCardCount(boardId, cardId, "attachments", 1);
       queryClient.invalidateQueries({ queryKey: ["card", cardId] });
       queryClient.invalidateQueries({ queryKey: ["card-logs", cardId] });
       setUploadProgress(null);

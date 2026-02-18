@@ -49,7 +49,6 @@ export const DueDate = ({
       queryClient.invalidateQueries({
         queryKey: ["card-logs", data.id],
       });
-      toast.success("Đã cập nhật ngày");
     },
     onError: (error) => {
       toast.error(error);
@@ -217,7 +216,13 @@ export const DueDate = ({
               />
             </>
           )}
-          <form action={onSubmit} className="flex flex-wrap items-end gap-3 w-full mt-2">
+          <form
+            onSubmit={(e) => {
+              e.preventDefault();
+              onSubmit(new FormData(e.currentTarget));
+            }}
+            className="flex flex-wrap items-end gap-3 w-full mt-2"
+          >
             <div className="flex flex-col gap-y-1.5">
               <span className="text-xs font-semibold text-neutral-500">
                 Ngày và giờ bắt đầu

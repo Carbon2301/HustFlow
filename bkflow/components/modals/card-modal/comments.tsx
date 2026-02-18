@@ -1,7 +1,6 @@
 "use client";
 
 import { useMemo, useState, useRef } from "react";
-import { useParams } from "next/navigation";
 import { useUser } from "@clerk/nextjs";
 import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
@@ -23,9 +22,11 @@ import { Hint } from "@/components/hint";
 import { useAction } from "@/hooks/use-action";
 import { CardCommentWithReplies } from "@/types";
 import { cn } from "@/lib/utils";
+import { patchBoardCardCount } from "./card-cache-utils";
 
 interface CommentsProps {
   cardId: string;
+  boardId?: string;
   items: CardCommentWithReplies[];
   boardMembers?: BoardMember[];
 }
@@ -330,13 +331,12 @@ const CommentForm = ({
 
 export const Comments = ({
   cardId,
+  boardId,
   items,
   boardMembers = [],
 }: CommentsProps) => {
-  const params = useParams();
   const { user } = useUser();
   const queryClient = useQueryClient();
-  const boardId = params.boardId as string;
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
   const [replyingCommentId, setReplyingCommentId] = useState<string | null>(null);
 
@@ -350,6 +350,9 @@ export const Comments = ({
     createCardComment,
     {
       onSuccess: () => {
+        if (boardId) {
+          patchBoardCardCount(boardId, cardId, "comments", 1);
+        }
         invalidateComments();
       },
       onError: (error) => {
@@ -374,7 +377,13 @@ export const Comments = ({
   const { execute: executeDeleteComment, isLoading: isDeleting } = useAction(
     deleteCardComment,
     {
-      onSuccess: () => {
+      onSuccess: (deletedComment) => {
+        const parentComment = items.find((item) => item.id === deletedComment.id);
+        const deletedCount = parentComment ? 1 + parentComment.replies.length : 1;
+
+        if (boardId) {
+          patchBoardCardCount(boardId, cardId, "comments", -deletedCount);
+        }
         invalidateComments();
       },
       onError: (error) => {
@@ -417,6 +426,10 @@ export const Comments = ({
   }, [items]);
 
   const onCreateComment = (content: string, parentId?: string | null) => {
+    if (!boardId) {
+      return;
+    }
+
     executeCreateComment({
       boardId,
       cardId,
@@ -426,6 +439,10 @@ export const Comments = ({
   };
 
   const onUpdateComment = (commentId: string, content: string) => {
+    if (!boardId) {
+      return;
+    }
+
     executeUpdateComment({
       boardId,
       cardId,
@@ -435,6 +452,10 @@ export const Comments = ({
   };
 
   const onDeleteComment = (commentId: string) => {
+    if (!boardId) {
+      return;
+    }
+
     executeDeleteComment({
       boardId,
       cardId,
@@ -443,6 +464,10 @@ export const Comments = ({
   };
 
   const onToggleReaction = (commentId: string, emoji: typeof REACTION_EMOJIS[number]) => {
+    if (!boardId) {
+      return;
+    }
+
     executeToggleReaction({
       boardId,
       cardId,

@@ -10,6 +10,7 @@ import { FormInput } from "@/components/form/form-input";
 import { Hint } from "@/components/hint";
 import { ListWithCards } from "@/types";
 import { ListOptions } from "./list-options";
+import { useBoardState } from "./list-container/board-state-context";
 
 interface ListHeaderProps {
   data: ListWithCards;
@@ -24,6 +25,8 @@ export const ListHeader = ({
 
   const formRef = useRef<HTMLFormElement>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const boardState = useBoardState();
+  const rollbackRef = useRef<ListWithCards[] | null>(null);
 
   const enableEditing = () => {
     setIsEditing(true);
@@ -37,13 +40,17 @@ export const ListHeader = ({
     setIsEditing(false);
   };
 
-  const { execute } = useAction(updateList, {
-    onSuccess: (data) => {
-      toast.success(`Đã đổi tên thành "${data.title}"`);
+  const { execute, isLoading } = useAction(updateList, {
+    onSuccess: () => {
       disableEditing();
+      rollbackRef.current = null;
     },
     onError: (error) => {
+      if (rollbackRef.current) {
+        boardState.resetToSnapshot(rollbackRef.current);
+      }
       toast.error(error);
+      rollbackRef.current = null;
     }
   });
 
@@ -55,6 +62,10 @@ export const ListHeader = ({
     if (title === data.title) {
       return disableEditing();
     }
+
+    const snapshot = boardState.getSnapshot();
+    rollbackRef.current = snapshot;
+    boardState.patchList(id, { title });
 
     execute({
       title,
@@ -79,8 +90,11 @@ export const ListHeader = ({
     <div className="pt-3 px-3 pb-1 text-sm font-semibold flex justify-between items-center gap-x-1">
       {isEditing ? (
         <form
+          onSubmit={(e) => {
+            e.preventDefault();
+            handleSubmit(new FormData(e.currentTarget));
+          }}
           ref={formRef}
-          action={handleSubmit}
           className="flex-1"
         >
           <input hidden id="id" name="id" value={data.id} readOnly />
@@ -89,6 +103,7 @@ export const ListHeader = ({
             ref={inputRef}
             onBlur={onBlur}
             id="title"
+            disabled={isLoading}
             placeholder="Nhập tên danh sách…"
             defaultValue={data.title}
             className="text-base px-2 py-1 h-8 font-bold border-transparent hover:border-input focus:border-violet-400 focus:ring-1 focus:ring-violet-200 transition rounded-md bg-transparent focus:bg-white truncate"

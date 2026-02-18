@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useMemo } from "react";
+import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import { 
@@ -27,6 +28,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useBoardCalendarInvalidation } from "@/hooks/use-board-calendar-invalidation";
+import { patchBoardCardPreview, patchCardQueryData } from "./card-cache-utils";
 
 const LABEL_COLORS = [
   // Hàng 1
@@ -62,6 +64,7 @@ export const LabelPopover = ({
   side = "bottom",
   align = "start",
 }: LabelPopoverProps) => {
+  const router = useRouter();
   const queryClient = useQueryClient();
   const invalidateBoardCalendar = useBoardCalendarInvalidation(boardId);
 
@@ -100,7 +103,37 @@ export const LabelPopover = ({
 
   // Actions
   const { execute: executeToggle, isLoading: isLoadingToggle } = useAction(toggleCardLabel, {
-    onSuccess: () => {
+    onSuccess: (data) => {
+      const isAttached = data.toggled;
+      let nextLabels;
+      if (!isAttached) {
+        nextLabels = labels.filter((l) => l.labelId !== data.labelId);
+      } else {
+        const labelToAttach = boardLabels.find((l) => l.id === data.labelId);
+        if (labelToAttach) {
+          nextLabels = [
+            ...labels,
+            {
+              id: `temp-cl-${new Date().getTime()}`,
+              cardId,
+              labelId: data.labelId,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+              label: labelToAttach,
+            },
+          ];
+        } else {
+          nextLabels = labels;
+        }
+      }
+
+      patchCardQueryData(queryClient, cardId, {
+        labels: nextLabels,
+      });
+      patchBoardCardPreview(boardId, cardId, {
+        labels: nextLabels,
+      });
+
       invalidateCardQueries();
     },
     onError: (error) => {
@@ -111,6 +144,25 @@ export const LabelPopover = ({
   const { execute: executeCreate, isLoading: isLoadingCreate } = useAction(createLabel, {
     onSuccess: (data) => {
       toast.success(`Đã tạo và gắn nhãn "${data.title || "không tên"}"`);
+      const nextLabels = [
+        ...labels,
+        {
+          id: `temp-cl-${new Date().getTime()}`,
+          cardId,
+          labelId: data.id,
+          createdAt: new Date(),
+          updatedAt: new Date(),
+          label: data,
+        },
+      ];
+
+      patchCardQueryData(queryClient, cardId, {
+        labels: nextLabels,
+      });
+      patchBoardCardPreview(boardId, cardId, {
+        labels: nextLabels,
+      });
+
       invalidateCardQueries();
       setScreen("select");
       setTitleValue("");
@@ -125,6 +177,7 @@ export const LabelPopover = ({
     onSuccess: (data) => {
       toast.success(`Đã cập nhật nhãn "${data.title || "không tên"}"`);
       invalidateCardQueries();
+      router.refresh();
       setScreen("select");
       setEditingLabelId(null);
       setTitleValue("");
@@ -139,6 +192,7 @@ export const LabelPopover = ({
     onSuccess: (data) => {
       toast.success(`Đã xóa nhãn "${data.title || "không tên"}" khỏi bảng`);
       invalidateCardQueries();
+      router.refresh();
       setScreen("select");
       setEditingLabelId(null);
       setTitleValue("");

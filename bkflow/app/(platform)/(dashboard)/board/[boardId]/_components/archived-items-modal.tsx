@@ -129,8 +129,7 @@ export const ArchivedItemsModal = ({
   }, [loadArchivedItems, router]);
 
   const { execute: executeRestoreList, isLoading: isRestoringList } = useAction(restoreList, {
-    onSuccess: (list) => {
-      toast.success(`Đã khôi phục danh sách "${list.title}"`);
+    onSuccess: () => {
       refreshAfterMutation();
     },
     onError: (error) => {
@@ -142,8 +141,7 @@ export const ArchivedItemsModal = ({
   });
 
   const { execute: executeDeleteList, isLoading: isDeletingList } = useAction(deleteArchivedList, {
-    onSuccess: (list) => {
-      toast.success(`Đã xóa vĩnh viễn danh sách "${list.title}"`);
+    onSuccess: () => {
       refreshAfterMutation();
     },
     onError: (error) => {
@@ -155,8 +153,7 @@ export const ArchivedItemsModal = ({
   });
 
   const { execute: executeRestoreCard, isLoading: isRestoringCard } = useAction(restoreCard, {
-    onSuccess: (card) => {
-      toast.success(`Đã khôi phục thẻ "${card.title}"`);
+    onSuccess: () => {
       refreshAfterMutation();
     },
     onError: (error) => {
@@ -168,8 +165,7 @@ export const ArchivedItemsModal = ({
   });
 
   const { execute: executeDeleteCard, isLoading: isDeletingCard } = useAction(deleteArchivedCard, {
-    onSuccess: (card) => {
-      toast.success(`Đã xóa vĩnh viễn thẻ "${card.title}"`);
+    onSuccess: () => {
       refreshAfterMutation();
     },
     onError: (error) => {

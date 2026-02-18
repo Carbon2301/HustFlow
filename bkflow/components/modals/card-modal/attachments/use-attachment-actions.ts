@@ -10,6 +10,7 @@ import { deleteCardAttachment } from "@/actions/delete-card-attachment";
 import { updateCardAttachment } from "@/actions/update-card-attachment";
 import { updateCardAttachmentOrder } from "@/actions/update-card-attachment-order";
 import { useAction } from "@/hooks/use-action";
+import { patchBoardCardCount } from "../card-cache-utils";
 
 import { compareAttachmentOrder, reorder } from "./attachment-utils";
 
@@ -39,6 +40,7 @@ export const useAttachmentActions = ({
     isLoading: isDeleting,
   } = useAction(deleteCardAttachment, {
     onSuccess: (attachment) => {
+      patchBoardCardCount(boardId, cardId, "attachments", -1);
       queryClient.invalidateQueries({ queryKey: ["card", cardId] });
       queryClient.invalidateQueries({ queryKey: ["card-logs", cardId] });
       toast.success(

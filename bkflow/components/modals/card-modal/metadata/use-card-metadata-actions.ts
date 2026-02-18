@@ -2,7 +2,6 @@
 
 import type { ChangeEvent, FormEvent } from "react";
 import type { QueryClient } from "@tanstack/react-query";
-import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { toast } from "sonner";
 
 import type { CardWithList } from "@/types";
@@ -16,11 +15,11 @@ import {
 } from "@/lib/date-utils";
 
 import { humanizeReminderMinutes } from "./metadata-utils";
+import { patchBoardCardPreview, patchCardQueryData } from "../card-cache-utils";
 
 interface UseCardMetadataActionsProps {
   data: CardWithList;
   boardId: string;
-  router: AppRouterInstance;
   queryClient: QueryClient;
   invalidateBoardCalendar: () => void;
   reminderValue: string;
@@ -30,7 +29,6 @@ interface UseCardMetadataActionsProps {
 export const useCardMetadataActions = ({
   data,
   boardId,
-  router,
   queryClient,
   invalidateBoardCalendar,
   reminderValue,
@@ -38,14 +36,24 @@ export const useCardMetadataActions = ({
 }: UseCardMetadataActionsProps) => {
   const { execute: executeUpdateCard, isLoading: isLoadingUpdate } = useAction(updateCard, {
     onSuccess: (updatedCard) => {
-      queryClient.invalidateQueries({
-        queryKey: ["card", updatedCard.id],
+      patchCardQueryData(queryClient, updatedCard.id, {
+        startDate: updatedCard.startDate,
+        dueDate: updatedCard.dueDate,
+        isCompleted: updatedCard.isCompleted,
+        reminder: updatedCard.reminder,
+        reminderSetAt: updatedCard.reminderSetAt,
+      });
+      patchBoardCardPreview(boardId, updatedCard.id, {
+        startDate: updatedCard.startDate,
+        dueDate: updatedCard.dueDate,
+        isCompleted: updatedCard.isCompleted,
+        reminder: updatedCard.reminder,
+        reminderSetAt: updatedCard.reminderSetAt,
       });
       queryClient.invalidateQueries({
         queryKey: ["card-logs", updatedCard.id],
       });
       invalidateBoardCalendar();
-      router.refresh();
 
       if (updatedCard.isCompleted !== data.isCompleted) {
         toast.success(
@@ -53,8 +61,6 @@ export const useCardMetadataActions = ({
             ? "Đã đánh dấu hoàn thành thẻ"
             : "Đã bỏ đánh dấu hoàn thành thẻ"
         );
-      } else {
-        toast.success("Đã cập nhật lịch biểu");
       }
       setIsDateOpen(false);
     },
@@ -66,8 +72,16 @@ export const useCardMetadataActions = ({
   const { execute: executeAssign, isLoading: isLoadingAssign } = useAction(assignCardMember, {
     onSuccess: (assigned) => {
       invalidateBoardCalendar();
-      queryClient.invalidateQueries({
-        queryKey: ["card", data.id],
+      const assignees = [
+        ...data.assignees.filter((item) => item.id !== assigned.id),
+        assigned,
+      ];
+
+      patchCardQueryData(queryClient, data.id, {
+        assignees,
+      });
+      patchBoardCardPreview(boardId, data.id, {
+        assignees,
       });
       queryClient.invalidateQueries({
         queryKey: ["card-logs", data.id],
@@ -82,8 +96,13 @@ export const useCardMetadataActions = ({
   const { execute: executeUnassign, isLoading: isLoadingUnassign } = useAction(unassignCardMember, {
     onSuccess: (unassigned) => {
       invalidateBoardCalendar();
-      queryClient.invalidateQueries({
-        queryKey: ["card", data.id],
+      const assignees = data.assignees.filter((item) => item.id !== unassigned.id);
+
+      patchCardQueryData(queryClient, data.id, {
+        assignees,
+      });
+      patchBoardCardPreview(boardId, data.id, {
+        assignees,
       });
       queryClient.invalidateQueries({
         queryKey: ["card-logs", data.id],

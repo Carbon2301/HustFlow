@@ -31,6 +31,7 @@ import { cn } from "@/lib/utils";
 import { ChecklistHeader } from "./checklist-header";
 import { ChecklistItem } from "./checklist-item";
 import { ChecklistProgress } from "./checklist-progress";
+import { patchBoardCardPreview } from "./card-cache-utils";
 
 type ChecklistWithItems = Checklist & {
   items: ChecklistItemWithAssignee[];
@@ -99,6 +100,16 @@ export const Checklists = ({
   useEffect(() => {
     setLocalChecklists(checklists);
   }, [checklists]);
+
+  useEffect(() => {
+    patchBoardCardPreview(boardId, cardId, {
+      checklists: localChecklists.map((checklist) => ({
+        items: checklist.items.map((item) => ({
+          isCompleted: item.isCompleted,
+        })),
+      })),
+    });
+  }, [boardId, cardId, localChecklists]);
 
   const invalidateCard = (includeLogs: boolean) => {
     queryClient.invalidateQueries({ queryKey: ["card", cardId] });

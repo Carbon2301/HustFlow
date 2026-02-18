@@ -2,7 +2,6 @@
 
 import { toast } from "sonner";
 import { AlignLeft } from "lucide-react";
-import { useParams } from "next/navigation";
 import { useState, useRef } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useEventListener, useOnClickOutside } from "usehooks-ts";
@@ -15,6 +14,8 @@ import { FormTextarea } from "@/components/form/form-textarea";
 import { FormSubmit } from "@/components/form/form-submit";
 import { Button } from "@/components/ui/button";
 
+import { patchBoardCardPreview, patchCardQueryData } from "./card-cache-utils";
+
 interface DescriptionProps {
   data: CardWithList;
 };
@@ -22,7 +23,6 @@ interface DescriptionProps {
 export const Description = ({
   data
 }: DescriptionProps) => {
-  const params = useParams();
   const queryClient = useQueryClient();
 
   const [isEditing, setIsEditing] = useState(false);
@@ -51,12 +51,15 @@ export const Description = ({
   useOnClickOutside(formRef, disableEditing);
 
   const { execute, fieldErrors } = useAction(updateCard, {
-    onSuccess: (data) => {
-      queryClient.invalidateQueries({
-        queryKey: ["card", data.id],
+    onSuccess: (updatedCard) => {
+      patchCardQueryData(queryClient, updatedCard.id, {
+        description: updatedCard.description,
+      });
+      patchBoardCardPreview(data.list.boardId, updatedCard.id, {
+        description: updatedCard.description,
       });
       queryClient.invalidateQueries({
-        queryKey: ["card-logs", data.id]
+        queryKey: ["card-logs", updatedCard.id]
       });
       toast.success("Đã cập nhật mô tả");
       disableEditing();
@@ -68,7 +71,7 @@ export const Description = ({
 
   const onSubmit = (formData: FormData) => {
     const description = formData.get("description") as string;
-    const boardId = params.boardId as string;
+    const boardId = data.list.boardId;
 
     execute({
       id: data.id,
@@ -88,7 +91,10 @@ export const Description = ({
         </p>
         {isEditing ? (
           <form
-            action={onSubmit}
+            onSubmit={(e) => {
+              e.preventDefault();
+              onSubmit(new FormData(e.currentTarget));
+            }}
             ref={formRef}
             className="space-y-2.5"
           >

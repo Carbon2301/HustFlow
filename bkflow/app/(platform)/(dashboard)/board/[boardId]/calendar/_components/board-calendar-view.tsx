@@ -433,7 +433,6 @@ export const BoardCalendarView = ({
 
   const { execute: executeUpdateCard, isLoading: isUpdatingCardDate } = useAction(updateCard, {
     onSuccess: (data) => {
-      toast.success(updateSuccessToastRef.current ?? "Đã cập nhật ngày");
       updateSuccessToastRef.current = null;
       setExpandedDayKey(null);
       invalidateBoardCalendar();
@@ -467,7 +466,6 @@ export const BoardCalendarView = ({
     onSuccess: () => {
       const cardId = updatingChecklistItemCardIdRef.current;
 
-      toast.success("Đã cập nhật ngày của mục checklist");
       setExpandedDayKey(null);
       invalidateBoardCalendar();
 
@@ -490,7 +488,6 @@ export const BoardCalendarView = ({
 
   const { execute: executeCreateCard, fieldErrors: createFieldErrors, isLoading: isCreatingCard } = useAction(createCard, {
     onSuccess: (data) => {
-      toast.success(`Đã tạo thẻ "${data.title}"`);
       setCreateDialogDay(null);
       setCreateTitle("");
       setCreateStartValue("");

@@ -2,7 +2,7 @@
 
 import { Users } from "lucide-react";
 import { useMemo } from "react";
-import { useParams, useRouter } from "next/navigation";
+import { useParams } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -16,6 +16,7 @@ import {
 } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAction } from "@/hooks/use-action";
+import { patchBoardCardPreview, patchCardQueryData } from "./card-cache-utils";
 
 interface MembersProps {
   data: CardWithList;
@@ -30,17 +31,20 @@ const getInitials = (name: string) => {
 
 export const Members = ({ data }: MembersProps) => {
   const params = useParams();
-  const router = useRouter();
   const queryClient = useQueryClient();
   const assignedBoardMemberIds = useMemo(
     () => new Set(data.assignees.map((assignee) => assignee.boardMemberId)),
     [data.assignees],
   );
 
-  const invalidateCard = (cardId: string) => {
-    queryClient.invalidateQueries({ queryKey: ["card", cardId] });
-    queryClient.invalidateQueries({ queryKey: ["card-logs", cardId] });
-    router.refresh();
+  const syncAssignees = (assignees: CardWithList["assignees"]) => {
+    patchCardQueryData(queryClient, data.id, {
+      assignees,
+    });
+    patchBoardCardPreview(data.list.boardId, data.id, {
+      assignees,
+    });
+    queryClient.invalidateQueries({ queryKey: ["card-logs", data.id] });
   };
 
   const { execute: executeAssign, isLoading: isAssigning } = useAction(
@@ -48,7 +52,10 @@ export const Members = ({ data }: MembersProps) => {
     {
       onSuccess: (assignee) => {
         toast.success(`Đã giao cho ${assignee.boardMember.userName}`);
-        invalidateCard(assignee.cardId);
+        syncAssignees([
+          ...data.assignees.filter((item) => item.id !== assignee.id),
+          assignee,
+        ]);
       },
       onError: (error) => {
         toast.error(error);
@@ -61,7 +68,9 @@ export const Members = ({ data }: MembersProps) => {
     {
       onSuccess: (assignee) => {
         toast.success(`Đã bỏ giao ${assignee.boardMember.userName}`);
-        invalidateCard(assignee.cardId);
+        syncAssignees(
+          data.assignees.filter((item) => item.id !== assignee.id),
+        );
       },
       onError: (error) => {
         toast.error(error);

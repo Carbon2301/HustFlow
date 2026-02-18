@@ -43,8 +43,7 @@ export const Actions = ({
     execute: executeDeleteCard,
     isLoading: isLoadingDelete,
   } = useAction(deleteCard, {
-    onSuccess: (data) => {
-      toast.success(`Đã xóa thẻ "${data.title}"`);
+    onSuccess: () => {
       invalidateBoardCalendar();
       cardModal.onClose();
     },
