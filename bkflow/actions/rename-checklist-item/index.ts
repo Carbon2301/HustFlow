@@ -50,7 +50,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
     await createAuditLog({
       entityId: item.id,
-      entityTitle: `detail:đã đổi tên mục công việc thành "${title}"`,
+      entityTitle: `detail:đã đổi tên mục công việc "${access.item.title}" thành "${title}"`,
       entityType: ENTITY_TYPE.CHECKLIST_ITEM,
       action: ACTION.UPDATE,
       eventType: AUDIT_EVENT_TYPE.CHECKLIST,

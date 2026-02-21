@@ -181,7 +181,7 @@ export const Checklists = ({
     onSuccess: () => {
       toast.success("Đã thêm mục mới");
       setNewItemTitle("");
-      invalidateCard(false);
+      invalidateCard(true);
     },
     onError: (error) => toast.error(error),
   });

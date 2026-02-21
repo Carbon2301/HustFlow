@@ -97,6 +97,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       checklistId: checklist.id,
       checklistItemId: checklistItem.id,
       actorUserId: userId,
+      includeLogs: true,
     });
 
     revalidatePath(`/board/${boardId}`);
