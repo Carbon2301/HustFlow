@@ -45,7 +45,7 @@ export const ListItem = ({
           <div
             className={cn(
               "w-full rounded-xl bg-[#f1f2f4] shadow-sm pb-2 flex flex-col",
-              snapshot.isDragging && "shadow-xl opacity-95 rotate-1"
+              snapshot.isDragging && "shadow-xl opacity-95"
             )}
           >
             <div {...provided.dragHandleProps}>
