@@ -304,6 +304,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       cardId: card.id,
       actorUserId: userId,
       changedFields,
+      card,
       updatedAt: card.updatedAt,
     });
   } catch {

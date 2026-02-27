@@ -90,6 +90,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       listId: card.listId,
       cardId: card.id,
       actorUserId: userId,
+      archived: true,
     });
   } catch (error) {
     if (error instanceof Error && error.message === "CARD_NOT_FOUND") {

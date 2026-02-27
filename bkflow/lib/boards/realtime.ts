@@ -180,7 +180,8 @@ export const triggerListUpdated = async ({
   boardId,
   listId,
   actorUserId,
-}: BoardRealtimeInput & { listId: string }) => {
+  title,
+}: BoardRealtimeInput & { listId: string; title?: string }) => {
   try {
     await triggerBoardEvent(REALTIME_EVENTS.LIST_UPDATED, boardId, {
       eventId: randomUUID(),
@@ -188,6 +189,7 @@ export const triggerListUpdated = async ({
       listId,
       actorUserId,
       changedFields: ["title"],
+      ...(title !== undefined ? { title } : {}),
       updatedAt: new Date().toISOString(),
     });
   } catch (error) {
@@ -199,7 +201,8 @@ export const triggerListDeleted = async ({
   boardId,
   listId,
   actorUserId,
-}: BoardRealtimeInput & { listId: string }) => {
+  archived,
+}: BoardRealtimeInput & { listId: string; archived?: boolean }) => {
   try {
     await triggerBoardEvent(REALTIME_EVENTS.LIST_DELETED, boardId, {
       eventId: randomUUID(),
@@ -207,6 +210,7 @@ export const triggerListDeleted = async ({
       listId,
       actorUserId,
       deletedAt: new Date().toISOString(),
+      ...(archived !== undefined ? { archived } : {}),
     });
   } catch (error) {
     console.error("[BOARD_REALTIME_ERROR]", error);
@@ -254,7 +258,8 @@ export const triggerCardDeleted = async ({
   listId,
   cardId,
   actorUserId,
-}: BoardRealtimeInput & { listId: string; cardId: string }) => {
+  archived,
+}: BoardRealtimeInput & { listId: string; cardId: string; archived?: boolean }) => {
   try {
     const payload = {
       eventId: randomUUID(),
@@ -263,6 +268,7 @@ export const triggerCardDeleted = async ({
       cardId,
       actorUserId,
       deletedAt: new Date().toISOString(),
+      ...(archived !== undefined ? { archived } : {}),
     };
 
     await triggerBoardEvent(REALTIME_EVENTS.CARD_DELETED, boardId, payload);

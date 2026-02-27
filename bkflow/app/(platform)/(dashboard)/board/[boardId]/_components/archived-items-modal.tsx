@@ -18,6 +18,7 @@ import { Input } from "@/components/ui/input";
 import { useAction } from "@/hooks/use-action";
 import { cn } from "@/lib/utils";
 import { ConfirmModal } from "@/components/modals/confirm-modal";
+import { useCardModal } from "@/hooks/use-card-modal";
 
 type ArchivedItemType = "lists" | "cards";
 
@@ -62,6 +63,7 @@ export const ArchivedItemsModal = ({
   onOpenChange,
 }: ArchivedItemsModalProps) => {
   const router = useRouter();
+  const cardModal = useCardModal();
   const [type, setType] = useState<ArchivedItemType>("lists");
   const [query, setQuery] = useState("");
   const [lists, setLists] = useState<ArchivedListItem[]>([]);
@@ -359,8 +361,11 @@ export const ArchivedItemsModal = ({
                         key={item.id}
                         className="rounded-lg border border-neutral-200 bg-white p-3 shadow-sm"
                       >
-                        <div className="min-w-0">
-                          <div className="break-words text-sm font-semibold text-neutral-800">
+                        <div
+                          className="min-w-0 cursor-pointer group"
+                          onClick={() => cardModal.onOpen(item.id)}
+                        >
+                          <div className="break-words text-sm font-semibold text-neutral-800 group-hover:text-sky-700 transition-colors">
                             {item.title}
                           </div>
                           <div className="mt-1 break-words text-xs text-neutral-500">

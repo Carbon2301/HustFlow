@@ -161,6 +161,16 @@ export type CardUpdatedPayload = {
   cardId: string;
   actorUserId: string;
   changedFields: CardUpdatedField[];
+  card?: {
+    id: string;
+    title: string;
+    description: string | null;
+    startDate: string | null;
+    dueDate: string | null;
+    isCompleted: boolean;
+    reminder: string | null;
+    reminderSetAt: string | null;
+  };
   updatedAt: string;
   invalidate: RealtimeQueryInvalidation[];
 };
@@ -199,6 +209,7 @@ export type CardDeletedPayload = {
   cardId: string;
   actorUserId: string;
   deletedAt: string;
+  archived?: boolean;
 };
 
 export type AttachmentPayload = {
@@ -309,6 +320,7 @@ export type ListUpdatedPayload = {
   listId: string;
   actorUserId: string;
   changedFields: Array<"title">;
+  title?: string;
   updatedAt: string;
 };
 
@@ -318,6 +330,7 @@ export type ListDeletedPayload = {
   listId: string;
   actorUserId: string;
   deletedAt: string;
+  archived?: boolean;
 };
 
 export type ListReorderedPayload = {

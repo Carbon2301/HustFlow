@@ -77,6 +77,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       boardId,
       listId: list.id,
       actorUserId: userId,
+      title: list.title,
     });
   } catch {
     return {

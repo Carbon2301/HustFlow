@@ -20,9 +20,7 @@ export async function GET(
     const card = await db.card.findFirst({
       where: {
         id: cardId,
-        archivedAt: null,
         list: {
-          archivedAt: null,
           board: {
             orgId,
           },
@@ -46,6 +44,12 @@ export async function GET(
           },
           orderBy: {
             createdAt: "asc",
+          },
+        },
+        _count: {
+          select: {
+            comments: true,
+            attachments: true,
           },
         },
         attachments: {

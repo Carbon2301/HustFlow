@@ -2,7 +2,7 @@ import "server-only";
 
 import { randomUUID } from "crypto";
 
-import type { AttachmentType, CardAssignee, CardAttachment } from "@prisma/client";
+import type { AttachmentType, Card, CardAssignee, CardAttachment } from "@prisma/client";
 
 import type { CardUpdatedField } from "@/lib/realtime/types";
 import { realtimeChannels } from "@/lib/realtime/channels";
@@ -30,9 +30,21 @@ export const triggerCardUpdated = async ({
   cardId,
   actorUserId,
   changedFields,
+  card,
   updatedAt,
 }: CardRealtimeInput & {
   changedFields: CardUpdatedField[];
+  card?: Pick<
+    Card,
+    | "id"
+    | "title"
+    | "description"
+    | "startDate"
+    | "dueDate"
+    | "isCompleted"
+    | "reminder"
+    | "reminderSetAt"
+  >;
   updatedAt: Date;
 }) => {
   if (changedFields.length === 0) {
@@ -46,6 +58,20 @@ export const triggerCardUpdated = async ({
       cardId,
       actorUserId,
       changedFields,
+      ...(card
+        ? {
+            card: {
+              id: card.id,
+              title: card.title,
+              description: card.description,
+              startDate: card.startDate?.toISOString() ?? null,
+              dueDate: card.dueDate?.toISOString() ?? null,
+              isCompleted: card.isCompleted,
+              reminder: card.reminder,
+              reminderSetAt: card.reminderSetAt?.toISOString() ?? null,
+            },
+          }
+        : {}),
       updatedAt: updatedAt.toISOString(),
       invalidate: cardInvalidations(cardId),
     };

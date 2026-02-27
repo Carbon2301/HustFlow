@@ -85,6 +85,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       boardId,
       listId: list.id,
       actorUserId: userId,
+      archived: true,
     });
   } catch (error) {
     if (error instanceof Error && error.message === "LIST_NOT_FOUND") {

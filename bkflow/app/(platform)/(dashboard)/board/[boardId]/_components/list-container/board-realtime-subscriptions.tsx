@@ -9,30 +9,30 @@ import type {
   BoardDeletedPayload,
   BoardMemberRemovedPayload,
   CardCommentCountUpdatedPayload,
+  CardCreatedPayload,
   CardDeletedPayload,
   CardLabelPayload,
+  CardMemberAssignedPayload,
+  CardMemberUnassignedPayload,
+  CardUpdatedPayload,
   ChecklistItemMovedPayload,
   ChecklistItemPayload,
   ChecklistItemReorderedPayload,
   ChecklistPayload,
   LabelPayload,
+  ListDeletedPayload,
+  ListUpdatedPayload,
 } from "@/lib/realtime/types";
 import type { RealtimeEventName, RealtimeEventPayload } from "@/lib/realtime/events";
 
 type BoardCardSyncPayload =
   | RealtimeEventPayload<typeof REALTIME_EVENTS.BOARD_UPDATED>
-  | RealtimeEventPayload<typeof REALTIME_EVENTS.CARD_UPDATED>
   | RealtimeEventPayload<typeof REALTIME_EVENTS.CARD_REORDERED>
   | RealtimeEventPayload<typeof REALTIME_EVENTS.CARD_MOVED>
-  | RealtimeEventPayload<typeof REALTIME_EVENTS.CARD_MEMBER_ASSIGNED>
-  | RealtimeEventPayload<typeof REALTIME_EVENTS.CARD_MEMBER_UNASSIGNED>
   | RealtimeEventPayload<typeof REALTIME_EVENTS.BOARD_MEMBER_ADDED>
   | RealtimeEventPayload<typeof REALTIME_EVENTS.BOARD_MEMBER_ROLE_UPDATED>
   | RealtimeEventPayload<typeof REALTIME_EVENTS.LIST_CREATED>
-  | RealtimeEventPayload<typeof REALTIME_EVENTS.LIST_UPDATED>
-  | RealtimeEventPayload<typeof REALTIME_EVENTS.LIST_DELETED>
-  | RealtimeEventPayload<typeof REALTIME_EVENTS.LIST_REORDERED>
-  | RealtimeEventPayload<typeof REALTIME_EVENTS.CARD_CREATED>;
+  | RealtimeEventPayload<typeof REALTIME_EVENTS.LIST_REORDERED>;
 
 type ChecklistSyncPayload =
   | ChecklistPayload
@@ -46,6 +46,12 @@ type BoardRealtimeSubscriptionsProps = {
   channelName: RealtimeChannelName;
   enabled: boolean;
   onBoardCardSync: (payload: BoardCardSyncPayload) => void;
+  onCardUpdated: (payload: CardUpdatedPayload) => void;
+  onCardCreated: (payload: CardCreatedPayload) => void;
+  onCardMemberAssigned: (payload: CardMemberAssignedPayload) => void;
+  onCardMemberUnassigned: (payload: CardMemberUnassignedPayload) => void;
+  onListUpdated: (payload: ListUpdatedPayload) => void;
+  onListDeleted: (payload: ListDeletedPayload) => void;
   onBoardDeleted: (payload: BoardDeletedPayload) => void;
   onAccessRevoked: (payload: BoardAccessRevokedPayload) => void;
   onBoardMemberRemoved: (payload: BoardMemberRemovedPayload) => void;
@@ -81,18 +87,12 @@ const RealtimeSubscription = <TEvent extends RealtimeEventName>({
 
 const boardCardSyncEvents = [
   REALTIME_EVENTS.BOARD_UPDATED,
-  REALTIME_EVENTS.CARD_UPDATED,
   REALTIME_EVENTS.CARD_REORDERED,
   REALTIME_EVENTS.CARD_MOVED,
-  REALTIME_EVENTS.CARD_MEMBER_ASSIGNED,
-  REALTIME_EVENTS.CARD_MEMBER_UNASSIGNED,
   REALTIME_EVENTS.BOARD_MEMBER_ADDED,
   REALTIME_EVENTS.BOARD_MEMBER_ROLE_UPDATED,
   REALTIME_EVENTS.LIST_CREATED,
-  REALTIME_EVENTS.LIST_UPDATED,
-  REALTIME_EVENTS.LIST_DELETED,
   REALTIME_EVENTS.LIST_REORDERED,
-  REALTIME_EVENTS.CARD_CREATED,
 ] as const;
 
 const checklistSyncEvents = [
@@ -121,6 +121,12 @@ export const BoardRealtimeSubscriptions = ({
   channelName,
   enabled,
   onBoardCardSync,
+  onCardUpdated,
+  onCardCreated,
+  onCardMemberAssigned,
+  onCardMemberUnassigned,
+  onListUpdated,
+  onListDeleted,
   onBoardDeleted,
   onAccessRevoked,
   onBoardMemberRemoved,
@@ -146,6 +152,42 @@ export const BoardRealtimeSubscriptions = ({
         enabled={enabled}
       />
     ))}
+    <RealtimeSubscription
+      channelName={channelName}
+      event={REALTIME_EVENTS.CARD_UPDATED}
+      onEvent={onCardUpdated}
+      enabled={enabled}
+    />
+    <RealtimeSubscription
+      channelName={channelName}
+      event={REALTIME_EVENTS.CARD_CREATED}
+      onEvent={onCardCreated}
+      enabled={enabled}
+    />
+    <RealtimeSubscription
+      channelName={channelName}
+      event={REALTIME_EVENTS.CARD_MEMBER_ASSIGNED}
+      onEvent={onCardMemberAssigned}
+      enabled={enabled}
+    />
+    <RealtimeSubscription
+      channelName={channelName}
+      event={REALTIME_EVENTS.CARD_MEMBER_UNASSIGNED}
+      onEvent={onCardMemberUnassigned}
+      enabled={enabled}
+    />
+    <RealtimeSubscription
+      channelName={channelName}
+      event={REALTIME_EVENTS.LIST_UPDATED}
+      onEvent={onListUpdated}
+      enabled={enabled}
+    />
+    <RealtimeSubscription
+      channelName={channelName}
+      event={REALTIME_EVENTS.LIST_DELETED}
+      onEvent={onListDeleted}
+      enabled={enabled}
+    />
     <RealtimeSubscription
       channelName={channelName}
       event={REALTIME_EVENTS.BOARD_DELETED}

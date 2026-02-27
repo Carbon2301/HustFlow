@@ -106,6 +106,7 @@ export const ListContainer = ({
     cardModal,
     router,
     queryClient,
+    orderedData,
     setOrderedData,
   });
   const channelName = realtimeChannels.board(boardId);
