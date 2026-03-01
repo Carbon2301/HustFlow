@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { Draggable } from "@hello-pangea/dnd";
-import { AlignLeft, Archive, ExternalLink, Copy, MessageSquare, CheckSquare, Paperclip } from "lucide-react";
+import { AlignLeft, Archive, ExternalLink, Copy, MessageSquare, CheckSquare, Paperclip, Pencil } from "lucide-react";
 
 import { useCardModal } from "@/hooks/use-card-modal";
 import { DueDateBadge } from "@/components/due-date-badge";
@@ -20,6 +20,7 @@ import {
 import { useAction } from "@/hooks/use-action";
 import { copyCard } from "@/actions/copy-card";
 import { archiveCard } from "@/actions/archive-card";
+import { updateCard } from "@/actions/update-card";
 import { cn, getColorName } from "@/lib/utils";
 import type { ListWithCards } from "@/types";
 
@@ -77,6 +78,75 @@ export const CardItem = ({
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
   const cardRef = useRef<HTMLDivElement>(null);
   const archiveRollbackRef = useRef<ListWithCards[] | null>(null);
+
+  const [isEditing, setIsEditing] = useState(false);
+  const formRef = useRef<HTMLFormElement>(null);
+  const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  const { execute: executeUpdateCard, isLoading: isLoadingUpdate } = useAction(updateCard, {
+    onSuccess: (updatedCard) => {
+      boardState.patchCard(updatedCard.id, { title: updatedCard.title });
+      disableEditing();
+    },
+    onError: (error) => {
+      toast.error(error);
+      if (textareaRef.current) {
+        textareaRef.current.value = data.title;
+      }
+      disableEditing();
+    },
+  });
+
+  const enableEditing = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    setShowMenu(false);
+    setIsEditing(true);
+    setTimeout(() => {
+      if (textareaRef.current) {
+        textareaRef.current.focus();
+        textareaRef.current.select();
+      }
+    }, 0);
+  };
+
+  const disableEditing = () => {
+    setIsEditing(false);
+  };
+
+  const onKeyDown = (e: React.KeyboardEvent<HTMLTextAreaElement>) => {
+    if (e.key === "Escape") {
+      disableEditing();
+    }
+    if (e.key === "Enter" && !e.shiftKey) {
+      e.preventDefault();
+      formRef.current?.requestSubmit();
+    }
+  };
+
+  const onBlur = () => {
+    formRef.current?.requestSubmit();
+  };
+
+  const onSubmit = (formData: FormData) => {
+    const title = formData.get("title") as string;
+    const boardId = params.boardId as string;
+
+    if (!title || title.trim() === "") {
+      disableEditing();
+      return;
+    }
+
+    if (title.trim() === data.title) {
+      disableEditing();
+      return;
+    }
+
+    executeUpdateCard({
+      id: data.id,
+      title: title.trim(),
+      boardId,
+    });
+  };
 
   const handleContextMenu = (e: React.MouseEvent) => {
     e.preventDefault();
@@ -215,12 +285,35 @@ export const CardItem = ({
               </div>
             )}
             <div className="w-full space-y-2">
-              <span className={cn(
-                "block text-[15px] font-semibold leading-snug text-neutral-800 break-words",
-                data.description && "pr-5"
-              )}>
-                {data.title}
-              </span>
+              {isEditing ? (
+                <form
+                  onSubmit={(e) => {
+                    e.preventDefault();
+                    onSubmit(new FormData(e.currentTarget));
+                  }}
+                  ref={formRef}
+                  className="w-full"
+                  onClick={(e) => e.stopPropagation()}
+                >
+                  <textarea
+                    ref={textareaRef}
+                    name="title"
+                    defaultValue={data.title}
+                    onKeyDown={onKeyDown}
+                    onBlur={onBlur}
+                    disabled={isLoadingUpdate}
+                    className="w-full text-[15px] font-semibold leading-snug text-neutral-800 break-words resize-none outline-none border border-violet-500 rounded-md px-2 py-1 focus:ring-1 focus:ring-violet-200 bg-white"
+                    rows={1}
+                  />
+                </form>
+              ) : (
+                <span className={cn(
+                  "block text-[15px] font-semibold leading-snug text-neutral-800 break-words",
+                  data.description && "pr-5"
+                )}>
+                  {data.title}
+                </span>
+              )}
               {hasFooter && (
                 <div className="flex min-h-7 flex-wrap items-center justify-between gap-x-2 gap-y-1.5">
                   <div className="flex items-center gap-x-1.5 flex-wrap gap-y-1">
@@ -340,6 +433,13 @@ export const CardItem = ({
                   >
                     <ExternalLink className="h-4 w-4 text-neutral-400" />
                     Mở thẻ
+                  </button>
+                  <button
+                    onClick={(e) => enableEditing(e)}
+                    className="w-full flex items-center gap-x-2.5 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 rounded-lg transition-colors cursor-pointer"
+                  >
+                    <Pencil className="h-4 w-4 text-neutral-400" />
+                    Đổi tên thẻ
                   </button>
                   <button
                     onClick={onCopy}
