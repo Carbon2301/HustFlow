@@ -10,3 +10,12 @@ export const AI_CHECKLIST_LIMITS = {
   nameMaxLength: 100,
   itemMaxLength: 120,
 };
+
+export const AI_CARD_QUALITY_LIMITS = {
+  titleMaxLength: 200,
+  descriptionInputMaxLength: 3_000,
+  descriptionOutputMinLength: 80,
+  descriptionOutputMaxLength: 1_600,
+  nameMaxLength: 100,
+  maxSuggestedLabels: 3,
+};

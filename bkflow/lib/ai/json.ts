@@ -19,12 +19,16 @@ const extractJsonObject = (value: string) => {
   return unfenced.slice(start, end + 1);
 };
 
-export const parseAiJson = <T>(raw: string, schema: z.ZodType<T>) => {
+export const parseAiJson = <T>(
+  raw: string,
+  schema: z.ZodType<T>,
+  errorMessage = "AI chưa tạo được checklist hợp lệ. Hãy thử lại.",
+) => {
   try {
     const parsed = JSON.parse(extractJsonObject(raw));
     return schema.parse(parsed);
   } catch (error) {
     console.error("[AI_JSON_PARSE_ERROR]", error, raw);
-    throw new Error("AI chưa tạo được checklist hợp lệ. Hãy thử lại.");
+    throw new Error(errorMessage);
   }
 };

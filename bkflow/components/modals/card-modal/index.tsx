@@ -19,6 +19,7 @@ import { CardRealtimeSync } from "./card-realtime-sync";
 import { Checklists } from "./checklists";
 import { Attachments } from "./attachments";
 import { AiChecklistGenerator } from "./ai-checklist-generator";
+import { AiCardQualityAssistant } from "./ai-card-quality-assistant";
 
 export const CardModal = () => {
   const id = useCardModal((state) => state.id);
@@ -88,6 +89,13 @@ export const CardModal = () => {
               : (
                   <>
                     <Description data={cardData} />
+                    <AiCardQualityAssistant
+                      cardId={cardData.id}
+                      boardId={cardData.list.boardId}
+                      description={cardData.description}
+                      labels={cardData.labels || []}
+                      boardLabels={cardData.boardLabels || []}
+                    />
                     {(cardData.attachments ?? []).length > 0 && (
                       <Attachments
                         cardId={cardData.id}
