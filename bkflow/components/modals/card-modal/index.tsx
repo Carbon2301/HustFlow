@@ -18,7 +18,6 @@ import { Comments } from "./comments";
 import { CardRealtimeSync } from "./card-realtime-sync";
 import { Checklists } from "./checklists";
 import { Attachments } from "./attachments";
-import { AiChecklistGenerator } from "./ai-checklist-generator";
 import { AiCardQualityAssistant } from "./ai-card-quality-assistant";
 
 export const CardModal = () => {
@@ -95,6 +94,7 @@ export const CardModal = () => {
                       description={cardData.description}
                       labels={cardData.labels || []}
                       boardLabels={cardData.boardLabels || []}
+                      checklists={cardData.checklists || []}
                     />
                     {(cardData.attachments ?? []).length > 0 && (
                       <Attachments
@@ -103,11 +103,6 @@ export const CardModal = () => {
                         items={cardData.attachments ?? []}
                       />
                     )}
-                    <AiChecklistGenerator
-                      cardId={cardData.id}
-                      boardId={cardData.list.boardId}
-                      checklists={cardData.checklists || []}
-                    />
                     <Checklists
                       cardId={cardData.id}
                       boardId={cardData.list.boardId}

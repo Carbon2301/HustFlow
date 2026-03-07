@@ -27,6 +27,8 @@ import { getRoleLabel } from "@/lib/board-member-role";
 import { ClerkOrgMember } from "@/lib/clerk-org-members";
 import { cn } from "@/lib/utils";
 
+import { BoardMemberAvatarPopover } from "./board-member-avatar-popover";
+
 interface BoardMembersProps {
   boardId: string;
   members: BoardMember[];
@@ -115,17 +117,20 @@ export const BoardMembers = ({
     <div className="flex items-center gap-x-2">
       {members.length > 0 && (
         <AvatarGroup className="hidden sm:flex">
-          {members.slice(0, 5).map((member) => (
-            <Hint
-              key={member.id}
-              description={`${member.userName} · ${getRoleLabel(member.role)}`}
-            >
-              <Avatar size="sm" className="bg-white">
-                <AvatarImage src={member.userImage} alt={member.userName} />
-                <AvatarFallback>{getInitials(member.userName)}</AvatarFallback>
-              </Avatar>
-            </Hint>
-          ))}
+          {members.slice(0, 5).map((member) => {
+            const isLastAdmin =
+              member.role === BoardMemberRole.ADMIN && adminCount <= 1;
+
+            return (
+              <BoardMemberAvatarPopover
+                key={member.id}
+                boardId={boardId}
+                member={member}
+                canManage={canManage}
+                isLastAdmin={isLastAdmin}
+              />
+            );
+          })}
         </AvatarGroup>
       )}
       <Popover>

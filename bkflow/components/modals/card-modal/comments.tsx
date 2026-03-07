@@ -56,13 +56,35 @@ const getRelativeTime = (date: Date | string) => {
   });
 };
 
-const getMention = (name: string) => {
-  const normalizedName = name.replace(/\s+/g, "").trim();
+const getMentionKey = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\w]/g, "")
+    .toLowerCase();
 
-  return `@${normalizedName || "thanhvien"}`;
+const getMentionTag = (member: Pick<BoardMember, "userName" | "userEmail">) => {
+  const rawTag = member.userEmail?.split("@")[0] || member.userName;
+  const normalizedTag = rawTag.replace(/\s+/g, "").trim();
+
+  return `@${normalizedTag || "thanhvien"}`;
 };
 
-const renderCommentContent = (content: string) => {
+const getCanonicalMention = (mention: string, boardMembers: BoardMember[]) => {
+  const mentionKey = getMentionKey(mention.replace(/^@/, ""));
+  const matchedMember = boardMembers.find((member) => {
+    const keys = [
+      member.userName,
+      member.userEmail?.split("@")[0],
+    ].filter((value): value is string => Boolean(value));
+
+    return keys.some((key) => getMentionKey(key) === mentionKey);
+  });
+
+  return matchedMember ? getMentionTag(matchedMember) : mention;
+};
+
+const renderCommentContent = (content: string, boardMembers: BoardMember[]) => {
   const parts = content.split(/(@[\p{L}\p{N}_-]+)/gu);
 
   return parts.map((part, idx) => {
@@ -72,7 +94,7 @@ const renderCommentContent = (content: string) => {
           key={idx}
           className="font-semibold text-violet-600 bg-violet-50/50 px-1 rounded-xs"
         >
-          {part}
+          {getCanonicalMention(part, boardMembers)}
         </span>
       );
     }
@@ -126,7 +148,7 @@ const CommentForm = ({
         id: member.id,
         name: member.userName,
         image: member.userImage,
-        tag: getMention(member.userName),
+        tag: getMentionTag(member),
         isSpecial: false,
       })),
     ];
@@ -521,7 +543,7 @@ export const Comments = ({
             />
           ) : (
             <div className="rounded-xl border border-neutral-200 bg-white px-3 py-2 text-sm leading-relaxed text-neutral-700 shadow-xs whitespace-pre-wrap break-words">
-              {renderCommentContent(comment.content)}
+              {renderCommentContent(comment.content, boardMembers)}
             </div>
           )}
 
@@ -675,7 +697,14 @@ export const Comments = ({
           {isReplying && (
             <CommentForm
               placeholder="Viết phản hồi..."
-              initialValue={`${getMention(comment.userName)} `}
+              initialValue={`${
+                getMentionTag(
+                  boardMembers.find((member) => member.userId === comment.userId) ?? {
+                    userName: comment.userName,
+                    userEmail: null,
+                  },
+                )
+              } `}
               submitLabel="Trả lời"
               isLoading={isCreating}
               onSubmit={(content) => {

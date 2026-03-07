@@ -4,7 +4,7 @@ import { toast } from "sonner";
 import { List } from "@prisma/client";
 import { useRef } from "react";
 import { useRouter } from "next/navigation";
-import { Archive, MoreHorizontal, X, Plus, Copy } from "lucide-react";
+import { Archive, MoreHorizontal, X, Plus, Copy, Pencil } from "lucide-react";
 
 import type { ListWithCards } from "@/types";
 import {
@@ -25,11 +25,17 @@ import { useBoardState } from "./list-container/board-state-context";
 interface ListOptionsProps {
   data: List;
   onAddCard: () => void;
+  onRename: () => void;
+  open?: boolean;
+  onOpenChange?: (open: boolean) => void;
 };
 
 export const ListOptions = ({
   data,
   onAddCard,
+  onRename,
+  open,
+  onOpenChange,
 }: ListOptionsProps) => {
   const closeRef = useRef<HTMLButtonElement>(null);
   const router = useRouter();
@@ -119,8 +125,13 @@ export const ListOptions = ({
     executeCopy({ id, boardId });
   };
 
+  const handleRename = () => {
+    closeRef.current?.click();
+    onRename();
+  };
+
   return (
-    <Popover>
+    <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
         <Button
           className="h-7 w-7 p-0 text-neutral-500 hover:text-neutral-700 hover:bg-neutral-200/60 rounded-md !cursor-pointer"
@@ -149,6 +160,15 @@ export const ListOptions = ({
         >
           <Plus className="h-4 w-4 text-neutral-400" />
           Thêm thẻ
+        </Button>
+        <Button
+          onClick={handleRename}
+          disabled={isArchiving || isLoadingCopy}
+          className="w-full h-9 px-4 justify-start font-normal text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 gap-x-2 rounded-none"
+          variant="ghost"
+        >
+          <Pencil className="h-4 w-4 text-neutral-400" />
+          Đổi tên danh sách
         </Button>
         <form action={onCopy}>
           <input hidden name="id" id="id" value={data.id} readOnly />

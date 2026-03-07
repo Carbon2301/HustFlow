@@ -136,6 +136,59 @@ export const NotificationsPopover = () => {
 
     setOpen(false);
 
+    if (notification.boardId && notification.cardId) {
+      const toastId = toast.loading("Đang mở thẻ...");
+
+      try {
+        const response = await fetch(`/api/cards/${notification.cardId}`);
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            toast.error("Thẻ không tồn tại hoặc đã bị xóa.", { id: toastId });
+          } else if (response.status === 403) {
+            toast.error("Bạn không có quyền truy cập thẻ này.", { id: toastId });
+          } else {
+            toast.error("Có lỗi xảy ra khi tải dữ liệu thẻ.", { id: toastId });
+          }
+          return;
+        }
+
+        const data = await response.json();
+        const boardId = data?.list?.boardId || notification.boardId;
+        queryClient.setQueryData(["card", notification.cardId], data);
+        toast.dismiss(toastId);
+        router.push(`/board/${boardId}?cardId=${notification.cardId}`);
+      } catch {
+        toast.error("Có lỗi xảy ra khi tải dữ liệu thẻ.", { id: toastId });
+      }
+      return;
+    }
+
+    if (notification.boardId) {
+      const toastId = toast.loading("Đang mở bảng...");
+
+      try {
+        const response = await fetch(`/api/boards/${notification.boardId}`);
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            toast.error("Bảng không tồn tại hoặc đã bị xóa.", { id: toastId });
+          } else if (response.status === 403) {
+            toast.error("Bạn không có quyền truy cập bảng này.", { id: toastId });
+          } else {
+            toast.error("Có lỗi xảy ra khi tải dữ liệu bảng.", { id: toastId });
+          }
+          return;
+        }
+
+        toast.dismiss(toastId);
+        router.push(`/board/${notification.boardId}`);
+      } catch {
+        toast.error("Có lỗi xảy ra khi tải dữ liệu bảng.", { id: toastId });
+      }
+      return;
+    }
+
     if (notification.cardId) {
       const toastId = toast.loading("Đang mở thẻ...");
       try {
@@ -155,15 +208,12 @@ export const NotificationsPopover = () => {
         queryClient.setQueryData(["card", notification.cardId], data);
         toast.dismiss(toastId);
         cardModal.onOpen(notification.cardId);
-      } catch (err) {
+      } catch {
         toast.error("Có lỗi xảy ra khi tải dữ liệu thẻ.", { id: toastId });
       }
       return;
     }
 
-    if (notification.boardId) {
-      router.push(`/board/${notification.boardId}`);
-    }
   };
 
   const getPageNumbers = () => {

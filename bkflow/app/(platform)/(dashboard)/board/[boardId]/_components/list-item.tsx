@@ -22,6 +22,7 @@ export const ListItem = ({
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const [isEditing, setIsEditing] = useState(false);
+  const [isOptionsOpen, setIsOptionsOpen] = useState(false);
 
   const disableEditing = () => {
     setIsEditing(false);
@@ -34,8 +35,19 @@ export const ListItem = ({
     });
   };
 
+  const handleContextMenu = (event: React.MouseEvent<HTMLDivElement>) => {
+    const target = event.target as HTMLElement;
+
+    if (target.closest("input, textarea, select, [contenteditable='true']")) {
+      return;
+    }
+
+    event.preventDefault();
+    setIsOptionsOpen(true);
+  };
+
   return (
-    <Draggable draggableId={data.id} index={index}>
+    <Draggable draggableId={data.id} index={index} disableInteractiveElementBlocking>
       {(provided, snapshot) => (
         <li
           {...provided.draggableProps}
@@ -43,15 +55,19 @@ export const ListItem = ({
           className="shrink-0 h-full w-[272px] select-none"
         >
           <div
+            onContextMenu={handleContextMenu}
             className={cn(
               "w-full rounded-xl bg-[#f1f2f4] shadow-sm pb-2 flex flex-col",
               snapshot.isDragging && "shadow-xl opacity-95"
             )}
           >
-            <div {...provided.dragHandleProps}>
+            <div>
               <ListHeader
                 onAddCard={enableEditing}
                 data={data}
+                optionsOpen={isOptionsOpen}
+                onOptionsOpenChange={setIsOptionsOpen}
+                dragHandleProps={provided.dragHandleProps}
               />
             </div>
             <Droppable droppableId={data.id} type="card">

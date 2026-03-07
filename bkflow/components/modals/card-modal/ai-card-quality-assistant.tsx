@@ -1,13 +1,15 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import type { CardLabel, Label } from "@prisma/client";
+import type { CardLabel, Checklist, Label } from "@prisma/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { RefreshCw, Sparkles, Tag, X } from "lucide-react";
+import { CheckSquare, RefreshCw, Sparkles, Tag, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { applyAiCardLabelSuggestions } from "@/actions/apply-ai-card-label-suggestions";
+import { createAiChecklistItems } from "@/actions/create-ai-checklist-items";
 import { generateAiCardQuality } from "@/actions/generate-ai-card-quality";
+import { generateAiChecklist } from "@/actions/generate-ai-checklist";
 import { updateCard } from "@/actions/update-card";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
@@ -17,9 +19,17 @@ import { cn } from "@/lib/utils";
 import { patchBoardCardPreview, patchCardQueryData } from "./card-cache-utils";
 
 type QualityTask = "create_description" | "rewrite_description" | "suggest_labels";
+type AiTask = QualityTask | "suggest_checklist";
 
 type CardLabelWithLabel = CardLabel & {
   label: Label;
+};
+
+type ChecklistOption = Checklist & {
+  items: {
+    id: string;
+    title: string;
+  }[];
 };
 
 interface AiCardQualityAssistantProps {
@@ -28,6 +38,7 @@ interface AiCardQualityAssistantProps {
   description: string | null;
   labels: CardLabelWithLabel[];
   boardLabels: Label[];
+  checklists: ChecklistOption[];
 }
 
 const taskLabels: Record<QualityTask, string> = {
@@ -36,19 +47,28 @@ const taskLabels: Record<QualityTask, string> = {
   suggest_labels: "Gợi ý nhãn",
 };
 
+const NEW_CHECKLIST_VALUE = "__new__";
+const DEFAULT_CHECKLIST_TITLE = "Việc cần làm";
+
 export const AiCardQualityAssistant = ({
   boardId,
   cardId,
   description,
   labels,
   boardLabels,
+  checklists,
 }: AiCardQualityAssistantProps) => {
   const queryClient = useQueryClient();
-  const [activeTask, setActiveTask] = useState<QualityTask | null>(null);
+  const [activeTask, setActiveTask] = useState<AiTask | null>(null);
   const [previewDescription, setPreviewDescription] = useState("");
   const [previewLabelIds, setPreviewLabelIds] = useState<string[]>([]);
   const [selectedLabelIds, setSelectedLabelIds] = useState<Set<string>>(new Set());
   const [labelReason, setLabelReason] = useState("");
+  const [checklistSuggestions, setChecklistSuggestions] = useState<string[]>([]);
+  const [selectedChecklistItems, setSelectedChecklistItems] = useState<Set<string>>(new Set());
+  const [selectedChecklistId, setSelectedChecklistId] = useState(
+    checklists[0]?.id ?? NEW_CHECKLIST_VALUE,
+  );
 
   const activeLabelIds = useMemo(
     () => new Set(labels.map((item) => item.labelId)),
@@ -67,6 +87,17 @@ export const AiCardQualityAssistant = ({
   const hasDescription = !!description?.trim();
   const isDescriptionTask = activeTask === "create_description" || activeTask === "rewrite_description";
   const isLabelTask = activeTask === "suggest_labels";
+  const isChecklistTask = activeTask === "suggest_checklist";
+  const selectedChecklistItemCount = useMemo(
+    () => checklistSuggestions.filter((item) => selectedChecklistItems.has(item)).length,
+    [checklistSuggestions, selectedChecklistItems],
+  );
+  const canSelectChecklist = checklists.length > 0;
+  const fallbackChecklistId = checklists[0]?.id ?? NEW_CHECKLIST_VALUE;
+  const selectedChecklistExists = checklists.some((checklist) => checklist.id === selectedChecklistId);
+  const effectiveChecklistId = selectedChecklistId === NEW_CHECKLIST_VALUE || selectedChecklistExists
+    ? selectedChecklistId
+    : fallbackChecklistId;
 
   const invalidateCard = () => {
     queryClient.invalidateQueries({ queryKey: ["card", cardId] });
@@ -79,6 +110,8 @@ export const AiCardQualityAssistant = ({
     setPreviewLabelIds([]);
     setSelectedLabelIds(new Set());
     setLabelReason("");
+    setChecklistSuggestions([]);
+    setSelectedChecklistItems(new Set());
   };
 
   const { execute: executeGenerate, isLoading: isGenerating } = useAction(generateAiCardQuality, {
@@ -154,12 +187,50 @@ export const AiCardQualityAssistant = ({
     },
   });
 
+  const { execute: executeGenerateChecklist, isLoading: isGeneratingChecklist } = useAction(generateAiChecklist, {
+    onSuccess: (data) => {
+      setActiveTask("suggest_checklist");
+      setPreviewDescription("");
+      setPreviewLabelIds([]);
+      setSelectedLabelIds(new Set());
+      setLabelReason("");
+      setChecklistSuggestions(data.items);
+      setSelectedChecklistItems(new Set(data.items));
+      toast.success("AI đã gợi ý danh sách việc cần làm cho thẻ này.");
+    },
+    onError: (error) => toast.error(error),
+  });
+
+  const { execute: executeCreateChecklistItems, isLoading: isCreatingChecklistItems } = useAction(createAiChecklistItems, {
+    onSuccess: (data) => {
+      toast.success(`Đã thêm ${data.items.length} việc cần làm`);
+      setActiveTask(null);
+      setChecklistSuggestions([]);
+      setSelectedChecklistItems(new Set());
+      invalidateCard();
+    },
+    onError: (error) => {
+      toast.error(error);
+      invalidateCard();
+    },
+  });
+
   const handleGenerate = (task: QualityTask) => {
     setActiveTask(task);
+    setChecklistSuggestions([]);
+    setSelectedChecklistItems(new Set());
     executeGenerate({
       boardId,
       cardId,
       task,
+    });
+  };
+
+  const handleGenerateChecklist = () => {
+    setActiveTask("suggest_checklist");
+    executeGenerateChecklist({
+      boardId,
+      cardId,
     });
   };
 
@@ -201,7 +272,39 @@ export const AiCardQualityAssistant = ({
     });
   };
 
-  const isBusy = isGenerating || isUpdatingDescription || isApplyingLabels;
+  const handleToggleChecklistItem = (item: string) => {
+    setSelectedChecklistItems((current) => {
+      const next = new Set(current);
+
+      if (next.has(item)) {
+        next.delete(item);
+      } else {
+        next.add(item);
+      }
+
+      return next;
+    });
+  };
+
+  const handleApplyChecklistItems = () => {
+    const items = checklistSuggestions.filter((item) => selectedChecklistItems.has(item));
+
+    if (items.length === 0) {
+      return;
+    }
+
+    executeCreateChecklistItems({
+      boardId,
+      cardId,
+      checklistId: effectiveChecklistId === NEW_CHECKLIST_VALUE
+        ? undefined
+        : effectiveChecklistId,
+      checklistTitle: DEFAULT_CHECKLIST_TITLE,
+      items,
+    });
+  };
+
+  const isBusy = isGenerating || isUpdatingDescription || isApplyingLabels || isGeneratingChecklist || isCreatingChecklistItems;
 
   return (
     <div className="flex items-start gap-x-4 w-full">
@@ -254,10 +357,27 @@ export const AiCardQualityAssistant = ({
                 ) : (
                   <Sparkles className="mr-1.5 h-3.5 w-3.5" />
                 )}
-                {isGenerating && activeTask === task ? "Đang tạo..." : taskLabels[task]}
+              {isGenerating && activeTask === task ? "Đang tạo..." : taskLabels[task]}
               </Button>
             );
           })}
+          <Button
+            type="button"
+            variant="outline"
+            onClick={handleGenerateChecklist}
+            disabled={isBusy}
+            className={cn(
+              "h-8 rounded-lg border-sky-200 bg-white px-3 text-xs font-semibold text-sky-700 hover:bg-sky-50",
+              activeTask === "suggest_checklist" && "border-sky-300 bg-sky-50",
+            )}
+          >
+            {isGeneratingChecklist ? (
+              <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />
+            ) : (
+              <CheckSquare className="mr-1.5 h-3.5 w-3.5" />
+            )}
+            {isGeneratingChecklist ? "Đang gợi ý..." : checklistSuggestions.length > 0 ? "Tạo lại" : "Gợi ý việc cần làm"}
+          </Button>
         </div>
 
         {isDescriptionTask && previewDescription && (
@@ -355,6 +475,72 @@ export const AiCardQualityAssistant = ({
                   {isApplyingLabels ? "Đang gắn..." : "Gắn nhãn đã chọn"}
                 </Button>
               </div>
+            </div>
+          </div>
+        )}
+
+        {isChecklistTask && checklistSuggestions.length > 0 && (
+          <div className="mt-3 space-y-3 rounded-lg border border-white/70 bg-white p-3 shadow-xs">
+            <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+              {canSelectChecklist ? (
+                <label className="flex min-w-0 flex-1 items-center gap-2 text-xs font-semibold text-neutral-600">
+                  Thêm vào
+                  <select
+                    value={effectiveChecklistId}
+                    onChange={(event) => setSelectedChecklistId(event.target.value)}
+                    disabled={isBusy}
+                    className="h-8 min-w-0 flex-1 rounded-lg border border-neutral-200 bg-white px-2 text-xs text-neutral-700 outline-none transition focus:border-sky-400 focus:ring-1 focus:ring-sky-200"
+                  >
+                    {checklists.map((checklist) => (
+                      <option key={checklist.id} value={checklist.id}>
+                        {checklist.title}
+                      </option>
+                    ))}
+                    <option value={NEW_CHECKLIST_VALUE}>
+                      Tạo danh sách mới: {DEFAULT_CHECKLIST_TITLE}
+                    </option>
+                  </select>
+                </label>
+              ) : (
+                <p className="text-xs font-semibold text-neutral-600">
+                  Sẽ tạo danh sách mới: {DEFAULT_CHECKLIST_TITLE}
+                </p>
+              )}
+            </div>
+
+            <div className="space-y-1.5">
+              {checklistSuggestions.map((item) => (
+                <label
+                  key={item}
+                  className={cn(
+                    "flex cursor-pointer items-start gap-2 rounded-lg border border-neutral-100 px-3 py-2 text-sm text-neutral-700 transition hover:bg-neutral-50",
+                    isBusy && "cursor-wait opacity-70",
+                  )}
+                >
+                  <input
+                    type="checkbox"
+                    checked={selectedChecklistItems.has(item)}
+                    onChange={() => handleToggleChecklistItem(item)}
+                    disabled={isBusy}
+                    className="mt-1 h-4 w-4 rounded border-neutral-300 accent-sky-600"
+                  />
+                  <span className="leading-relaxed">{item}</span>
+                </label>
+              ))}
+            </div>
+
+            <div className="flex flex-wrap items-center justify-between gap-2 border-t border-neutral-100 pt-3">
+              <span className="text-xs font-medium text-neutral-500">
+                Đã chọn {selectedChecklistItemCount}/{checklistSuggestions.length} việc cần làm
+              </span>
+              <Button
+                type="button"
+                onClick={handleApplyChecklistItems}
+                disabled={isBusy || selectedChecklistItemCount === 0}
+                className="h-8 rounded-lg bg-sky-600 px-3 text-xs font-semibold text-white hover:bg-sky-700"
+              >
+                {isCreatingChecklistItems ? "Đang thêm..." : "Thêm việc đã chọn"}
+              </Button>
             </div>
           </div>
         )}

@@ -199,6 +199,12 @@ export const cardMatchesBoardFilters = (
   currentBoardMemberId?: string,
 ) => matchesFilterableCard(card, filters, currentBoardMemberId);
 
+export const filterableCardMatchesBoardFilters = (
+  card: FilterableCard,
+  filters: BoardFilterState,
+  currentBoardMemberId?: string,
+) => matchesFilterableCard(card, filters, currentBoardMemberId);
+
 const matchesFilterableCard = (
   card: FilterableCard,
   filters: BoardFilterState,

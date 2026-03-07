@@ -104,7 +104,8 @@ export const CardItem = ({
     setTimeout(() => {
       if (textareaRef.current) {
         textareaRef.current.focus();
-        textareaRef.current.select();
+        const titleLength = textareaRef.current.value.length;
+        textareaRef.current.setSelectionRange(titleLength, titleLength);
       }
     }, 0);
   };
@@ -129,21 +130,25 @@ export const CardItem = ({
 
   const onSubmit = (formData: FormData) => {
     const title = formData.get("title") as string;
+    const trimmedTitle = title.trim();
     const boardId = params.boardId as string;
 
-    if (!title || title.trim() === "") {
+    if (!trimmedTitle) {
+      if (textareaRef.current) {
+        textareaRef.current.value = data.title;
+      }
       disableEditing();
       return;
     }
 
-    if (title.trim() === data.title) {
+    if (trimmedTitle === data.title) {
       disableEditing();
       return;
     }
 
     executeUpdateCard({
       id: data.id,
-      title: title.trim(),
+      title: trimmedTitle,
       boardId,
     });
   };

@@ -14,6 +14,7 @@ interface ActivityItemProps {
   listExists?: boolean;
   memberNames?: string[];
   isCardModal?: boolean;
+  onNavigate?: () => void;
 }
 
 const getCardTitleFromMessage = (message: string) => {
@@ -31,7 +32,8 @@ const replaceTextWithLink = (
   targetText: string,
   href: string,
   linkLabel: string,
-  prepend?: string
+  prepend?: string,
+  onNavigate?: () => void,
 ) => {
   const result: React.ReactNode[] = [];
   nodes.forEach((node) => {
@@ -45,6 +47,7 @@ const replaceTextWithLink = (
               {prepend && <>{prepend}{" "}</>}
               <Link
                 href={href}
+                onClick={onNavigate}
                 className="text-blue-600 hover:text-blue-800 underline font-normal decoration-blue-600/30 hover:decoration-blue-800"
               >
                 {linkLabel}
@@ -143,7 +146,8 @@ const renderMessageWithLinks = (
   listExists?: boolean,
   memberNames: string[] = [],
   isCardModal?: boolean,
-  cardArchived?: boolean
+  cardArchived?: boolean,
+  onNavigate?: () => void,
 ) => {
   let elements: React.ReactNode[] = [message];
   const resolvedCardTitle = cardTitle || 
@@ -159,9 +163,9 @@ const renderMessageWithLinks = (
     // 1. Handle Card Links / Deleted / Archived notice
     if (resolvedCardId) {
       if (cardHref && cardTitle && !cardArchived) {
-        elements = replaceTextWithLink(elements, "thẻ này", cardHref, cardTitle, "thẻ");
-        elements = replaceTextWithLink(elements, `"${cardTitle}"`, cardHref, cardTitle);
-        elements = replaceTextWithLink(elements, `“${cardTitle}”`, cardHref, cardTitle);
+        elements = replaceTextWithLink(elements, "thẻ này", cardHref, cardTitle, "thẻ", onNavigate);
+        elements = replaceTextWithLink(elements, `"${cardTitle}"`, cardHref, cardTitle, undefined, onNavigate);
+        elements = replaceTextWithLink(elements, `“${cardTitle}”`, cardHref, cardTitle, undefined, onNavigate);
       } else if (resolvedCardTitle) {
         const labelText = cardArchived ? `${resolvedCardTitle} (đã lưu trữ)` : `${resolvedCardTitle} (đã bị xóa)`;
         elements = replaceTextWithLabel(elements, "thẻ này", labelText, "thẻ");
@@ -180,8 +184,8 @@ const renderMessageWithLinks = (
         : getBoardTitleFromMessage(message));
     if (log.boardId) {
       if (boardHref && boardTitle) {
-        elements = replaceTextWithLink(elements, `"${boardTitle}"`, boardHref, boardTitle);
-        elements = replaceTextWithLink(elements, `“${boardTitle}”`, boardHref, boardTitle);
+        elements = replaceTextWithLink(elements, `"${boardTitle}"`, boardHref, boardTitle, undefined, onNavigate);
+        elements = replaceTextWithLink(elements, `“${boardTitle}”`, boardHref, boardTitle, undefined, onNavigate);
       } else if (resolvedBoardTitle) {
         elements = replaceTextWithLabel(elements, `"${resolvedBoardTitle}"`, `${resolvedBoardTitle} (đã bị xóa)`);
         elements = replaceTextWithLabel(elements, `“${resolvedBoardTitle}”`, `${resolvedBoardTitle} (đã bị xóa)`);
@@ -193,8 +197,8 @@ const renderMessageWithLinks = (
       const listTitle = log.entityTitle;
       const resolvedListTitle = !listTitle.startsWith("detail:") ? listTitle : null;
       if (boardHref && listExists && resolvedListTitle) {
-        elements = replaceTextWithLink(elements, `"${resolvedListTitle}"`, boardHref, resolvedListTitle);
-        elements = replaceTextWithLink(elements, `“${resolvedListTitle}”`, boardHref, resolvedListTitle);
+        elements = replaceTextWithLink(elements, `"${resolvedListTitle}"`, boardHref, resolvedListTitle, undefined, onNavigate);
+        elements = replaceTextWithLink(elements, `“${resolvedListTitle}”`, boardHref, resolvedListTitle, undefined, onNavigate);
       } else if (resolvedListTitle) {
         elements = replaceTextWithLabel(elements, `"${resolvedListTitle}"`, `${resolvedListTitle} (đã bị xóa)`);
         elements = replaceTextWithLabel(elements, `“${resolvedListTitle}”`, `${resolvedListTitle} (đã bị xóa)`);
@@ -229,6 +233,7 @@ export const ActivityItem = ({
   listExists = true,
   memberNames = [],
   isCardModal = false,
+  onNavigate,
 }: ActivityItemProps) => {
   const initials = data.userName
     ? data.userName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
@@ -253,7 +258,7 @@ export const ActivityItem = ({
           <span className="font-semibold text-neutral-900">
             {data.userName}
           </span>{" "}
-          {renderMessageWithLinks(message, data, cardTitle, boardTitle, listExists, memberNames, isCardModal, cardArchived)}
+          {renderMessageWithLinks(message, data, cardTitle, boardTitle, listExists, memberNames, isCardModal, cardArchived, onNavigate)}
         </p>
         <p className="text-xs text-neutral-400 flex items-center gap-x-1.5 mt-0.5">
           <span>{format(new Date(data.createdAt), "HH:mm dd 'thg' M, yyyy")}</span>
@@ -264,6 +269,7 @@ export const ActivityItem = ({
               {boardHref && boardTitle ? (
                 <Link
                   href={boardHref}
+                  onClick={onNavigate}
                   className="text-blue-600 hover:text-blue-800 underline font-semibold decoration-blue-600/30 hover:decoration-blue-800 flex items-center gap-x-0.5"
                 >
                   {boardTitle}
