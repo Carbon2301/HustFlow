@@ -180,6 +180,7 @@ export type CardReorderedPayload = {
   boardId: string;
   actorUserId: string;
   listId?: string;
+  orderedCardIds?: string[];
   updatedAt: string;
 };
 
@@ -189,6 +190,8 @@ export type CardMovedPayload = {
   cardId?: string;
   sourceListId?: string;
   destinationListId?: string;
+  sourceOrderedCardIds?: string[];
+  destinationOrderedCardIds?: string[];
   actorUserId: string;
   updatedAt: string;
 };
@@ -337,6 +340,7 @@ export type ListReorderedPayload = {
   eventId: string;
   boardId: string;
   actorUserId: string;
+  orderedListIds?: string[];
   updatedAt: string;
 };
 

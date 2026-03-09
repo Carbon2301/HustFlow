@@ -27,6 +27,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
   const { items, boardId, } = data;
   let updatedCards;
+  let changedCards:
+    | {
+        id: string;
+        order: number;
+        listId: string;
+      }[]
+    = [];
   let movedCard:
     | {
         id: string;
@@ -83,20 +90,25 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     }
 
     const nextCardsById = new Map(items.map((card) => [card.id, card]));
-    const changedCards = existingCards.filter((card) => {
+    changedCards = existingCards.flatMap((card) => {
       const nextCard = nextCardsById.get(card.id);
 
-      return Boolean(
-        nextCard &&
-          (nextCard.order !== card.order || nextCard.listId !== card.listId),
-      );
+      if (!nextCard || (nextCard.order === card.order && nextCard.listId === card.listId)) {
+        return [];
+      }
+
+      return [{
+        id: nextCard.id,
+        order: nextCard.order,
+        listId: nextCard.listId,
+      }];
     });
 
     if (changedCards.length === 0) {
       return { data: existingCards };
     }
 
-    const movedExistingCard = changedCards.find((card) => {
+    const movedExistingCard = existingCards.find((card) => {
       const nextCard = nextCardsById.get(card.id);
 
       return Boolean(nextCard && nextCard.listId !== card.listId);
@@ -118,7 +130,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       reorderedListId = listIds.length === 1 ? listIds[0] : undefined;
     }
 
-    const transaction = items.map((card) => 
+    const transaction = changedCards.map((card) => 
       db.card.update({
         where: {
           id: card.id,
@@ -182,6 +194,14 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       cardId: movedCard.id,
       sourceListId: movedCard.sourceListId,
       destinationListId: movedCard.destinationListId,
+      sourceOrderedCardIds: items
+        .filter((card) => card.listId === movedCard!.sourceListId)
+        .sort((a, b) => a.order - b.order)
+        .map((card) => card.id),
+      destinationOrderedCardIds: items
+        .filter((card) => card.listId === movedCard!.destinationListId)
+        .sort((a, b) => a.order - b.order)
+        .map((card) => card.id),
     });
   } else {
     await createAuditLog({
@@ -197,6 +217,12 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       boardId,
       actorUserId: userId,
       listId: reorderedListId,
+      orderedCardIds: reorderedListId
+        ? items
+            .filter((card) => card.listId === reorderedListId)
+            .sort((a, b) => a.order - b.order)
+            .map((card) => card.id)
+        : undefined,
     });
   }
 

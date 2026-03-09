@@ -90,6 +90,155 @@ const normalizeCardForBoard = (card: BoardCardApiResponse): CardWithAssignees =>
   },
 });
 
+const reorderListsByIds = (
+  lists: ListWithCards[],
+  orderedListIds: string[],
+) => {
+  if (orderedListIds.length !== lists.length) {
+    return { applied: false, data: lists };
+  }
+
+  const listById = new Map(lists.map((list) => [list.id, list]));
+  const orderedLists = orderedListIds.map((listId, index) => {
+    const list = listById.get(listId);
+
+    if (!list) {
+      return null;
+    }
+
+    return list.order === index ? list : { ...list, order: index };
+  });
+
+  if (orderedLists.some((list) => !list)) {
+    return { applied: false, data: lists };
+  }
+
+  return { applied: true, data: orderedLists as ListWithCards[] };
+};
+
+const reorderCardsByIds = (
+  cards: CardWithAssignees[],
+  orderedCardIds: string[],
+  listId: string,
+) => {
+  if (orderedCardIds.length !== cards.length) {
+    return null;
+  }
+
+  const cardById = new Map(cards.map((card) => [card.id, card]));
+  const orderedCards = orderedCardIds.map((cardId, index) => {
+    const card = cardById.get(cardId);
+
+    if (!card) {
+      return null;
+    }
+
+    if (card.order === index && card.listId === listId) {
+      return card;
+    }
+
+    return {
+      ...card,
+      order: index,
+      listId,
+    };
+  });
+
+  if (orderedCards.some((card) => !card)) {
+    return null;
+  }
+
+  return orderedCards as CardWithAssignees[];
+};
+
+const reorderCardsInList = (
+  lists: ListWithCards[],
+  listId: string,
+  orderedCardIds: string[],
+) => {
+  let applied = false;
+
+  const data = lists.map((list) => {
+    if (list.id !== listId) {
+      return list;
+    }
+
+    const cards = reorderCardsByIds(list.cards, orderedCardIds, listId);
+
+    if (!cards) {
+      return list;
+    }
+
+    applied = true;
+    return {
+      ...list,
+      cards,
+    };
+  });
+
+  return { applied, data };
+};
+
+const moveCardBetweenLists = (
+  lists: ListWithCards[],
+  cardId: string,
+  sourceListId: string,
+  destinationListId: string,
+  sourceOrderedCardIds: string[],
+  destinationOrderedCardIds: string[],
+) => {
+  const sourceList = lists.find((list) => list.id === sourceListId);
+  const destinationList = lists.find((list) => list.id === destinationListId);
+  const movedCard = sourceList?.cards.find((card) => card.id === cardId);
+
+  if (!sourceList || !destinationList || !movedCard) {
+    return { applied: false, data: lists };
+  }
+
+  const sourceCards = reorderCardsByIds(
+    sourceList.cards.filter((card) => card.id !== cardId),
+    sourceOrderedCardIds,
+    sourceListId,
+  );
+  const destinationBaseCards = destinationList.cards.filter((card) => card.id !== cardId);
+  const destinationCards = reorderCardsByIds(
+    [
+      ...destinationBaseCards,
+      {
+        ...movedCard,
+        listId: destinationListId,
+      },
+    ],
+    destinationOrderedCardIds,
+    destinationListId,
+  );
+
+  if (!sourceCards || !destinationCards) {
+    return { applied: false, data: lists };
+  }
+
+  return {
+    applied: true,
+    data: lists.map((list) => {
+      if (list.id === sourceListId) {
+        return {
+          ...list,
+          cards: sourceCards,
+        };
+      }
+
+      if (list.id === destinationListId) {
+        return {
+          ...list,
+          cards: destinationCards,
+        };
+      }
+
+      return list;
+    }),
+  };
+};
+
 const fetchCardForBoard = async (cardId: string) => {
   const response = await fetch(`/api/cards/${cardId}`, {
     cache: "no-store",
@@ -397,8 +546,70 @@ export const useBoardRealtimeSync = ({
       return;
     }
 
+    if ("orderedListIds" in payload && payload.orderedListIds) {
+      let applied = false;
+
+      setOrderedData((prevData) => {
+        const result = reorderListsByIds(prevData, payload.orderedListIds!);
+        applied = result.applied;
+        return result.data;
+      });
+
+      if (!applied) {
+        router.refresh();
+      }
+
+      return;
+    }
+
+    if ("orderedCardIds" in payload && payload.listId && payload.orderedCardIds) {
+      let applied = false;
+
+      setOrderedData((prevData) => {
+        const result = reorderCardsInList(prevData, payload.listId!, payload.orderedCardIds!);
+        applied = result.applied;
+        return result.data;
+      });
+
+      if (!applied) {
+        router.refresh();
+      }
+
+      return;
+    }
+
+    if (
+      "sourceOrderedCardIds" in payload &&
+      payload.cardId &&
+      payload.sourceListId &&
+      payload.destinationListId &&
+      payload.sourceOrderedCardIds &&
+      payload.destinationOrderedCardIds
+    ) {
+      let applied = false;
+
+      setOrderedData((prevData) => {
+        const result = moveCardBetweenLists(
+          prevData,
+          payload.cardId!,
+          payload.sourceListId!,
+          payload.destinationListId!,
+          payload.sourceOrderedCardIds!,
+          payload.destinationOrderedCardIds!,
+        );
+        applied = result.applied;
+        return result.data;
+      });
+
+      if (!applied) {
+        router.refresh();
+      }
+
+      return;
+    }
+
     router.refresh();
-  }, [boardId, currentUserId, processBoardEvent, router]);
+  }, [boardId, currentUserId, processBoardEvent, router, setOrderedData]);
 
   const handleBoardDeleted = useCallback((payload: BoardDeletedPayload) => {
     if (payload.boardId !== boardId || !processBoardEvent(payload.eventId)) {

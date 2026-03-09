@@ -3,6 +3,7 @@
 import { toast } from "sonner";
 import { useEventListener } from "usehooks-ts";
 import { useEffect, useState, useRef } from "react";
+import type { DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 
 import { useAction } from "@/hooks/use-action";
 import { updateList } from "@/actions/update-list";
@@ -16,7 +17,7 @@ interface ListHeaderProps {
   onAddCard: () => void;
   optionsOpen?: boolean;
   onOptionsOpenChange?: (open: boolean) => void;
-  dragHandleProps?: any;
+  dragHandleProps?: DraggableProvidedDragHandleProps | null;
 };
 
 export const ListHeader = ({

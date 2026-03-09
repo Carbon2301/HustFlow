@@ -8,7 +8,9 @@ import {
   useCallback,
   useContext,
   useEffect,
+  useLayoutEffect,
   useMemo,
+  useRef,
 } from "react";
 
 import type { CardWithAssignees, ListWithCards } from "@/types";
@@ -83,7 +85,13 @@ export const BoardStateProvider = ({
 }: BoardStateProviderProps) => {
   const registerBoardActions = useBoardStateActionsStore((state) => state.registerBoardActions);
   const unregisterBoardActions = useBoardStateActionsStore((state) => state.unregisterBoardActions);
-  const getSnapshot = useCallback(() => cloneBoardState(data), [data]);
+  const dataRef = useRef(data);
+
+  useLayoutEffect(() => {
+    dataRef.current = data;
+  }, [data]);
+
+  const getSnapshot = useCallback(() => cloneBoardState(dataRef.current), []);
 
   const resetToSnapshot = useCallback((snapshot: ListWithCards[]) => {
     setData(cloneBoardState(snapshot));
@@ -131,21 +139,36 @@ export const BoardStateProvider = ({
 
   const replaceCard = useCallback((temporaryId: string, card: CardWithAssignees) => {
     setData((current) =>
-      current.map((list) => ({
-        ...list,
-        cards: list.cards.map((item) =>
-          item.id === temporaryId ? card : item,
-        ),
-      })),
+      current.map((list) => {
+        const cardIndex = list.cards.findIndex((item) => item.id === temporaryId);
+
+        if (cardIndex === -1) {
+          return list;
+        }
+
+        const cards = [...list.cards];
+        cards[cardIndex] = card;
+
+        return {
+          ...list,
+          cards,
+        };
+      }),
     );
   }, [setData]);
 
   const removeCard = useCallback((cardId: string) => {
     setData((current) =>
-      current.map((list) => ({
-        ...list,
-        cards: list.cards.filter((card) => card.id !== cardId),
-      })),
+      current.map((list) => {
+        if (!list.cards.some((card) => card.id === cardId)) {
+          return list;
+        }
+
+        return {
+          ...list,
+          cards: list.cards.filter((card) => card.id !== cardId),
+        };
+      }),
     );
   }, [setData]);
 
@@ -164,17 +187,24 @@ export const BoardStateProvider = ({
 
   const patchCard = useCallback((cardId: string, patch: Partial<CardWithAssignees>) => {
     setData((current) =>
-      current.map((list) => ({
-        ...list,
-        cards: list.cards.map((card) =>
-          card.id === cardId
-            ? {
-                ...card,
-                ...patch,
-              }
-            : card,
-        ),
-      })),
+      current.map((list) => {
+        const cardIndex = list.cards.findIndex((card) => card.id === cardId);
+
+        if (cardIndex === -1) {
+          return list;
+        }
+
+        const cards = [...list.cards];
+        cards[cardIndex] = {
+          ...cards[cardIndex],
+          ...patch,
+        };
+
+        return {
+          ...list,
+          cards,
+        };
+      }),
     );
   }, [setData]);
 
@@ -184,27 +214,33 @@ export const BoardStateProvider = ({
     delta: number,
   ) => {
     setData((current) =>
-      current.map((list) => ({
-        ...list,
-        cards: list.cards.map((card) => {
-          if (card.id !== cardId) {
-            return card;
-          }
+      current.map((list) => {
+        const cardIndex = list.cards.findIndex((card) => card.id === cardId);
 
-          const currentCount = card._count ?? {
-            comments: 0,
-            attachments: 0,
-          };
+        if (cardIndex === -1) {
+          return list;
+        }
 
-          return {
-            ...card,
-            _count: {
-              ...currentCount,
-              [countKey]: Math.max((currentCount[countKey] ?? 0) + delta, 0),
-            },
-          };
-        }),
-      })),
+        const card = list.cards[cardIndex];
+        const currentCount = card._count ?? {
+          comments: 0,
+          attachments: 0,
+        };
+        const cards = [...list.cards];
+
+        cards[cardIndex] = {
+          ...card,
+          _count: {
+            ...currentCount,
+            [countKey]: Math.max((currentCount[countKey] ?? 0) + delta, 0),
+          },
+        };
+
+        return {
+          ...list,
+          cards,
+        };
+      }),
     );
   }, [setData]);
 

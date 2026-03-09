@@ -24,6 +24,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
   const { items, boardId } = data;
   let lists;
+  let changedLists: typeof items = [];
   let shouldTriggerRealtime = false;
 
   try {
@@ -59,7 +60,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       return { data: existingLists };
     }
 
-    const transaction = items.map((list) => 
+    changedLists = items.filter((list) => {
+      const currentList = existingLists.find((item) => item.id === list.id);
+
+      return currentList && currentList.order !== list.order;
+    });
+
+    const transaction = changedLists.map((list) => 
       db.list.update({
         where: {
           id: list.id,
@@ -95,6 +102,9 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   await triggerListReordered({
     boardId,
     actorUserId: userId,
+    orderedListIds: [...items]
+      .sort((a, b) => a.order - b.order)
+      .map((list) => list.id),
   });
 
   return { data: lists };

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef } from "react";
+import { memo, useState, useRef } from "react";
 import { createPortal } from "react-dom";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
@@ -66,10 +66,10 @@ const normalizeCopiedCard = (card: Partial<CardWithAssignees>): CardWithAssignee
   };
 };
 
-export const CardItem = ({
+export const CardItem = memo(function CardItem({
   data,
   index,
-}: CardItemProps) => {
+}: CardItemProps) {
   const cardModal = useCardModal();
   const params = useParams();
   const boardState = useBoardState();
@@ -266,9 +266,10 @@ export const CardItem = ({
             onClick={() => onOpen()}
             onContextMenu={handleContextMenu}
             className={cn(
-              "group relative flex flex-col justify-between border border-transparent hover:border-violet-200 pb-2.5 px-3 text-sm bg-white rounded-lg shadow-sm hover:shadow transition-all duration-150 !cursor-pointer select-none overflow-hidden",
+              "group relative flex flex-col justify-between border border-transparent pb-2.5 px-3 text-sm bg-white rounded-lg shadow-sm transition-[border-color,box-shadow,background-color] duration-100 !cursor-pointer select-none overflow-hidden",
               data.labels && data.labels.length > 0 ? "pt-4.5" : "pt-2.5",
-              snapshot.isDragging && "shadow-md opacity-90 border-violet-300 z-[9999] pointer-events-none",
+              !snapshot.isDragging && "hover:border-violet-200 hover:shadow",
+              snapshot.isDragging && "shadow-sm opacity-95 border-violet-300 z-[9999] pointer-events-none",
               showMenu && "relative z-[100] ring-2 ring-violet-500 shadow-xl"
             )}
           >
@@ -476,4 +477,4 @@ export const CardItem = ({
       }}
     </Draggable>
   );
-};
+});

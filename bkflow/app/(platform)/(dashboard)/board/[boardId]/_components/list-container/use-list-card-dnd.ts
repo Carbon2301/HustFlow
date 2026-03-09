@@ -45,6 +45,29 @@ type UseListCardDndOptions = {
   calendarBridge: CalendarBridgeApi;
 };
 
+const applyListOrder = (lists: ListWithCards[]) =>
+  lists.map((list, index) => (
+    list.order === index ? list : { ...list, order: index }
+  ));
+
+const applyCardOrder = (
+  cards: CardWithAssignees[],
+  listId?: string,
+) =>
+  cards.map((card, index) => {
+    const nextListId = listId ?? card.listId;
+
+    if (card.order === index && card.listId === nextListId) {
+      return card;
+    }
+
+    return {
+      ...card,
+      order: index,
+      listId: nextListId,
+    };
+  });
+
 export const useListCardDnd = ({
   data,
   boardId,
@@ -165,24 +188,24 @@ export const useListCardDnd = ({
 
     // User moves a list
     if (type === "list") {
-      const items = reorder(
+      const items = applyListOrder(reorder(
         orderedData,
         source.index,
         destination.index,
-      ).map((item, index) => ({ ...item, order: index }));
+      ));
 
       setOrderedData(items);
       executeUpdateListOrder({ items, boardId });
+      return;
     }
 
     // User moves a card
     if (type === "card") {
-      const newOrderedData = [...orderedData];
       const visibleData = filteredData;
 
       // Source and destination list
-      const sourceList = newOrderedData.find(list => list.id === source.droppableId);
-      const destList = newOrderedData.find(list => list.id === destination.droppableId);
+      const sourceList = orderedData.find(list => list.id === source.droppableId);
+      const destList = orderedData.find(list => list.id === destination.droppableId);
       const visibleSourceList = visibleData.find(list => list.id === source.droppableId);
       const visibleDestList = visibleData.find(list => list.id === destination.droppableId);
 
@@ -190,18 +213,10 @@ export const useListCardDnd = ({
         return;
       }
 
-      // Check if cards exists on the sourceList
-      if (!sourceList.cards) {
-        sourceList.cards = [];
-      }
-
-      // Check if cards exists on the destList
-      if (!destList.cards) {
-        destList.cards = [];
-      }
-
       // Moving the card in the same list
       if (source.droppableId === destination.droppableId) {
+        let reorderedCards: CardWithAssignees[];
+
         if (filtersAreActive) {
           const visibleCard = visibleSourceList.cards[source.index];
 
@@ -222,42 +237,35 @@ export const useListCardDnd = ({
             return;
           }
 
-          const reorderedCards = reorder(
+          reorderedCards = reorder(
             sourceList.cards,
             sourceIndex,
             destinationIndex > sourceIndex ? destinationIndex - 1 : destinationIndex,
           );
-
-          reorderedCards.forEach((card, idx) => {
-            card.order = idx;
-          });
-
-          sourceList.cards = reorderedCards;
-          setOrderedData(newOrderedData);
-          executeUpdateCardOrder({
-            boardId,
-            items: reorderedCards,
-          });
-          return;
+        } else {
+          reorderedCards = reorder(
+            sourceList.cards,
+            source.index,
+            destination.index,
+          );
         }
 
-        const reorderedCards = reorder(
-          sourceList.cards,
-          source.index,
-          destination.index,
+        const orderedCards = applyCardOrder(reorderedCards);
+        const nextOrderedData = orderedData.map((list) =>
+          list.id === sourceList.id
+            ? {
+                ...list,
+                cards: orderedCards,
+              }
+            : list,
         );
 
-        reorderedCards.forEach((card, idx) => {
-          card.order = idx;
-        });
-
-        sourceList.cards = reorderedCards;
-
-        setOrderedData(newOrderedData);
+        setOrderedData(nextOrderedData);
         executeUpdateCardOrder({
           boardId: boardId,
-          items: reorderedCards,
+          items: orderedCards,
         });
+        return;
         // User moves the card to another list
       } else {
         const visibleCard = visibleSourceList.cards[source.index];
@@ -281,28 +289,41 @@ export const useListCardDnd = ({
           return;
         }
 
-        // Remove card from the source list
-        const [movedCard] = sourceList.cards.splice(sourceIndex, 1);
-
-        // Assign the new listId to the moved card
-        movedCard.listId = destination.droppableId;
-
-        // Add card to the destination list
-        destList.cards.splice(destinationIndex, 0, movedCard);
-
-        sourceList.cards.forEach((card, idx) => {
-          card.order = idx;
+        const movedCard = sourceList.cards[sourceIndex];
+        const sourceCards = sourceList.cards.filter((card) => card.id !== movedCard.id);
+        const destinationCards = [...destList.cards];
+        destinationCards.splice(destinationIndex, 0, {
+          ...movedCard,
+          listId: destination.droppableId,
         });
 
-        // Update the order for each card in the destination list
-        destList.cards.forEach((card, idx) => {
-          card.order = idx;
+        const orderedSourceCards = applyCardOrder(sourceCards);
+        const orderedDestinationCards = applyCardOrder(
+          destinationCards,
+          destination.droppableId,
+        );
+        const nextOrderedData = orderedData.map((list) => {
+          if (list.id === sourceList.id) {
+            return {
+              ...list,
+              cards: orderedSourceCards,
+            };
+          }
+
+          if (list.id === destList.id) {
+            return {
+              ...list,
+              cards: orderedDestinationCards,
+            };
+          }
+
+          return list;
         });
 
-        setOrderedData(newOrderedData);
+        setOrderedData(nextOrderedData);
         executeUpdateCardOrder({
           boardId: boardId,
-          items: destList.cards,
+          items: [...orderedSourceCards, ...orderedDestinationCards],
         });
       }
     }

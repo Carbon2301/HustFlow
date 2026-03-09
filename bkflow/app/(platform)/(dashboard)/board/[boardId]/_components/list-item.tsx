@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef, useState } from "react";
+import { memo, useRef, useState } from "react";
 import { Draggable, Droppable } from "@hello-pangea/dnd";
 
 import { cn } from "@/lib/utils";
@@ -15,10 +15,10 @@ interface ListItemProps {
   index: number;
 };
 
-export const ListItem = ({
+export const ListItem = memo(function ListItem({
   data,
   index,
-}: ListItemProps) => {
+}: ListItemProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
   const [isEditing, setIsEditing] = useState(false);
@@ -58,7 +58,7 @@ export const ListItem = ({
             onContextMenu={handleContextMenu}
             className={cn(
               "w-full rounded-xl bg-[#f1f2f4] shadow-sm pb-2 flex flex-col",
-              snapshot.isDragging && "shadow-xl opacity-95"
+              snapshot.isDragging && "shadow-md opacity-95"
             )}
           >
             <div>
@@ -106,4 +106,4 @@ export const ListItem = ({
       )}
     </Draggable>
   );
-};
+});

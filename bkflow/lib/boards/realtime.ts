@@ -220,12 +220,16 @@ export const triggerListDeleted = async ({
 export const triggerListReordered = async ({
   boardId,
   actorUserId,
-}: BoardRealtimeInput) => {
+  orderedListIds,
+}: BoardRealtimeInput & {
+  orderedListIds?: string[];
+}) => {
   try {
     await triggerBoardEvent(REALTIME_EVENTS.LIST_REORDERED, boardId, {
       eventId: randomUUID(),
       boardId,
       actorUserId,
+      orderedListIds,
       updatedAt: new Date().toISOString(),
     });
   } catch (error) {
@@ -286,8 +290,10 @@ export const triggerCardReordered = async ({
   boardId,
   actorUserId,
   listId,
+  orderedCardIds,
 }: BoardRealtimeInput & {
   listId?: string;
+  orderedCardIds?: string[];
 }) => {
   try {
     await triggerBoardEvent(REALTIME_EVENTS.CARD_REORDERED, boardId, {
@@ -295,6 +301,7 @@ export const triggerCardReordered = async ({
       boardId,
       actorUserId,
       listId,
+      orderedCardIds,
       updatedAt: new Date().toISOString(),
     });
   } catch (error) {
@@ -308,10 +315,14 @@ export const triggerCardMoved = async ({
   cardId,
   sourceListId,
   destinationListId,
+  sourceOrderedCardIds,
+  destinationOrderedCardIds,
 }: BoardRealtimeInput & {
   cardId?: string;
   sourceListId?: string;
   destinationListId?: string;
+  sourceOrderedCardIds?: string[];
+  destinationOrderedCardIds?: string[];
 }) => {
   try {
     await triggerBoardEvent(REALTIME_EVENTS.CARD_MOVED, boardId, {
@@ -320,6 +331,8 @@ export const triggerCardMoved = async ({
       cardId,
       sourceListId,
       destinationListId,
+      sourceOrderedCardIds,
+      destinationOrderedCardIds,
       actorUserId,
       updatedAt: new Date().toISOString(),
     });
