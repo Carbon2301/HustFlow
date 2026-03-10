@@ -3,6 +3,7 @@ import { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
+import { measureDev } from "@/lib/perf";
 import { requireBoardMember } from "@/lib/permissions";
 
 export async function GET(
@@ -17,7 +18,7 @@ export async function GET(
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
-    const card = await db.card.findFirst({
+    const card = await measureDev(`api:card:${cardId}:detail`, () => db.card.findFirst({
       where: {
         id: cardId,
         list: {
@@ -81,7 +82,7 @@ export async function GET(
           },
         },
       },
-    });
+    }));
 
     if (!card) {
       return new NextResponse("Not Found", { status: 404 });
@@ -97,50 +98,53 @@ export async function GET(
       return new NextResponse(permission.error, { status: 403 });
     }
 
-    const boardMembers = await db.boardMember.findMany({
-      where: {
-        boardId: card.list.boardId,
-      },
-    });
-
-    const boardLabels = await db.label.findMany({
-      where: {
-        boardId: card.list.boardId,
-      },
-      orderBy: {
-        createdAt: "asc",
-      },
-    });
-
-    const boardChecklists = await db.checklist.findMany({
-      where: {
-        card: {
-          archivedAt: null,
-          list: {
-            archivedAt: null,
+    const [boardMembers, boardLabels, boardChecklists] = await measureDev(
+      `api:card:${cardId}:board-related`,
+      () => Promise.all([
+        db.boardMember.findMany({
+          where: {
             boardId: card.list.boardId,
           },
-        },
-      },
-      include: {
-        items: {
+        }),
+        db.label.findMany({
+          where: {
+            boardId: card.list.boardId,
+          },
+          orderBy: {
+            createdAt: "asc",
+          },
+        }),
+        db.checklist.findMany({
+          where: {
+            card: {
+              archivedAt: null,
+              list: {
+                archivedAt: null,
+                boardId: card.list.boardId,
+              },
+            },
+          },
           include: {
-            assignee: true,
+            items: {
+              include: {
+                assignee: true,
+              },
+              orderBy: {
+                order: "asc",
+              },
+            },
+            card: {
+              select: {
+                title: true,
+              },
+            },
           },
           orderBy: {
             order: "asc",
           },
-        },
-        card: {
-          select: {
-            title: true,
-          },
-        },
-      },
-      orderBy: {
-        order: "asc",
-      },
-    });
+        }),
+      ]),
+    );
 
     return NextResponse.json({
       ...card,

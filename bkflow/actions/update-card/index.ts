@@ -2,7 +2,6 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { ACTION, AUDIT_EVENT_TYPE, ENTITY_TYPE } from "@prisma/client";
-import { revalidatePath } from "next/cache";
 
 import { createAuditLog } from "@/lib/create-audit-log";
 import { createSafeAction } from "@/lib/create-safe-action";
@@ -313,7 +312,6 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     };
   }
 
-  revalidatePath(`/board/${boardId}`);
   return { data: card };
 };
 

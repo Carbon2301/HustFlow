@@ -2,7 +2,6 @@
 
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { ACTION, AUDIT_EVENT_TYPE, CardComment, ENTITY_TYPE, NOTIFICATION_TYPE } from "@prisma/client";
-import { revalidatePath } from "next/cache";
 
 import { createNotifications } from "@/lib/create-notification";
 import { createAuditLog } from "@/lib/create-audit-log";
@@ -218,7 +217,6 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     return { error: "Tạo bình luận thất bại." };
   }
 
-  revalidatePath(`/board/${boardId}`);
   return { data: comment };
 };
 

@@ -66,6 +66,7 @@ const cloneBoardState = (data: ListWithCards[]) => {
         ...checklist,
         items: checklist.items.map((item) => ({ ...item })),
       })),
+      checklistProgress: card.checklistProgress ? { ...card.checklistProgress } : undefined,
       _count: card._count ? { ...card._count } : undefined,
     })),
   }));

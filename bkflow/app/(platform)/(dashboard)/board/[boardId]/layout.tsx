@@ -21,20 +21,24 @@ export async function generateMetadata({
     };
   }
 
-  const currentMembership = await requireBoardMember({ boardId, orgId, userId });
+  const [currentMembership, board] = await Promise.all([
+    requireBoardMember({ boardId, orgId, userId }),
+    db.board.findUnique({
+      where: {
+        id: boardId,
+        orgId,
+      },
+      select: {
+        title: true,
+      },
+    }),
+  ]);
 
   if (currentMembership.error) {
     return {
       title: "Bảng",
     };
   }
-
-  const board = await db.board.findUnique({
-    where: {
-      id: boardId,
-      orgId,
-    },
-  });
 
   return {
     title: board?.title || "Bảng",
@@ -55,37 +59,37 @@ const BoardIdLayout = async ({
     redirect("/select-org");
   }
 
-  const currentMembership = await requireBoardMember({ boardId, orgId, userId });
+  const [currentMembership, board, organizationMembers] = await Promise.all([
+    requireBoardMember({ boardId, orgId, userId }),
+    db.board.findUnique({
+      where: {
+        id: boardId,
+        orgId,
+      },
+      include: {
+        members: {
+          orderBy: {
+            createdAt: "asc",
+          },
+        },
+        labels: {
+          orderBy: {
+            createdAt: "asc",
+          },
+        },
+      },
+    }),
+    getOrganizationMembers(orgId),
+  ]);
 
   if (currentMembership.error || !currentMembership.membership) {
     const errorMessage = currentMembership.error || "Bạn không có quyền truy cập bảng này.";
     redirect(`/organization/${orgId}?error=${encodeURIComponent(errorMessage)}`);
   }
 
-  const board = await db.board.findUnique({
-    where: {
-      id: boardId,
-      orgId,
-    },
-    include: {
-      members: {
-        orderBy: {
-          createdAt: "asc",
-        },
-      },
-      labels: {
-        orderBy: {
-          createdAt: "asc",
-        },
-      },
-    },
-  });
-
   if (!board) {
     notFound();
   }
-
-  const organizationMembers = await getOrganizationMembers(orgId);
 
   return (
     <div

@@ -1,4 +1,5 @@
 import { BoardMemberRole } from "@prisma/client";
+import { cache } from "react";
 
 import { getRoleLabel } from "@/lib/board-member-role";
 import { db } from "@/lib/db";
@@ -12,11 +13,11 @@ type BoardPermissionInput = {
   userId: string;
 };
 
-export const getBoardMembership = async ({
-  boardId,
-  orgId,
-  userId,
-}: BoardPermissionInput) => {
+export const getBoardMembership = cache(async (
+  boardId: string,
+  orgId: string,
+  userId: string,
+) => {
   return db.boardMember.findUnique({
     where: {
       boardId_userId: {
@@ -37,10 +38,10 @@ export const getBoardMembership = async ({
       },
     },
   });
-};
+});
 
 export const requireBoardMember = async (input: BoardPermissionInput) => {
-  const membership = await getBoardMembership(input);
+  const membership = await getBoardMembership(input.boardId, input.orgId, input.userId);
 
   if (!membership) {
     return {

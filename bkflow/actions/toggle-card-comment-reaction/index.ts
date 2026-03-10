@@ -1,7 +1,6 @@
 "use server";
 
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { revalidatePath } from "next/cache";
 
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
@@ -118,7 +117,6 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     return { error: "Cập nhật cảm xúc thất bại." };
   }
 
-  revalidatePath(`/board/${boardId}`);
   return { data: reaction };
 };
 

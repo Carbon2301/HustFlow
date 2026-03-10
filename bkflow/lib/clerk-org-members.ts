@@ -1,4 +1,5 @@
 import { clerkClient } from "@clerk/nextjs/server";
+import { cache } from "react";
 
 export type ClerkOrgMember = {
   userId: string;
@@ -43,7 +44,7 @@ const toClerkOrgMember = (membership: {
   };
 };
 
-export const getOrganizationMembers = async (
+export const getOrganizationMembers = cache(async (
   orgId: string,
 ): Promise<ClerkOrgMember[]> => {
   const client = await clerkClient();
@@ -56,9 +57,9 @@ export const getOrganizationMembers = async (
   return memberships.data
     .map(toClerkOrgMember)
     .filter((member): member is ClerkOrgMember => Boolean(member));
-};
+});
 
-export const getOrganizationMember = async (
+export const getOrganizationMember = cache(async (
   orgId: string,
   userId: string,
 ): Promise<ClerkOrgMember | null> => {
@@ -70,4 +71,4 @@ export const getOrganizationMember = async (
   });
 
   return toClerkOrgMember(memberships.data[0]) ?? null;
-};
+});

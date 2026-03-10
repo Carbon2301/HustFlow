@@ -2,7 +2,6 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { ACTION, AUDIT_EVENT_TYPE, AttachmentType, ENTITY_TYPE } from "@prisma/client";
-import { revalidatePath } from "next/cache";
 
 import { createSafeAction } from "@/lib/create-safe-action";
 import { createAuditLog } from "@/lib/create-audit-log";
@@ -135,17 +134,6 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       actorUserId: userId,
       attachment,
     });
-
-    try {
-      revalidatePath(`/board/${boardId}`);
-    } catch (error) {
-      console.error("[CREATE_CARD_FILE_ATTACHMENT_REVALIDATE_ERROR]", {
-        error,
-        cardId,
-        boardId,
-        attachmentId: attachment.id,
-      });
-    }
 
     return { data: attachment };
   } catch (error) {

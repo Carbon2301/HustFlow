@@ -2,7 +2,6 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { ACTION, AUDIT_EVENT_TYPE, AttachmentType, ENTITY_TYPE } from "@prisma/client";
-import { revalidatePath } from "next/cache";
 
 import { createSafeAction } from "@/lib/create-safe-action";
 import { createAuditLog } from "@/lib/create-audit-log";
@@ -91,7 +90,6 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       attachment,
     });
 
-    revalidatePath(`/board/${boardId}`);
     return { data: attachment };
   } catch (error) {
     console.error("[CREATE_CARD_ATTACHMENT_ERROR]", error);

@@ -2,7 +2,6 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { ACTION, AUDIT_EVENT_TYPE, ENTITY_TYPE } from "@prisma/client";
-import { revalidatePath } from "next/cache";
 
 import { createAuditLog } from "@/lib/create-audit-log";
 import { db } from "@/lib/db";
@@ -157,7 +156,6 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     }
   }
 
-  revalidatePath(`/board/${boardId}`);
   if (movedCard) {
     const lists = await db.list.findMany({
       where: {

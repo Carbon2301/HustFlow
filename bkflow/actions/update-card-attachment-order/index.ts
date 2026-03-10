@@ -2,7 +2,6 @@
 
 import { auth } from "@clerk/nextjs/server";
 import { ACTION, AUDIT_EVENT_TYPE, ENTITY_TYPE } from "@prisma/client";
-import { revalidatePath } from "next/cache";
 
 import { createAuditLog } from "@/lib/create-audit-log";
 import { triggerAttachmentReordered } from "@/lib/cards/realtime";
@@ -91,8 +90,6 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         }),
       ),
     );
-
-    revalidatePath(`/board/${boardId}`);
 
     await createAuditLog({
       entityId: card.id,

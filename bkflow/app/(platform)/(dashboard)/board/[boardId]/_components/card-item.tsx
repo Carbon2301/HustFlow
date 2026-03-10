@@ -59,6 +59,10 @@ const normalizeCopiedCard = (card: Partial<CardWithAssignees>): CardWithAssignee
     assignees: card.assignees ?? [],
     labels: card.labels ?? [],
     checklists: card.checklists ?? [],
+    checklistProgress: card.checklistProgress ?? {
+      total: 0,
+      completed: 0,
+    },
     _count: card._count ?? {
       comments: 0,
       attachments: 0,
@@ -235,11 +239,13 @@ export const CardItem = memo(function CardItem({
   const hiddenAssigneesCount = Math.max(data.assignees.length - visibleAssignees.length, 0);
 
   // Checklist progress
-  const checklistTotalItems = data.checklists?.reduce((acc, cl) => acc + cl.items.length, 0) ?? 0;
-  const checklistCompletedItems = data.checklists?.reduce(
+  const fallbackChecklistTotalItems = data.checklists?.reduce((acc, cl) => acc + cl.items.length, 0) ?? 0;
+  const fallbackChecklistCompletedItems = data.checklists?.reduce(
     (acc, cl) => acc + cl.items.filter((item) => item.isCompleted).length,
     0,
   ) ?? 0;
+  const checklistTotalItems = data.checklistProgress?.total ?? fallbackChecklistTotalItems;
+  const checklistCompletedItems = data.checklistProgress?.completed ?? fallbackChecklistCompletedItems;
   const hasChecklistProgress = checklistTotalItems > 0;
   const isChecklistAllDone = hasChecklistProgress && checklistCompletedItems === checklistTotalItems;
 

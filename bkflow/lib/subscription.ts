@@ -1,10 +1,11 @@
 import { auth } from "@clerk/nextjs/server";
+import { cache } from "react";
 
 import { db } from "@/lib/db";
 
 const DAY_IN_MS = 86_400_000;
 
-export const checkSubscription = async () => {
+export const checkSubscription = cache(async () => {
   const { orgId } = await auth();
 
   if (!orgId) {
@@ -34,4 +35,4 @@ export const checkSubscription = async () => {
     currentPeriodEnd + DAY_IN_MS > Date.now()
 
   return !!isValid;
-};
+});

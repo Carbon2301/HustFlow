@@ -16,6 +16,10 @@ export type CardWithAssignees = Card & {
   checklists?: {
     items: { isCompleted: boolean }[];
   }[];
+  checklistProgress?: {
+    total: number;
+    completed: number;
+  };
   _count?: {
     comments: number;
     attachments: number;

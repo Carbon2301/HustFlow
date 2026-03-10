@@ -43,6 +43,7 @@ type UseListCardDndOptions = {
   executeScheduleCardDate: (input: ScheduleCardDateInput) => void;
   invalidateBoardCalendar: () => void;
   calendarBridge: CalendarBridgeApi;
+  rollbackRef?: React.MutableRefObject<(() => void) | null>;
 };
 
 const applyListOrder = (lists: ListWithCards[]) =>
@@ -80,6 +81,7 @@ export const useListCardDnd = ({
   executeScheduleCardDate,
   invalidateBoardCalendar,
   calendarBridge,
+  rollbackRef,
 }: UseListCardDndOptions) => {
   const [orderedData, setOrderedData] = useState(data);
 
@@ -186,6 +188,18 @@ export const useListCardDnd = ({
       return;
     }
 
+    const captureRollback = () => {
+      if (rollbackRef) {
+        const snapshot = orderedData.map((list) => ({
+          ...list,
+          cards: [...list.cards],
+        }));
+        rollbackRef.current = () => {
+          setOrderedData(snapshot);
+        };
+      }
+    };
+
     // User moves a list
     if (type === "list") {
       const items = applyListOrder(reorder(
@@ -194,6 +208,7 @@ export const useListCardDnd = ({
         destination.index,
       ));
 
+      captureRollback();
       setOrderedData(items);
       executeUpdateListOrder({ items, boardId });
       return;
@@ -260,6 +275,7 @@ export const useListCardDnd = ({
             : list,
         );
 
+        captureRollback();
         setOrderedData(nextOrderedData);
         executeUpdateCardOrder({
           boardId: boardId,
@@ -320,6 +336,7 @@ export const useListCardDnd = ({
           return list;
         });
 
+        captureRollback();
         setOrderedData(nextOrderedData);
         executeUpdateCardOrder({
           boardId: boardId,

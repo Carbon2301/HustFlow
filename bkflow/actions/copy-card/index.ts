@@ -1,7 +1,6 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { revalidatePath } from "next/cache";
 import { ACTION, ENTITY_TYPE } from "@prisma/client";
 
 import { db } from "@/lib/db";
@@ -93,7 +92,6 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     }
   }
 
-  revalidatePath(`/board/${boardId}`);
   return { data: card };
 };
 

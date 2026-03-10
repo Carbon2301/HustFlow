@@ -1,5 +1,6 @@
 "use client";
 
+import { useRef } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -49,15 +50,27 @@ export const ListContainer = ({
     state.filtersByBoardId[boardId] ?? emptyBoardFilters,
   );
 
+  const rollbackRef = useRef<(() => void) | null>(null);
+
   const { execute: executeUpdateListOrder } = useAction(updateListOrder, {
+    onSuccess: () => {
+      rollbackRef.current = null;
+    },
     onError: (error) => {
       toast.error(error);
+      rollbackRef.current?.();
+      rollbackRef.current = null;
     },
   });
 
   const { execute: executeUpdateCardOrder } = useAction(updateCardOrder, {
+    onSuccess: () => {
+      rollbackRef.current = null;
+    },
     onError: (error) => {
       toast.error(error);
+      rollbackRef.current?.();
+      rollbackRef.current = null;
     },
   });
 
@@ -98,6 +111,7 @@ export const ListContainer = ({
     executeScheduleCardDate,
     invalidateBoardCalendar,
     calendarBridge,
+    rollbackRef,
   });
 
   const realtimeCallbacks = useBoardRealtimeSync({

@@ -9,31 +9,39 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { FormPopover } from "@/components/form/form-popover";
 import { MAX_FREE_BOARDS } from "@/constants/boards";
 import { getAvailableCount } from "@/lib/org-limit";
+import { measureDev } from "@/lib/perf";
 import { checkSubscription } from "@/lib/subscription";
 
-export const BoardList = async () => {
+type BoardListProps = {
+  isPro?: boolean;
+};
+
+export const BoardList = async ({
+  isPro: isProProp,
+}: BoardListProps = {}) => {
   const { orgId, userId } = await auth();
 
   if (!orgId || !userId) {
     return redirect("/select-org");
   }
 
-  const boards = await db.board.findMany({
-    where: {
-      orgId,
-      members: {
-        some: {
-          userId,
+  const [boards, availableCount, isPro] = await measureDev(`organization:${orgId}:board-list`, () => Promise.all([
+    db.board.findMany({
+      where: {
+        orgId,
+        members: {
+          some: {
+            userId,
+          },
         },
       },
-    },
-    orderBy: {
-      createdAt: "desc"
-    }
-  });
-
-  const availableCount = await getAvailableCount();
-  const isPro = await checkSubscription();
+      orderBy: {
+        createdAt: "desc"
+      }
+    }),
+    getAvailableCount(),
+    isProProp === undefined ? checkSubscription() : Promise.resolve(isProProp),
+  ]));
 
   return (
     <div className="space-y-5">

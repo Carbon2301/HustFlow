@@ -59,6 +59,10 @@ const createEmptyCardShape = ({
   assignees: [],
   labels: [],
   checklists: [],
+  checklistProgress: {
+    total: 0,
+    completed: 0,
+  },
   _count: {
     comments: 0,
     attachments: 0,
@@ -74,6 +78,7 @@ const normalizeCard = (
   assignees: card.assignees ?? fallback.assignees,
   labels: card.labels ?? fallback.labels,
   checklists: card.checklists ?? fallback.checklists,
+  checklistProgress: card.checklistProgress ?? fallback.checklistProgress,
   _count: card._count ?? fallback._count,
 });
 

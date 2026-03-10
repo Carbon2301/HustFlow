@@ -84,6 +84,13 @@ const normalizeCardForBoard = (card: BoardCardApiResponse): CardWithAssignees =>
       isCompleted: item.isCompleted,
     })),
   })) ?? [],
+  checklistProgress: {
+    total: card.checklists?.reduce((acc, checklist) => acc + checklist.items.length, 0) ?? 0,
+    completed: card.checklists?.reduce(
+      (acc, checklist) => acc + checklist.items.filter((item) => item.isCompleted).length,
+      0,
+    ) ?? 0,
+  },
   _count: card._count ?? {
     comments: 0,
     attachments: card.attachments?.length ?? 0,

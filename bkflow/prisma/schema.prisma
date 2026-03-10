@@ -46,6 +46,7 @@ model List {
   updatedAt DateTime @updatedAt
 
   @@index([boardId])
+  @@index([boardId, archivedAt, order])
 }
 
 model Card {
@@ -73,6 +74,7 @@ model Card {
   updatedAt DateTime @updatedAt
 
   @@index([listId])
+  @@index([listId, archivedAt, order])
 }
 
 model CardAttachment {
@@ -224,6 +226,7 @@ model CardAssignee {
 
   @@unique([cardId, boardMemberId])
   @@index([cardId])
+  @@index([cardId, createdAt])
   @@index([boardMemberId])
 }
 
@@ -323,6 +326,7 @@ model CardLabel {
 
   @@unique([cardId, labelId])
   @@index([cardId])
+  @@index([cardId, createdAt])
   @@index([labelId])
 }
 
@@ -355,5 +359,6 @@ model ChecklistItem {
   updatedAt DateTime @updatedAt
 
   @@index([checklistId])
+  @@index([checklistId, isCompleted])
   @@index([assigneeId])
 }
