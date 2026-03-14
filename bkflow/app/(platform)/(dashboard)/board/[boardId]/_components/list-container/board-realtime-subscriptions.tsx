@@ -45,6 +45,7 @@ type LabelSyncPayload = LabelPayload | CardLabelPayload;
 type BoardRealtimeSubscriptionsProps = {
   channelName: RealtimeChannelName;
   enabled: boolean;
+  onSubscribed?: () => void;
   onBoardCardSync: (payload: BoardCardSyncPayload) => void;
   onCardUpdated: (payload: CardUpdatedPayload) => void;
   onCardCreated: (payload: CardCreatedPayload) => void;
@@ -67,6 +68,7 @@ type RealtimeSubscriptionProps<TEvent extends RealtimeEventName> = {
   enabled: boolean;
   event: TEvent;
   onEvent: (payload: RealtimeEventPayload<TEvent>) => void;
+  onSubscribed?: () => void;
 };
 
 const RealtimeSubscription = <TEvent extends RealtimeEventName>({
@@ -74,11 +76,13 @@ const RealtimeSubscription = <TEvent extends RealtimeEventName>({
   enabled,
   event,
   onEvent,
+  onSubscribed,
 }: RealtimeSubscriptionProps<TEvent>) => {
   useRealtimeChannel({
     channelName,
     event,
     onEvent,
+    onSubscribed,
     enabled,
   });
 
@@ -120,6 +124,7 @@ const labelSyncEvents = [
 export const BoardRealtimeSubscriptions = ({
   channelName,
   enabled,
+  onSubscribed,
   onBoardCardSync,
   onCardUpdated,
   onCardCreated,
@@ -141,6 +146,7 @@ export const BoardRealtimeSubscriptions = ({
       channelName={channelName}
       event={REALTIME_EVENTS.CARD_COMMENT_COUNT_UPDATED}
       onEvent={onCommentCountUpdated}
+      onSubscribed={onSubscribed}
       enabled={enabled}
     />
     {boardCardSyncEvents.map((event) => (

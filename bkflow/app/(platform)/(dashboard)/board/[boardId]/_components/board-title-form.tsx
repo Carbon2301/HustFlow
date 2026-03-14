@@ -26,7 +26,6 @@ export const BoardTitleForm = ({
 }: BoardTitleFormProps) => {
   const { execute } = useAction(updateBoard, {
     onSuccess: (data) => {
-      toast.success(`Đã cập nhật bảng "${data.title}"!`);
       setTitle(data.title);
       disableEditing();
     },

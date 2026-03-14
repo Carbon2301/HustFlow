@@ -1,6 +1,6 @@
 "use client";
 
-import { useRef } from "react";
+import { useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
@@ -17,6 +17,7 @@ import { useCardModal } from "@/hooks/use-card-modal";
 import { useBoardCalendarInvalidation } from "@/hooks/use-board-calendar-invalidation";
 import { realtimeChannels } from "@/lib/realtime/channels";
 import { isRealtimeClientConfigured } from "@/lib/realtime/client";
+import { debugBoardRealtime } from "@/lib/realtime/debug";
 
 import { ListForm } from "./list-form";
 import { ListItem } from "./list-item";
@@ -51,6 +52,7 @@ export const ListContainer = ({
   );
 
   const rollbackRef = useRef<(() => void) | null>(null);
+  const subscriptionCatchUpDoneRef = useRef(false);
 
   const { execute: executeUpdateListOrder } = useAction(updateListOrder, {
     onSuccess: () => {
@@ -120,11 +122,22 @@ export const ListContainer = ({
     cardModal,
     router,
     queryClient,
-    orderedData,
     setOrderedData,
   });
   const channelName = realtimeChannels.board(boardId);
   const enabled = isRealtimeClientConfigured();
+  const handleBoardRealtimeSubscribed = useCallback(() => {
+    if (subscriptionCatchUpDoneRef.current) {
+      return;
+    }
+
+    subscriptionCatchUpDoneRef.current = true;
+    debugBoardRealtime("fallback fetch/refresh", {
+      boardId,
+      reason: "initial subscription catch-up",
+    });
+    router.refresh();
+  }, [boardId, router]);
 
   return (
     <BoardStateProvider boardId={boardId} data={orderedData} setData={setOrderedData}>
@@ -132,6 +145,7 @@ export const ListContainer = ({
       <BoardRealtimeSubscriptions
         channelName={channelName}
         enabled={enabled}
+        onSubscribed={handleBoardRealtimeSubscribed}
         {...realtimeCallbacks}
       />
       {filtersAreActive && visibleCardCount === 0 && (

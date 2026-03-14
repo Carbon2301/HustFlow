@@ -5,6 +5,7 @@ import { toast } from "sonner";
 import { QueryClient } from "@tanstack/react-query";
 
 import { CardWithAssignees, CardWithList, ListWithCards } from "@/types";
+import { debugBoardRealtime } from "@/lib/realtime/debug";
 import type {
   AttachmentReorderedPayload,
   BoardAccessRevokedPayload,
@@ -50,7 +51,6 @@ type UseBoardRealtimeSyncOptions = {
   cardModal: CardModalApi;
   router: RouterApi;
   queryClient: QueryClient;
-  orderedData: ListWithCards[];
   setOrderedData: Dispatch<SetStateAction<ListWithCards[]>>;
 };
 
@@ -262,19 +262,39 @@ const fetchCardForBoard = async (cardId: string) => {
   return normalizeCardForBoard(await response.json() as BoardCardApiResponse);
 };
 
+const isMatchingTemporaryCard = (
+  card: CardWithAssignees,
+  fetchedCard: CardWithAssignees,
+) =>
+  card.id.startsWith("temp-card-") &&
+  card.listId === fetchedCard.listId &&
+  card.title === fetchedCard.title;
+
 export const useBoardRealtimeSync = ({
   boardId,
   currentUserId,
   cardModal,
   router,
   queryClient,
-  orderedData,
   setOrderedData,
 }: UseBoardRealtimeSyncOptions) => {
   const processedCardEventIdsRef = useRef<Set<string>>(new Set());
 
-  const processBoardEvent = useCallback((eventId: string) => {
+  const processBoardEvent = useCallback((
+    eventId: string,
+    details?: {
+      boardId?: string;
+      cardId?: string;
+      listId?: string;
+      reason?: string;
+    },
+  ) => {
     if (processedCardEventIdsRef.current.has(eventId)) {
+      debugBoardRealtime("event ignored", {
+        eventId,
+        ...details,
+        reason: details?.reason ?? "duplicate event",
+      });
       return false;
     }
 
@@ -282,9 +302,10 @@ export const useBoardRealtimeSync = ({
     return true;
   }, []);
 
-  const patchCardFromFetch = useCallback(async (cardId: string) => {
+  const patchCardFromFetch = useCallback(async (cardId: string, reason: string) => {
     try {
       const fetchedCard = await fetchCardForBoard(cardId);
+      let applied = false;
 
       if (!fetchedCard) {
         setOrderedData((prevData) =>
@@ -294,62 +315,86 @@ export const useBoardRealtimeSync = ({
           })),
         );
 
+        debugBoardRealtime("patch applied", {
+          boardId,
+          cardId,
+          reason: `${reason}: card missing, removed locally`,
+        });
         return true;
       }
 
-      let existingCard: CardWithAssignees | undefined;
-      for (const list of orderedData) {
-        existingCard = list.cards.find((card) => card.id === fetchedCard.id);
-        if (existingCard) {
-          break;
-        }
-      }
+      setOrderedData((prevData) => {
+        const existingCard = prevData
+          .flatMap((list) => list.cards)
+          .find((card) => card.id === fetchedCard.id);
+        const hasDestinationList = prevData.some((list) => list.id === fetchedCard.listId);
 
-      if (existingCard) {
-        if (new Date(fetchedCard.updatedAt).getTime() < new Date(existingCard.updatedAt).getTime()) {
-          return true;
+        if (!hasDestinationList) {
+          return prevData;
         }
 
-        setOrderedData((prevData) =>
-          prevData.map((list) => ({
+        if (
+          existingCard &&
+          new Date(fetchedCard.updatedAt).getTime() <
+            new Date(existingCard.updatedAt).getTime()
+        ) {
+          applied = true;
+          return prevData;
+        }
+
+        applied = true;
+
+        return prevData.map((list) => {
+          const cardsWithoutFetched = list.cards.filter((card) => card.id !== fetchedCard.id);
+
+          if (list.id !== fetchedCard.listId) {
+            return cardsWithoutFetched.length === list.cards.length
+              ? list
+              : {
+                  ...list,
+                  cards: cardsWithoutFetched,
+                };
+          }
+
+          const cardsWithoutTemporaryMatch = cardsWithoutFetched.filter(
+            (card) => !isMatchingTemporaryCard(card, fetchedCard),
+          );
+
+          return {
             ...list,
-            cards: list.cards.map((card) =>
-              card.id === fetchedCard.id ? fetchedCard : card,
-            ),
-          })),
-        );
-        return true;
-      }
+            cards: [...cardsWithoutTemporaryMatch, fetchedCard].sort((a, b) => a.order - b.order),
+          };
+        });
+      });
 
-      const hasDestinationList = orderedData.some((list) => list.id === fetchedCard.listId);
-
-      if (!hasDestinationList) {
+      if (!applied) {
+        debugBoardRealtime("fallback fetch/refresh", {
+          boardId,
+          cardId,
+          reason: `${reason}: destination list missing`,
+        });
         return false;
       }
 
-      setOrderedData((prevData) =>
-        prevData.map((list) =>
-          list.id === fetchedCard.listId
-            ? {
-                ...list,
-                cards: [...list.cards, fetchedCard].sort((a, b) => a.order - b.order),
-              }
-            : list,
-        ),
-      );
-
+      debugBoardRealtime("patch applied", {
+        boardId,
+        cardId,
+        listId: fetchedCard.listId,
+        reason,
+      });
       return true;
     } catch {
+      debugBoardRealtime("fallback fetch/refresh", {
+        boardId,
+        cardId,
+        reason: `${reason}: card fetch failed`,
+      });
       return false;
     }
-  }, [orderedData, setOrderedData]);
+  }, [boardId, setOrderedData]);
 
   const handleCardUpdated = useCallback(async (payload: CardUpdatedPayload) => {
     if (payload.boardId !== boardId || !processBoardEvent(payload.eventId)) {
-      return;
-    }
-
-    if (payload.actorUserId === currentUserId) {
       return;
     }
 
@@ -376,7 +421,17 @@ export const useBoardRealtimeSync = ({
           ),
         })),
       );
-    } else if (!await patchCardFromFetch(payload.cardId)) {
+      debugBoardRealtime("patch applied", {
+        boardId,
+        cardId: payload.cardId,
+        reason: "card updated",
+      });
+    } else if (!await patchCardFromFetch(payload.cardId, "card updated payload missing card")) {
+      debugBoardRealtime("fallback fetch/refresh", {
+        boardId,
+        cardId: payload.cardId,
+        reason: "card updated could not patch from fetch",
+      });
       router.refresh();
       return;
     }
@@ -390,7 +445,6 @@ export const useBoardRealtimeSync = ({
     boardId,
     cardModal.id,
     cardModal.isOpen,
-    currentUserId,
     patchCardFromFetch,
     processBoardEvent,
     queryClient,
@@ -403,25 +457,27 @@ export const useBoardRealtimeSync = ({
       return;
     }
 
-    if (payload.actorUserId === currentUserId) {
-      return;
-    }
-
-    if (!await patchCardFromFetch(payload.cardId)) {
+    if (!await patchCardFromFetch(payload.cardId, "card created")) {
+      debugBoardRealtime("fallback fetch/refresh", {
+        boardId,
+        cardId: payload.cardId,
+        reason: "card created could not patch from fetch",
+      });
       router.refresh();
     }
-  }, [boardId, currentUserId, patchCardFromFetch, processBoardEvent, router]);
+  }, [boardId, patchCardFromFetch, processBoardEvent, router]);
 
   const handleCardMemberAssigned = useCallback(async (payload: CardMemberAssignedPayload) => {
     if (payload.boardId !== boardId || !processBoardEvent(payload.eventId)) {
       return;
     }
 
-    if (payload.actorUserId === currentUserId) {
-      return;
-    }
-
-    if (!await patchCardFromFetch(payload.cardId)) {
+    if (!await patchCardFromFetch(payload.cardId, "card member assigned")) {
+      debugBoardRealtime("fallback fetch/refresh", {
+        boardId,
+        cardId: payload.cardId,
+        reason: "card member assigned could not patch from fetch",
+      });
       router.refresh();
       return;
     }
@@ -435,7 +491,6 @@ export const useBoardRealtimeSync = ({
     boardId,
     cardModal.id,
     cardModal.isOpen,
-    currentUserId,
     patchCardFromFetch,
     processBoardEvent,
     queryClient,
@@ -444,10 +499,6 @@ export const useBoardRealtimeSync = ({
 
   const handleCardMemberUnassigned = useCallback((payload: CardMemberUnassignedPayload) => {
     if (payload.boardId !== boardId || !processBoardEvent(payload.eventId)) {
-      return;
-    }
-
-    if (payload.actorUserId === currentUserId) {
       return;
     }
 
@@ -466,6 +517,11 @@ export const useBoardRealtimeSync = ({
         ),
       })),
     );
+    debugBoardRealtime("patch applied", {
+      boardId,
+      cardId: payload.cardId,
+      reason: "card member unassigned",
+    });
 
     if (cardModal.isOpen && cardModal.id === payload.cardId) {
       payload.invalidate.forEach(({ queryKey }) => {
@@ -476,7 +532,6 @@ export const useBoardRealtimeSync = ({
     boardId,
     cardModal.id,
     cardModal.isOpen,
-    currentUserId,
     processBoardEvent,
     queryClient,
     setOrderedData,
@@ -487,11 +542,12 @@ export const useBoardRealtimeSync = ({
       return;
     }
 
-    if (payload.actorUserId === currentUserId) {
-      return;
-    }
-
     if (!payload.title) {
+      debugBoardRealtime("fallback fetch/refresh", {
+        boardId,
+        listId: payload.listId,
+        reason: "list updated payload missing title",
+      });
       router.refresh();
       return;
     }
@@ -507,14 +563,15 @@ export const useBoardRealtimeSync = ({
           : list,
       ),
     );
-  }, [boardId, currentUserId, processBoardEvent, router, setOrderedData]);
+    debugBoardRealtime("patch applied", {
+      boardId,
+      listId: payload.listId,
+      reason: "list updated",
+    });
+  }, [boardId, processBoardEvent, router, setOrderedData]);
 
   const handleListDeleted = useCallback((payload: ListDeletedPayload) => {
     if (payload.boardId !== boardId || !processBoardEvent(payload.eventId)) {
-      return;
-    }
-
-    if (payload.actorUserId === currentUserId) {
       return;
     }
 
@@ -533,7 +590,12 @@ export const useBoardRealtimeSync = ({
       }
       return prevData.filter((list) => list.id !== payload.listId);
     });
-  }, [boardId, cardModal, currentUserId, processBoardEvent, setOrderedData]);
+    debugBoardRealtime("patch applied", {
+      boardId,
+      listId: payload.listId,
+      reason: "list deleted",
+    });
+  }, [boardId, cardModal, processBoardEvent, setOrderedData]);
 
   const handleBoardCardSync = useCallback((
     payload:
@@ -549,10 +611,6 @@ export const useBoardRealtimeSync = ({
       return;
     }
 
-    if (payload.actorUserId === currentUserId) {
-      return;
-    }
-
     if ("orderedListIds" in payload && payload.orderedListIds) {
       let applied = false;
 
@@ -563,7 +621,16 @@ export const useBoardRealtimeSync = ({
       });
 
       if (!applied) {
+        debugBoardRealtime("fallback fetch/refresh", {
+          boardId,
+          reason: "list reorder ids did not match local state",
+        });
         router.refresh();
+      } else {
+        debugBoardRealtime("patch applied", {
+          boardId,
+          reason: "list reordered",
+        });
       }
 
       return;
@@ -579,7 +646,18 @@ export const useBoardRealtimeSync = ({
       });
 
       if (!applied) {
+        debugBoardRealtime("fallback fetch/refresh", {
+          boardId,
+          listId: payload.listId,
+          reason: "card reorder ids did not match local state",
+        });
         router.refresh();
+      } else {
+        debugBoardRealtime("patch applied", {
+          boardId,
+          listId: payload.listId,
+          reason: "card reordered",
+        });
       }
 
       return;
@@ -609,28 +687,40 @@ export const useBoardRealtimeSync = ({
       });
 
       if (!applied) {
+        debugBoardRealtime("fallback fetch/refresh", {
+          boardId,
+          cardId: payload.cardId,
+          reason: "card move ids did not match local state",
+        });
         router.refresh();
+      } else {
+        debugBoardRealtime("patch applied", {
+          boardId,
+          cardId: payload.cardId,
+          listId: payload.destinationListId,
+          reason: "card moved",
+        });
       }
 
       return;
     }
 
+    debugBoardRealtime("fallback fetch/refresh", {
+      boardId,
+      reason: "board event payload requires server refresh",
+    });
     router.refresh();
-  }, [boardId, currentUserId, processBoardEvent, router, setOrderedData]);
+  }, [boardId, processBoardEvent, router, setOrderedData]);
 
   const handleBoardDeleted = useCallback((payload: BoardDeletedPayload) => {
     if (payload.boardId !== boardId || !processBoardEvent(payload.eventId)) {
       return;
     }
 
-    if (payload.actorUserId === currentUserId) {
-      return;
-    }
-
     toast.error("Bảng này đã bị xóa.");
     cardModal.onClose();
     router.push(`/organization/${payload.orgId}`);
-  }, [boardId, cardModal, currentUserId, processBoardEvent, router]);
+  }, [boardId, cardModal, processBoardEvent, router]);
 
   const handleAccessRevoked = useCallback((payload: BoardAccessRevokedPayload) => {
     if (payload.boardId !== boardId || !processBoardEvent(payload.eventId)) {
@@ -638,6 +728,10 @@ export const useBoardRealtimeSync = ({
     }
 
     if (payload.targetUserId !== currentUserId) {
+      debugBoardRealtime("fallback fetch/refresh", {
+        boardId,
+        reason: "access changed for another board member",
+      });
       router.refresh();
       return;
     }
@@ -659,9 +753,11 @@ export const useBoardRealtimeSync = ({
       return;
     }
 
-    if (payload.actorUserId !== currentUserId) {
-      router.refresh();
-    }
+    debugBoardRealtime("fallback fetch/refresh", {
+      boardId,
+      reason: "board member removed",
+    });
+    router.refresh();
   }, [boardId, cardModal, currentUserId, processBoardEvent, router]);
 
   const handleCardDeleted = useCallback((payload: CardDeletedPayload) => {
@@ -678,15 +774,18 @@ export const useBoardRealtimeSync = ({
       }
     }
 
-    if (payload.actorUserId !== currentUserId) {
-      setOrderedData((prevData) =>
-        prevData.map((list) => ({
-          ...list,
-          cards: list.cards.filter((card) => card.id !== payload.cardId),
-        })),
-      );
-    }
-  }, [boardId, cardModal, currentUserId, processBoardEvent, setOrderedData]);
+    setOrderedData((prevData) =>
+      prevData.map((list) => ({
+        ...list,
+        cards: list.cards.filter((card) => card.id !== payload.cardId),
+      })),
+    );
+    debugBoardRealtime("patch applied", {
+      boardId,
+      cardId: payload.cardId,
+      reason: "card deleted",
+    });
+  }, [boardId, cardModal, processBoardEvent, setOrderedData]);
 
   const handleChecklistSync = useCallback((
     payload:
@@ -699,27 +798,24 @@ export const useBoardRealtimeSync = ({
       return;
     }
 
-    if (payload.actorUserId === currentUserId) {
-      return;
-    }
-
     if (cardModal.isOpen && cardModal.id === payload.cardId) {
       payload.invalidate.forEach(({ queryKey }) => {
         queryClient.invalidateQueries({ queryKey });
       });
     }
 
+    debugBoardRealtime("fallback fetch/refresh", {
+      boardId,
+      cardId: payload.cardId,
+      reason: "checklist payload requires board refresh",
+    });
     router.refresh();
-  }, [boardId, cardModal.id, cardModal.isOpen, currentUserId, processBoardEvent, queryClient, router]);
+  }, [boardId, cardModal.id, cardModal.isOpen, processBoardEvent, queryClient, router]);
 
   const handleLabelSync = useCallback((
     payload: LabelPayload | CardLabelPayload,
   ) => {
     if (payload.boardId !== boardId || !processBoardEvent(payload.eventId)) {
-      return;
-    }
-
-    if (payload.actorUserId === currentUserId) {
       return;
     }
 
@@ -729,29 +825,26 @@ export const useBoardRealtimeSync = ({
       }
     }
 
+    debugBoardRealtime("fallback fetch/refresh", {
+      boardId,
+      cardId: payload.cardId,
+      reason: "label payload requires board refresh",
+    });
     router.refresh();
-  }, [boardId, cardModal.id, cardModal.isOpen, currentUserId, processBoardEvent, queryClient, router]);
+  }, [boardId, cardModal.id, cardModal.isOpen, processBoardEvent, queryClient, router]);
 
   const handleAttachmentReordered = useCallback((payload: AttachmentReorderedPayload) => {
     if (payload.boardId !== boardId || !processBoardEvent(payload.eventId)) {
       return;
     }
 
-    if (payload.actorUserId === currentUserId) {
-      return;
-    }
-
     if (cardModal.isOpen && cardModal.id === payload.cardId) {
       queryClient.invalidateQueries({ queryKey: ["card", payload.cardId] });
     }
-  }, [boardId, cardModal.id, cardModal.isOpen, currentUserId, processBoardEvent, queryClient]);
+  }, [boardId, cardModal.id, cardModal.isOpen, processBoardEvent, queryClient]);
 
   const handleCommentCountUpdated = useCallback((payload: CardCommentCountUpdatedPayload) => {
     if (payload.boardId !== boardId || !processBoardEvent(payload.eventId)) {
-      return;
-    }
-
-    if (payload.actorUserId === currentUserId) {
       return;
     }
 
@@ -775,7 +868,12 @@ export const useBoardRealtimeSync = ({
         ),
       })),
     );
-  }, [boardId, currentUserId, processBoardEvent, setOrderedData]);
+    debugBoardRealtime("patch applied", {
+      boardId,
+      cardId: payload.cardId,
+      reason: "comment count updated",
+    });
+  }, [boardId, processBoardEvent, setOrderedData]);
 
   return {
     onBoardCardSync: handleBoardCardSync,

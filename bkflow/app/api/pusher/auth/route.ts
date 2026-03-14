@@ -3,7 +3,6 @@ import { NextRequest, NextResponse } from "next/server";
 
 import { parseRealtimeChannelName } from "@/lib/realtime/channels";
 import { getServerPusher } from "@/lib/realtime/server";
-import { requireBoardMember } from "@/lib/permissions";
 import { db } from "@/lib/db";
 
 const parsePusherAuthRequest = async (req: NextRequest) => {
@@ -48,7 +47,7 @@ export async function POST(req: NextRequest) {
   try {
     const { userId, orgId } = await auth();
 
-    if (!userId || !orgId) {
+    if (!userId) {
       return new NextResponse("Unauthorized", { status: 401 });
     }
 
@@ -68,52 +67,52 @@ export async function POST(req: NextRequest) {
       return new NextResponse("Forbidden", { status: 403 });
     }
 
-    if (channelScope.type === "org" && channelScope.organizationId !== orgId) {
-      return new NextResponse("Forbidden", { status: 403 });
+    if (channelScope.type === "org") {
+      if (!orgId || channelScope.organizationId !== orgId) {
+        return new NextResponse("Forbidden", { status: 403 });
+      }
     }
 
     if (channelScope.type === "board") {
-      const permission = await requireBoardMember({
-        boardId: channelScope.boardId,
-        orgId,
-        userId,
+      const boardMembership = await db.boardMember.findUnique({
+        where: {
+          boardId_userId: {
+            boardId: channelScope.boardId,
+            userId,
+          },
+        },
+        select: {
+          id: true,
+        },
       });
 
-      if (permission.error) {
+      if (!boardMembership) {
         return new NextResponse("Forbidden", { status: 403 });
       }
     }
 
     if (channelScope.type === "card") {
-      const card = await db.card.findUnique({
+      const card = await db.card.findFirst({
         where: {
           id: channelScope.cardId,
+          archivedAt: null,
           list: {
+            archivedAt: null,
             board: {
-              orgId,
+              members: {
+                some: {
+                  userId,
+                },
+              },
             },
           },
         },
         select: {
-          list: {
-            select: {
-              boardId: true,
-            },
-          },
+          id: true,
         },
       });
 
       if (!card) {
-        return new NextResponse("Forbidden", { status: 403 });
-      }
-
-      const permission = await requireBoardMember({
-        boardId: card.list.boardId,
-        orgId,
-        userId,
-      });
-
-      if (permission.error) {
         return new NextResponse("Forbidden", { status: 403 });
       }
     }
