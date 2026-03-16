@@ -47,7 +47,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     });
 
     if (existingLists.length !== items.length) {
-      return { error: "KhÃ´ng thá»ƒ sáº¯p xáº¿p danh sÃ¡ch khÃ´ng thuá»™c báº£ng nÃ y." };
+      return { error: "Không thể sắp xếp danh sách không thuộc bảng này." };
     }
 
     const nextOrderById = new Map(items.map((list) => [list.id, list.order]));

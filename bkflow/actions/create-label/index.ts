@@ -52,7 +52,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     });
 
     if (!card) {
-      return { error: "KhÃ´ng tÃ¬m tháº¥y tháº»." };
+      return { error: "Không tìm thấy thẻ." };
     }
 
     const label = await db.label.create({

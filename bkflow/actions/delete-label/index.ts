@@ -42,7 +42,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     });
 
     if (!existingLabel) {
-      return { error: "KhÃ´ng tÃ¬m tháº¥y nhÃ£n." };
+      return { error: "Không tìm thấy nhãn." };
     }
 
     const label = await db.label.delete({

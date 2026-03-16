@@ -55,7 +55,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     });
 
     if (!card) {
-      return { error: "KhÃ´ng tÃ¬m tháº¥y tháº»." };
+      return { error: "Không tìm thấy thẻ." };
     }
 
     const label = await db.label.findFirst({
@@ -69,7 +69,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     });
 
     if (!label) {
-      return { error: "KhÃ´ng tÃ¬m tháº¥y nhÃ£n." };
+      return { error: "Không tìm thấy nhãn." };
     }
 
     const existingCardLabel = await db.cardLabel.findUnique({

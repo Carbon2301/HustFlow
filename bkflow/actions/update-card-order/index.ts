@@ -85,7 +85,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     });
 
     if (existingCards.length !== items.length) {
-      return { error: "KhÃ´ng thá»ƒ sáº¯p xáº¿p tháº» khÃ´ng thuá»™c báº£ng nÃ y." };
+      return { error: "Không thể sắp xếp thẻ không thuộc bảng này." };
     }
 
     const nextCardsById = new Map(items.map((card) => [card.id, card]));

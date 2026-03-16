@@ -787,7 +787,7 @@ export const useBoardRealtimeSync = ({
     });
   }, [boardId, cardModal, processBoardEvent, setOrderedData]);
 
-  const handleChecklistSync = useCallback((
+  const handleChecklistSync = useCallback(async (
     payload:
       | ChecklistPayload
       | ChecklistItemPayload
@@ -798,25 +798,34 @@ export const useBoardRealtimeSync = ({
       return;
     }
 
+    if (!await patchCardFromFetch(payload.cardId, "checklist sync")) {
+      router.refresh();
+    }
+
     if (cardModal.isOpen && cardModal.id === payload.cardId) {
       payload.invalidate.forEach(({ queryKey }) => {
         queryClient.invalidateQueries({ queryKey });
       });
     }
+  }, [boardId, cardModal.id, cardModal.isOpen, patchCardFromFetch, processBoardEvent, queryClient, router]);
 
-    debugBoardRealtime("fallback fetch/refresh", {
-      boardId,
-      cardId: payload.cardId,
-      reason: "checklist payload requires board refresh",
-    });
-    router.refresh();
-  }, [boardId, cardModal.id, cardModal.isOpen, processBoardEvent, queryClient, router]);
-
-  const handleLabelSync = useCallback((
+  const handleLabelSync = useCallback(async (
     payload: LabelPayload | CardLabelPayload,
   ) => {
     if (payload.boardId !== boardId || !processBoardEvent(payload.eventId)) {
       return;
+    }
+
+    if (payload.cardId) {
+      if (!await patchCardFromFetch(payload.cardId, "label sync")) {
+        router.refresh();
+      }
+    } else {
+      debugBoardRealtime("fallback fetch/refresh", {
+        boardId,
+        reason: "label payload has no card id",
+      });
+      router.refresh();
     }
 
     if (cardModal.isOpen) {
@@ -824,14 +833,7 @@ export const useBoardRealtimeSync = ({
         queryClient.invalidateQueries({ queryKey: ["card", cardModal.id] });
       }
     }
-
-    debugBoardRealtime("fallback fetch/refresh", {
-      boardId,
-      cardId: payload.cardId,
-      reason: "label payload requires board refresh",
-    });
-    router.refresh();
-  }, [boardId, cardModal.id, cardModal.isOpen, processBoardEvent, queryClient, router]);
+  }, [boardId, cardModal.id, cardModal.isOpen, patchCardFromFetch, processBoardEvent, queryClient, router]);
 
   const handleAttachmentReordered = useCallback((payload: AttachmentReorderedPayload) => {
     if (payload.boardId !== boardId || !processBoardEvent(payload.eventId)) {
