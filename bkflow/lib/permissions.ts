@@ -13,6 +13,11 @@ type BoardPermissionInput = {
   userId: string;
 };
 
+type BoardUserPermissionInput = {
+  boardId: string;
+  userId: string;
+};
+
 export const getBoardMembership = cache(async (
   boardId: string,
   orgId: string,
@@ -42,6 +47,45 @@ export const getBoardMembership = cache(async (
 
 export const requireBoardMember = async (input: BoardPermissionInput) => {
   const membership = await getBoardMembership(input.boardId, input.orgId, input.userId);
+
+  if (!membership) {
+    return {
+      error: BOARD_MEMBER_REQUIRED_ERROR,
+      membership: null,
+    };
+  }
+
+  return {
+    error: null,
+    membership,
+  };
+};
+
+export const getBoardMembershipForUser = cache(async (
+  boardId: string,
+  userId: string,
+) => {
+  return db.boardMember.findUnique({
+    where: {
+      boardId_userId: {
+        boardId,
+        userId,
+      },
+    },
+    include: {
+      board: {
+        select: {
+          id: true,
+          title: true,
+          orgId: true,
+        },
+      },
+    },
+  });
+});
+
+export const requireBoardMemberForUser = async (input: BoardUserPermissionInput) => {
+  const membership = await getBoardMembershipForUser(input.boardId, input.userId);
 
   if (!membership) {
     return {

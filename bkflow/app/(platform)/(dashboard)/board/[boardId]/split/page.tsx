@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
 import { db } from "@/lib/db";
-import { requireBoardMember } from "@/lib/permissions";
+import { requireBoardMemberForUser } from "@/lib/permissions";
 
 import { ListContainer } from "../_components/list-container";
 import { BoardCalendarView } from "../calendar/_components/board-calendar-view";
@@ -20,23 +20,25 @@ const BoardSplitPage = async ({
   const { boardId } = await params;
   const { orgId, userId } = await auth();
 
-  if (!orgId || !userId) {
+  if (!userId) {
     redirect("/select-org");
   }
 
-  const currentMembership = await requireBoardMember({ boardId, orgId, userId });
+  const currentMembership = await requireBoardMemberForUser({ boardId, userId });
 
   if (currentMembership.error || !currentMembership.membership) {
     const errorMessage = currentMembership.error || "Bạn không có quyền truy cập bảng này.";
-    redirect(`/organization/${orgId}?error=${encodeURIComponent(errorMessage)}`);
+    redirect(`/organization/${orgId ?? ""}?error=${encodeURIComponent(errorMessage)}`);
   }
+
+  const boardOrgId = currentMembership.membership.board.orgId;
 
   const lists = await db.list.findMany({
     where: {
       boardId,
       archivedAt: null,
       board: {
-        orgId,
+        orgId: boardOrgId,
       },
     },
     include: {
@@ -91,7 +93,7 @@ const BoardSplitPage = async ({
     where: {
       boardId,
       board: {
-        orgId,
+        orgId: boardOrgId,
         members: {
           some: {
             userId,

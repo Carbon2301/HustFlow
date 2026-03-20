@@ -3,7 +3,7 @@ import { redirect } from "next/navigation";
 
 import { db } from "@/lib/db";
 import { measureDev } from "@/lib/perf";
-import { requireBoardMember } from "@/lib/permissions";
+import { requireBoardMemberForUser } from "@/lib/permissions";
 import type { CardWithAssignees, ListWithCards } from "@/types";
 
 import { BoardCardModalFromUrl } from "./_components/board-card-modal-from-url";
@@ -21,16 +21,18 @@ const BoardIdPage = async ({
   const { boardId } = await params;
   const { orgId, userId } = await auth();
 
-  if (!orgId || !userId) {
+  if (!userId) {
     redirect("/select-org");
   }
 
-  const currentMembership = await requireBoardMember({ boardId, orgId, userId });
+  const currentMembership = await requireBoardMemberForUser({ boardId, userId });
 
   if (currentMembership.error || !currentMembership.membership) {
     const errorMessage = currentMembership.error || "Bạn không có quyền truy cập bảng này.";
-    redirect(`/organization/${orgId}?error=${encodeURIComponent(errorMessage)}`);
+    redirect(`/organization/${orgId ?? ""}?error=${encodeURIComponent(errorMessage)}`);
   }
+
+  const boardOrgId = currentMembership.membership.board.orgId;
   
   const [listsData, boardMembers] = await measureDev(`board:${boardId}:initial-data`, () => Promise.all([
     db.list.findMany({
@@ -38,7 +40,7 @@ const BoardIdPage = async ({
         boardId,
         archivedAt: null,
         board: {
-          orgId,
+          orgId: boardOrgId,
         },
       },
       select: {
@@ -104,7 +106,7 @@ const BoardIdPage = async ({
       where: {
         boardId,
         board: {
-          orgId,
+          orgId: boardOrgId,
           members: {
             some: {
               userId,

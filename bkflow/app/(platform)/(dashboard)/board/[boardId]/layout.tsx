@@ -1,10 +1,12 @@
 import { auth } from "@clerk/nextjs/server";
 import { notFound, redirect } from "next/navigation";
 
-import { db } from "@/lib/db";
+import { getBoardSwitcherData } from "@/lib/board-switcher";
 import { getOrganizationMembers } from "@/lib/clerk-org-members";
-import { requireBoardMember } from "@/lib/permissions";
+import { db } from "@/lib/db";
+import { requireBoardMemberForUser } from "@/lib/permissions";
 
+import { BoardOrgControl } from "./_components/board-org-control";
 import { BoardNavbar } from "./_components/board-navbar";
 
 export async function generateMetadata({
@@ -13,20 +15,19 @@ export async function generateMetadata({
   params: Promise<{ boardId: string }>;
 }) {
   const { boardId } = await params;
-  const { orgId, userId } = await auth();
+  const { userId } = await auth();
 
-  if (!orgId || !userId) {
+  if (!userId) {
     return {
-      title: "Bảng",
+      title: "Báº£ng",
     };
   }
 
   const [currentMembership, board] = await Promise.all([
-    requireBoardMember({ boardId, orgId, userId }),
+    requireBoardMemberForUser({ boardId, userId }),
     db.board.findUnique({
       where: {
         id: boardId,
-        orgId,
       },
       select: {
         title: true,
@@ -36,12 +37,12 @@ export async function generateMetadata({
 
   if (currentMembership.error) {
     return {
-      title: "Bảng",
+      title: "Báº£ng",
     };
   }
 
   return {
-    title: board?.title || "Bảng",
+    title: board?.title || "Báº£ng",
   };
 }
 
@@ -55,16 +56,23 @@ const BoardIdLayout = async ({
   const { boardId } = await params;
   const { orgId, userId } = await auth();
 
-  if (!orgId || !userId) {
+  if (!userId) {
     redirect("/select-org");
   }
 
-  const [currentMembership, board, organizationMembers] = await Promise.all([
-    requireBoardMember({ boardId, orgId, userId }),
+  const currentMembership = await requireBoardMemberForUser({ boardId, userId });
+
+  if (currentMembership.error || !currentMembership.membership) {
+    const errorMessage = currentMembership.error || "Báº¡n khÃ´ng cÃ³ quyá»n truy cáº­p báº£ng nÃ y.";
+    redirect(`/organization/${orgId ?? ""}?error=${encodeURIComponent(errorMessage)}`);
+  }
+
+  const boardOrgId = currentMembership.membership.board.orgId;
+
+  const [board, organizationMembers, boardSwitcherData] = await Promise.all([
     db.board.findUnique({
       where: {
         id: boardId,
-        orgId,
       },
       include: {
         members: {
@@ -79,13 +87,9 @@ const BoardIdLayout = async ({
         },
       },
     }),
-    getOrganizationMembers(orgId),
+    getOrganizationMembers(boardOrgId),
+    getBoardSwitcherData(userId),
   ]);
-
-  if (currentMembership.error || !currentMembership.membership) {
-    const errorMessage = currentMembership.error || "Bạn không có quyền truy cập bảng này.";
-    redirect(`/organization/${orgId}?error=${encodeURIComponent(errorMessage)}`);
-  }
 
   if (!board) {
     notFound();
@@ -96,9 +100,11 @@ const BoardIdLayout = async ({
       className="relative h-screen flex flex-col overflow-hidden bg-no-repeat bg-cover bg-center"
       style={{ backgroundImage: `url(${board.imageFullUrl})` }}
     >
+      <BoardOrgControl orgId={boardOrgId} />
       <BoardNavbar
         data={board}
         organizationMembers={organizationMembers}
+        boardSwitcherData={boardSwitcherData}
         currentUserId={userId}
         currentMemberRole={currentMembership.membership.role}
       />

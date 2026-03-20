@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
 
 import { getBoardAnalyticsData } from "@/lib/analytics/board-report-data";
-import { requireBoardMember } from "@/lib/permissions";
+import { requireBoardMemberForUser } from "@/lib/permissions";
 
 import { BoardAnalyticsView } from "./_components/board-analytics-view";
 
@@ -18,18 +18,21 @@ const BoardAnalyticsPage = async ({
   const { boardId } = await params;
   const { orgId, userId } = await auth();
 
-  if (!orgId || !userId) {
+  if (!userId) {
     redirect("/select-org");
   }
 
-  const currentMembership = await requireBoardMember({ boardId, orgId, userId });
+  const currentMembership = await requireBoardMemberForUser({ boardId, userId });
 
   if (currentMembership.error || !currentMembership.membership) {
     const errorMessage = currentMembership.error || "Bạn không có quyền truy cập bảng này.";
-    redirect(`/organization/${orgId}?error=${encodeURIComponent(errorMessage)}`);
+    redirect(`/organization/${orgId ?? ""}?error=${encodeURIComponent(errorMessage)}`);
   }
 
-  const analytics = await getBoardAnalyticsData({ boardId, orgId });
+  const analytics = await getBoardAnalyticsData({
+    boardId,
+    orgId: currentMembership.membership.board.orgId,
+  });
 
   return (
     <BoardAnalyticsView
