@@ -33,11 +33,7 @@ const DescriptionResponse = z.object({
     ),
 });
 
-const LabelResponse = z.object({
-  labelIds: z.array(z.string().transform((value) => value.trim()))
-    .max(AI_CARD_QUALITY_LIMITS.maxSuggestedLabels),
-  reason: z.string().max(300).optional(),
-});
+
 
 const descriptionSystemPrompt = [
   "Bạn là trợ lý quản lý dự án cho HustFlow.",
@@ -56,22 +52,9 @@ const rewriteSystemPrompt = [
   "Không biến card thành một task khác.",
 ].join("\n");
 
-const labelSystemPrompt = [
-  "Bạn là trợ lý quản lý dự án cho HustFlow.",
-  "Chỉ trả JSON hợp lệ, không markdown, không giải thích.",
-  'Định dạng bắt buộc: {"labelIds":["..."],"reason":"..."}',
-  "Chỉ chọn labelId từ boardLabels được cung cấp.",
-  "Không tạo label mới, không trả label đang active.",
-  `Trả tối đa ${AI_CARD_QUALITY_LIMITS.maxSuggestedLabels} label phù hợp nhất.`,
-].join("\n");
-
 const getSystemPrompt = (task: InputType["task"]) => {
   if (task === "rewrite_description") {
     return rewriteSystemPrompt;
-  }
-
-  if (task === "suggest_labels") {
-    return labelSystemPrompt;
   }
 
   return descriptionSystemPrompt;
@@ -156,15 +139,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     const activeLabelIds = new Set(card.labels.map(({ label }) => label.id));
     const availableLabels = card.list.board.labels.filter((label) => !activeLabelIds.has(label.id));
 
-    if (task === "suggest_labels" && availableLabels.length === 0) {
-      return {
-        data: {
-          task,
-          labelIds: [],
-          reason: "Không còn nhãn nào có thể gợi ý cho thẻ này.",
-        },
-      };
-    }
+
 
     const payload = {
       task,
@@ -190,37 +165,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     const generate = (extraPrompt?: string) => generateAiText({
       system: getSystemPrompt(task),
       user: JSON.stringify(extraPrompt ? { ...payload, rewriteInstruction: extraPrompt } : payload),
-      temperature: task === "rewrite_description" ? 0.5 : task === "suggest_labels" ? 0.15 : 0.35,
-      maxTokens: task === "suggest_labels" ? 350 : 900,
+      temperature: task === "rewrite_description" ? 0.5 : 0.35,
+      maxTokens: 900,
     });
 
     const raw = await generate();
 
-    if (task === "suggest_labels") {
-      const parsed = parseAiJson(
-        raw,
-        LabelResponse,
-        "AI chưa gợi ý được nhãn hợp lệ. Hãy thử lại.",
-      );
-      const availableLabelIds = new Set(availableLabels.map((label) => label.id));
-      const seen = new Set<string>();
-      const labelIds = parsed.labelIds.filter((labelId) => {
-        if (!availableLabelIds.has(labelId) || seen.has(labelId)) {
-          return false;
-        }
 
-        seen.add(labelId);
-        return true;
-      }).slice(0, AI_CARD_QUALITY_LIMITS.maxSuggestedLabels);
-
-      return {
-        data: {
-          task,
-          labelIds,
-          reason: parsed.reason,
-        },
-      };
-    }
 
     let parsed = parseAiJson(
       raw,

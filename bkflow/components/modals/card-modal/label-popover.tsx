@@ -175,7 +175,6 @@ export const LabelPopover = ({
 
   const { execute: executeUpdate, isLoading: isLoadingUpdate } = useAction(updateLabel, {
     onSuccess: (data) => {
-      toast.success(`Đã cập nhật nhãn "${data.title || "không tên"}"`);
       invalidateCardQueries();
       router.refresh();
       setScreen("select");
@@ -342,7 +341,6 @@ export const LabelPopover = ({
                           className="flex-1 h-8 rounded-md px-3 text-left font-semibold text-neutral-900/90 text-xs truncate hover:opacity-85 active:opacity-75 transition-opacity shadow-xs border border-black/5 flex items-center justify-between cursor-pointer"
                         >
                           <span className="truncate">{label.title}</span>
-                          {isChecked && <Check className="h-3 w-3 text-neutral-700/80 shrink-0" />}
                         </button>
                         {/* Edit Button */}
                         <button

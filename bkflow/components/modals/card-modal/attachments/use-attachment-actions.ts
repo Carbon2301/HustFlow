@@ -86,7 +86,6 @@ export const useAttachmentActions = ({
       );
       queryClient.invalidateQueries({ queryKey: ["card", cardId] });
       queryClient.invalidateQueries({ queryKey: ["card-logs", cardId] });
-      toast.success("Đã cập nhật đính kèm.", { id: `card-attachment-edit-${attachment.id}` });
       setEditingId(null);
     },
     onError: (error) => {
@@ -121,7 +120,6 @@ export const useAttachmentActions = ({
       ? formData.get("url") as string
       : undefined;
 
-    toast.loading("Đang cập nhật đính kèm...", { id: `card-attachment-edit-${item.id}` });
     executeUpdate({
       id: item.id,
       cardId,
@@ -138,12 +136,6 @@ export const useAttachmentActions = ({
 
     setDeletingId(item.id);
     setEditingId(null);
-    toast.loading(
-      item.type === AttachmentType.FILE
-        ? "Đang xóa file đính kèm..."
-        : "Đang xóa liên kết đính kèm...",
-      { id: `card-attachment-delete-${item.id}` },
-    );
     executeDelete({
       id: item.id,
       cardId,

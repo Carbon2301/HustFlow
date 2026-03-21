@@ -7,7 +7,7 @@ import { toast } from "sonner";
 import type { CardAttachment } from "@prisma/client";
 
 import { createCardAttachment } from "@/actions/create-card-attachment";
-import { createCardFileAttachment } from "@/actions/create-card-file-attachment";
+import { createCardFileAttachments } from "@/actions/create-card-file-attachments";
 import { FormInput } from "@/components/form/form-input";
 import { FormSubmit } from "@/components/form/form-submit";
 import { Button } from "@/components/ui/button";
@@ -76,10 +76,10 @@ export const AttachmentAddPopover = ({
   });
 
   const {
-    execute: executeCreateFile,
+    execute: executeCreateFiles,
     isLoading: isSavingFile,
-  } = useAction(createCardFileAttachment, {
-    onSuccess: (attachment) => {
+  } = useAction(createCardFileAttachments, {
+    onSuccess: (attachments) => {
       queryClient.setQueryData(
         ["card", cardId],
         (current: unknown) => {
@@ -92,17 +92,19 @@ export const AttachmentAddPopover = ({
           return {
             ...currentCard,
             attachments: [
-              attachment,
-              ...(currentCard.attachments ?? []).filter((item) => item.id !== attachment.id),
+              ...attachments,
+              ...(currentCard.attachments ?? []).filter(
+                (item) => !attachments.some((attachment) => attachment.id === item.id),
+              ),
             ],
           };
         },
       );
-      patchBoardCardCount(boardId, cardId, "attachments", 1);
+      patchBoardCardCount(boardId, cardId, "attachments", attachments.length);
       queryClient.invalidateQueries({ queryKey: ["card", cardId] });
       queryClient.invalidateQueries({ queryKey: ["card-logs", cardId] });
       setUploadProgress(null);
-      toast.success("Đã tải file đính kèm.", { id: "card-attachment-upload" });
+      toast.success(`Đã tải ${attachments.length} file đính kèm.`, { id: "card-attachment-upload" });
       setIsOpen(false);
     },
     onError: (error) => {
@@ -170,29 +172,27 @@ export const AttachmentAddPopover = ({
               uploadProgressGranularity="coarse"
               onUploadBegin={() => {
                 setUploadProgress(0);
-                toast.loading("Đang tải file lên...", { id: "card-attachment-upload" });
               }}
               onUploadProgress={(progress) => {
                 setUploadProgress(progress);
               }}
               onClientUploadComplete={(files) => {
-                const file = files[0];
-
-                if (!file) {
+                if (files.length === 0) {
                   setUploadProgress(null);
                   toast.error("Không nhận được thông tin file đã tải.", { id: "card-attachment-upload" });
                   return;
                 }
 
-                toast.loading("Đang lưu file đính kèm...", { id: "card-attachment-upload" });
-                executeCreateFile({
+                executeCreateFiles({
                   cardId,
                   boardId,
-                  name: file.name,
-                  url: file.ufsUrl,
-                  fileKey: file.key,
-                  fileSize: file.size,
-                  mimeType: file.type,
+                  files: files.map((file) => ({
+                    name: file.name,
+                    url: file.ufsUrl,
+                    fileKey: file.key,
+                    fileSize: file.size,
+                    mimeType: file.type,
+                  })),
                 });
               }}
               onUploadError={(error) => {

@@ -18,15 +18,15 @@ export const ourFileRouter = {
     {
       image: {
         maxFileSize: "8MB",
-        maxFileCount: 1,
+        maxFileCount: 10,
       },
       pdf: {
         maxFileSize: "16MB",
-        maxFileCount: 1,
+        maxFileCount: 10,
       },
       blob: {
         maxFileSize: "16MB",
-        maxFileCount: 1,
+        maxFileCount: 10,
       },
     },
     {
