@@ -191,4 +191,25 @@
   pointer-events: none;
 }
 
+/* Elevate the list item containing the active card (right-clicked or copy dialog open) */
+li:has([data-active-card="true"]) {
+  position: relative !important;
+  z-index: 60 !important;
+}
+
+/* Render a dark overlay inside the list container, below the active card (z-[100]) but above everything else (header, other cards, form) */
+li:has([data-active-card="true"]) > div {
+  position: relative !important;
+}
+
+li:has([data-active-card="true"]) > div::after {
+  content: "";
+  position: absolute;
+  inset: 0;
+  border-radius: 0.75rem; /* matches rounded-xl of list container */
+  background-color: rgba(0, 0, 0, 0.5); /* semi-transparent black overlay */
+  z-index: 10;
+  pointer-events: none;
+}
+
 

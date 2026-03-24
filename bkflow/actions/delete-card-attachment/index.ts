@@ -66,20 +66,31 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     }
 
     if (attachment.type === AttachmentType.FILE) {
-      try {
-        await utapi.deleteFiles(attachment.fileKey!);
-      } catch (error) {
-        console.error("[DELETE_CARD_ATTACHMENT_STORAGE_ERROR]", {
-          error,
-          attachmentId: attachment.id,
+      const otherReferences = await db.cardAttachment.count({
+        where: {
           fileKey: attachment.fileKey,
-          cardId,
-          boardId,
-        });
+          id: {
+            not: attachment.id,
+          },
+        },
+      });
 
-        return {
-          error: "Xóa file trong kho lưu trữ thất bại. Vui lòng thử lại.",
-        };
+      if (otherReferences === 0) {
+        try {
+          await utapi.deleteFiles(attachment.fileKey!);
+        } catch (error) {
+          console.error("[DELETE_CARD_ATTACHMENT_STORAGE_ERROR]", {
+            error,
+            attachmentId: attachment.id,
+            fileKey: attachment.fileKey,
+            cardId,
+            boardId,
+          });
+
+          return {
+            error: "Xóa file trong kho lưu trữ thất bại. Vui lòng thử lại.",
+          };
+        }
       }
     }
 

@@ -53,7 +53,7 @@ export const BoardNavbar = async ({
           currentUserId={currentUserId}
           canManage={isAdmin}
         />
-        {isAdmin && <BoardOptions id={data.id} />}
+        <BoardOptions id={data.id} canDelete={isAdmin} />
       </div>
     </div>
   );

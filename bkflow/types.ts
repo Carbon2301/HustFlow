@@ -50,6 +50,10 @@ export type CardWithList = Card & {
       title: string;
     };
   })[];
+  _count?: {
+    comments: number;
+    attachments: number;
+  };
 };
 
 export type CardCommentWithReplies = Prisma.CardCommentGetPayload<{

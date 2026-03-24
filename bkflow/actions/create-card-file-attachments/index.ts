@@ -18,7 +18,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
   if (!userId || !orgId) {
     return {
-      error: "KhÃ´ng cÃ³ quyá»n truy cáº­p.",
+      error: "Không có quyền truy cập.",
     };
   }
 
@@ -50,7 +50,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
     if (!card) {
       return {
-        error: "KhÃ´ng tÃ¬m tháº¥y tháº».",
+        error: "Không tìm thấy thẻ.",
       };
     }
 
@@ -112,7 +112,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       }
 
       return {
-        error: "LÆ°u file Ä‘Ã­nh kÃ¨m tháº¥t báº¡i.",
+        error: "Lưu file đính kèm thất bại.",
       };
     }
 
@@ -121,7 +121,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         createAuditLog({
           entityId: card.id,
           entityType: ENTITY_TYPE.CARD,
-          entityTitle: `detail:Ä‘Ã£ Ä‘Ã­nh kÃ¨m táº­p tin "${attachment.name}" vÃ o tháº» "${card.title}"`,
+          entityTitle: `detail:đã đính kèm tập tin "${attachment.name}" vào thẻ "${card.title}"`,
           action: ACTION.UPDATE,
           eventType: AUDIT_EVENT_TYPE.ATTACHMENT,
           boardId,
@@ -145,7 +145,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   } catch (error) {
     console.error("[CREATE_CARD_FILE_ATTACHMENTS_ERROR]", error);
     return {
-      error: "LÆ°u file Ä‘Ã­nh kÃ¨m tháº¥t báº¡i.",
+      error: "Lưu file đính kèm thất bại.",
     };
   }
 };

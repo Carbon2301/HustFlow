@@ -89,7 +89,6 @@ export const ListOptions = ({
 
   const { execute: executeCopy, isLoading: isLoadingCopy } = useAction(copyList, {
     onSuccess: (data) => {
-      toast.success(`Đã sao chép danh sách "${data.title}"`);
       closeRef.current?.click();
       router.refresh();
     },

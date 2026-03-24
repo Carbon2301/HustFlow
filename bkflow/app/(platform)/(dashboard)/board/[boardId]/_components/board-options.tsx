@@ -13,21 +13,22 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import { ConfirmModal } from "@/components/modals/confirm-modal";
 
 import { ArchivedItemsModal } from "./archived-items-modal";
-import { ConfirmModal } from "@/components/modals/confirm-modal";
 
 interface BoardOptionsProps {
   id: string;
+  canDelete?: boolean;
 };
 
-export const BoardOptions = ({ id }: BoardOptionsProps) => {
+export const BoardOptions = ({ id, canDelete = false }: BoardOptionsProps) => {
   const [isArchivedModalOpen, setIsArchivedModalOpen] = useState(false);
 
   const { execute, isLoading } = useAction(deleteBoard, {
     onError: (error) => {
       toast.error(error);
-    }
+    },
   });
 
   const onDelete = () => {
@@ -39,6 +40,7 @@ export const BoardOptions = ({ id }: BoardOptionsProps) => {
       <Popover>
         <PopoverTrigger asChild>
           <Button
+            aria-label="Mở thao tác bảng"
             className="h-8 w-8 p-0 text-white/80 hover:text-white hover:bg-white/20 rounded-lg cursor-pointer"
             variant="ghost"
           >
@@ -73,20 +75,22 @@ export const BoardOptions = ({ id }: BoardOptionsProps) => {
               Mục đã lưu trữ
             </Button>
           </PopoverClose>
-          <ConfirmModal
-            onConfirm={onDelete}
-            title="Xóa bảng này?"
-            description="Bạn có chắc chắn muốn xóa bảng này? Mọi danh sách và thẻ bên trong bảng sẽ bị xóa vĩnh viễn và không thể khôi phục."
-            disabled={isLoading}
-          >
-            <Button
-              variant="ghost"
-              className="w-full h-9 px-4 justify-start font-normal text-sm text-red-500 hover:bg-red-50 hover:text-red-600 gap-x-2 rounded-none cursor-pointer"
+          {canDelete && (
+            <ConfirmModal
+              onConfirm={onDelete}
+              title="Xóa bảng này?"
+              description="Bạn có chắc chắn muốn xóa bảng này? Mọi danh sách và thẻ bên trong bảng sẽ bị xóa vĩnh viễn và không thể khôi phục."
+              disabled={isLoading}
             >
-              <Trash2 className="h-4 w-4" />
-              {isLoading ? "Đang xóa…" : "Xóa bảng này"}
-            </Button>
-          </ConfirmModal>
+              <Button
+                variant="ghost"
+                className="w-full h-9 px-4 justify-start font-normal text-sm text-red-500 hover:bg-red-50 hover:text-red-600 gap-x-2 rounded-none cursor-pointer"
+              >
+                <Trash2 className="h-4 w-4" />
+                {isLoading ? "Đang xóa…" : "Xóa bảng này"}
+              </Button>
+            </ConfirmModal>
+          )}
         </PopoverContent>
       </Popover>
       <ArchivedItemsModal

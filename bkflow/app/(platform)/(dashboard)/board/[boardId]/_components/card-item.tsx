@@ -1,6 +1,6 @@
 "use client";
 
-import { memo, useState, useRef } from "react";
+import { memo, useState, useRef, useEffect } from "react";
 import { createPortal } from "react-dom";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
@@ -18,11 +18,11 @@ import {
   AvatarImage,
 } from "@/components/ui/avatar";
 import { useAction } from "@/hooks/use-action";
-import { copyCard } from "@/actions/copy-card";
 import { archiveCard } from "@/actions/archive-card";
 import { updateCard } from "@/actions/update-card";
 import { cn, getColorName } from "@/lib/utils";
 import type { ListWithCards } from "@/types";
+import { CopyCardDialog } from "@/components/modals/card-modal/copy-card-dialog";
 
 import { useBoardState } from "./list-container/board-state-context";
 
@@ -38,37 +38,6 @@ const getInitials = (name: string) => {
   return initials.toUpperCase() || "U";
 };
 
-const normalizeCopiedCard = (card: Partial<CardWithAssignees>): CardWithAssignees => {
-  const now = new Date();
-
-  return {
-    id: card.id ?? `temp-card-${now.getTime()}`,
-    title: card.title ?? "",
-    order: card.order ?? 0,
-    description: card.description ?? null,
-    startDate: card.startDate ?? null,
-    dueDate: card.dueDate ?? null,
-    isCompleted: card.isCompleted ?? false,
-    reminder: card.reminder ?? null,
-    reminderSetAt: card.reminderSetAt ?? null,
-    archivedAt: card.archivedAt ?? null,
-    archivedByListId: card.archivedByListId ?? null,
-    listId: card.listId ?? "",
-    createdAt: card.createdAt ?? now,
-    updatedAt: card.updatedAt ?? now,
-    assignees: card.assignees ?? [],
-    labels: card.labels ?? [],
-    checklists: card.checklists ?? [],
-    checklistProgress: card.checklistProgress ?? {
-      total: 0,
-      completed: 0,
-    },
-    _count: card._count ?? {
-      comments: 0,
-      attachments: 0,
-    },
-  };
-};
 
 export const CardItem = memo(function CardItem({
   data,
@@ -76,16 +45,46 @@ export const CardItem = memo(function CardItem({
 }: CardItemProps) {
   const cardModal = useCardModal();
   const params = useParams();
+  const boardId = params.boardId as string;
   const boardState = useBoardState();
   
   const [showMenu, setShowMenu] = useState(false);
+  const [copyDialogOpen, setCopyDialogOpen] = useState(false);
   const [menuPosition, setMenuPosition] = useState({ top: 0, left: 0 });
+  const [triggerRect, setTriggerRect] = useState<DOMRect | null>(null);
   const cardRef = useRef<HTMLDivElement>(null);
   const archiveRollbackRef = useRef<ListWithCards[] | null>(null);
 
   const [isEditing, setIsEditing] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+
+  useEffect(() => {
+    if (!showMenu) return;
+
+    const handleOutsideClick = (e: MouseEvent) => {
+      const target = e.target as HTMLElement;
+      
+      // If the click is inside the context menu, let the click happen normally.
+      if (target.closest("[data-context-menu]")) {
+        return;
+      }
+
+      // If clicked outside, close the menu, stop propagation and prevent default action
+      e.preventDefault();
+      e.stopPropagation();
+      setShowMenu(false);
+    };
+
+    // Use capture to intercept clicks before they reach target elements (like other cards)
+    document.addEventListener("click", handleOutsideClick, { capture: true });
+    document.addEventListener("contextmenu", handleOutsideClick, { capture: true });
+
+    return () => {
+      document.removeEventListener("click", handleOutsideClick, { capture: true });
+      document.removeEventListener("contextmenu", handleOutsideClick, { capture: true });
+    };
+  }, [showMenu]);
 
   const { execute: executeUpdateCard, isLoading: isLoadingUpdate } = useAction(updateCard, {
     onSuccess: (updatedCard) => {
@@ -173,23 +172,11 @@ export const CardItem = memo(function CardItem({
           ? rect.right + gap
           : Math.max(8, rect.left - menuWidth - gap),
       });
+      setTriggerRect(rect);
     }
 
     setShowMenu(true);
   };
-
-  const { execute: executeCopyCard, isLoading: isLoadingCopy } = useAction(copyCard, {
-    onSuccess: (copiedCard) => {
-      const normalizedCard = normalizeCopiedCard(copiedCard);
-
-      boardState.appendCard(normalizedCard.listId, normalizedCard);
-      toast.success(`Đã sao chép thẻ "${copiedCard.title}"`);
-      setShowMenu(false);
-    },
-    onError: (error) => {
-      toast.error(error);
-    },
-  });
 
   const { execute: executeArchiveCard, isLoading: isLoadingArchive } = useAction(archiveCard, {
     onSuccess: () => {
@@ -223,13 +210,16 @@ export const CardItem = memo(function CardItem({
 
   const onCopy = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const boardId = params.boardId as string;
-    executeCopyCard({ id: data.id, boardId });
+    setShowMenu(false);
+    const rect = cardRef.current?.getBoundingClientRect();
+    if (rect) {
+      setTriggerRect(rect);
+    }
+    setCopyDialogOpen(true);
   };
 
   const onArchive = (e: React.MouseEvent) => {
     e.stopPropagation();
-    const boardId = params.boardId as string;
     archiveRollbackRef.current = boardState.getSnapshot();
     boardState.removeCard(data.id);
     executeArchiveCard({ id: data.id, boardId });
@@ -256,7 +246,8 @@ export const CardItem = memo(function CardItem({
     || Boolean(data._count && data._count.comments > 0) || hasChecklistProgress || hasAttachments;
 
   return (
-    <Draggable draggableId={data.id} index={index}>
+    <>
+      <Draggable draggableId={data.id} index={index}>
       {(provided, snapshot) => {
         const combinedRef = (node: HTMLDivElement | null) => {
           provided.innerRef(node);
@@ -271,12 +262,13 @@ export const CardItem = memo(function CardItem({
             role="button"
             onClick={() => onOpen()}
             onContextMenu={handleContextMenu}
+            data-active-card={showMenu || copyDialogOpen ? "true" : undefined}
             className={cn(
               "group relative flex flex-col justify-between border border-transparent pb-2.5 px-3 text-sm bg-white rounded-lg shadow-sm transition-[border-color,box-shadow,background-color] duration-100 !cursor-pointer select-none overflow-hidden",
               data.labels && data.labels.length > 0 ? "pt-4.5" : "pt-2.5",
               !snapshot.isDragging && "hover:border-violet-200 hover:shadow",
               snapshot.isDragging && "shadow-sm opacity-95 border-violet-300 z-[9999] pointer-events-none",
-              showMenu && "relative z-[100] ring-2 ring-violet-500 shadow-xl"
+              (showMenu || copyDialogOpen) && "relative z-[100] ring-2 ring-violet-500 shadow-xl bg-white"
             )}
           >
             {data.labels && data.labels.length > 0 && (
@@ -415,11 +407,11 @@ export const CardItem = memo(function CardItem({
               </div>
             )}
 
-            {showMenu && (
+            {showMenu && createPortal(
               <>
                 {/* Backdrop overlay */}
                 <div
-                  className="fixed inset-0 bg-black/50 z-[99] cursor-default"
+                  className="fixed inset-0 bg-black/40 z-[45] cursor-default"
                   onClick={(e) => {
                     e.stopPropagation();
                     setShowMenu(false);
@@ -432,6 +424,7 @@ export const CardItem = memo(function CardItem({
                 />
                 {/* Context Menu */}
                 <div
+                  data-context-menu="true"
                   className="fixed z-[100] w-52 bg-white rounded-xl shadow-2xl border border-neutral-200 p-1.5 flex flex-col gap-y-1"
                   style={{
                     top: menuPosition.top,
@@ -455,22 +448,23 @@ export const CardItem = memo(function CardItem({
                   </button>
                   <button
                     onClick={onCopy}
-                    disabled={isLoadingCopy || isLoadingArchive}
+                    disabled={isLoadingArchive}
                     className="w-full flex items-center gap-x-2.5 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-50 rounded-lg transition-colors cursor-pointer"
                   >
                     <Copy className="h-4 w-4 text-neutral-400" />
-                    {isLoadingCopy ? "Đang sao chép…" : "Sao chép thẻ"}
+                    Sao chép thẻ
                   </button>
                   <button
                     onClick={onArchive}
-                    disabled={isLoadingCopy || isLoadingArchive}
+                    disabled={isLoadingArchive}
                     className="w-full flex items-center gap-x-2.5 px-3 py-2 text-sm font-medium text-neutral-700 hover:bg-neutral-100 disabled:opacity-50 rounded-lg transition-colors cursor-pointer"
                   >
                     <Archive className="h-4 w-4 text-neutral-400" />
                     {isLoadingArchive ? "Đang lưu trữ thẻ…" : "Lưu trữ thẻ"}
                   </button>
                 </div>
-              </>
+              </>,
+              document.body
             )}
           </div>
         );
@@ -481,6 +475,18 @@ export const CardItem = memo(function CardItem({
 
         return cardContent;
       }}
-    </Draggable>
+      </Draggable>
+      <CopyCardDialog
+        open={copyDialogOpen}
+        onOpenChange={setCopyDialogOpen}
+        triggerRect={triggerRect}
+        data={{
+          ...data,
+          list: {
+            boardId,
+          },
+        }}
+      />
+    </>
   );
 });

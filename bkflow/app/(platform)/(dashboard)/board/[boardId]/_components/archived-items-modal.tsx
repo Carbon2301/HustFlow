@@ -17,8 +17,13 @@ import { Dialog as DialogPrimitive } from "radix-ui";
 import { Input } from "@/components/ui/input";
 import { useAction } from "@/hooks/use-action";
 import { cn } from "@/lib/utils";
-import { ConfirmModal } from "@/components/modals/confirm-modal";
 import { useCardModal } from "@/hooks/use-card-modal";
+import {
+  Popover,
+  PopoverClose,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 type ArchivedItemType = "lists" | "cards";
 
@@ -56,6 +61,74 @@ const itemTypeLabels: Record<ArchivedItemType, string> = {
   lists: "Danh sách",
   cards: "Thẻ",
 };
+
+const ArchivedDeleteConfirm = ({
+  title,
+  description,
+  disabled,
+  isLoading,
+  onConfirm,
+}: {
+  title: string;
+  description: string;
+  disabled: boolean;
+  isLoading: boolean;
+  onConfirm: () => void;
+}) => (
+  <Popover>
+    <PopoverTrigger asChild>
+      <Button
+        type="button"
+        size="sm"
+        variant="ghost"
+        className="h-8 gap-x-1.5 text-red-600 hover:bg-red-50 hover:text-red-700 cursor-pointer"
+        disabled={disabled}
+      >
+        <Trash2 className="h-3.5 w-3.5" />
+        {isLoading ? "Đang xóa…" : "Xóa"}
+      </Button>
+    </PopoverTrigger>
+    <PopoverContent
+      align="start"
+      side="top"
+      sideOffset={6}
+      className="z-[70] w-72 rounded-lg border border-neutral-200 bg-white p-3 text-neutral-800 shadow-xl"
+    >
+      <div className="space-y-1">
+        <p className="text-sm font-semibold text-neutral-900">{title}</p>
+        <p className="text-xs leading-relaxed text-neutral-500">{description}</p>
+      </div>
+      <div className="mt-3 flex justify-end gap-2">
+        <PopoverClose asChild>
+          <Button
+            type="button"
+            variant="outline"
+            size="sm"
+            className="h-8 px-3"
+            disabled={disabled}
+          >
+            Hủy
+          </Button>
+        </PopoverClose>
+        <PopoverClose asChild>
+          <Button
+            type="button"
+            variant="destructive"
+            size="sm"
+            className="h-8 bg-red-600 px-3 text-white hover:bg-red-700"
+            disabled={disabled}
+            onClick={(event) => {
+              event.stopPropagation();
+              onConfirm();
+            }}
+          >
+            Xóa
+          </Button>
+        </PopoverClose>
+      </div>
+    </PopoverContent>
+  </Popover>
+);
 
 export const ArchivedItemsModal = ({
   boardId,
@@ -329,26 +402,16 @@ export const ArchivedItemsModal = ({
                             <RotateCcw className="h-3.5 w-3.5" />
                             {isPending && isRestoringList ? renderLoadingText("restore") : "Khôi phục"}
                           </Button>
-                           <ConfirmModal
+                          <ArchivedDeleteConfirm
+                            title="Xóa vĩnh viễn danh sách?"
+                            description="Bạn có chắc chắn muốn xóa vĩnh viễn danh sách này? Toàn bộ thẻ trong danh sách này cũng sẽ bị xóa."
+                            disabled={isMutating}
+                            isLoading={isPending && isDeletingList}
                             onConfirm={() => {
                               setPendingItemId(item.id);
                               executeDeleteList({ id: item.id, boardId });
                             }}
-                            title="Xóa vĩnh viễn danh sách?"
-                            description="Bạn có chắc chắn muốn xóa vĩnh viễn danh sách này? Toàn bộ thẻ trong danh sách này cũng sẽ bị xóa."
-                            disabled={isMutating}
-                          >
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              className="h-8 gap-x-1.5 text-red-600 hover:bg-red-50 hover:text-red-700 cursor-pointer"
-                              disabled={isMutating}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              {isPending && isDeletingList ? renderLoadingText("delete") : "Xóa"}
-                            </Button>
-                          </ConfirmModal>
+                          />
                         </div>
                       </div>
                     );
@@ -391,26 +454,16 @@ export const ArchivedItemsModal = ({
                             <RotateCcw className="h-3.5 w-3.5" />
                             {isPending && isRestoringCard ? renderLoadingText("restore") : "Khôi phục"}
                           </Button>
-                           <ConfirmModal
+                          <ArchivedDeleteConfirm
+                            title="Xóa vĩnh viễn thẻ?"
+                            description="Bạn có chắc chắn muốn xóa vĩnh viễn thẻ này?"
+                            disabled={isMutating}
+                            isLoading={isPending && isDeletingCard}
                             onConfirm={() => {
                               setPendingItemId(item.id);
                               executeDeleteCard({ id: item.id, boardId });
                             }}
-                            title="Xóa vĩnh viễn thẻ?"
-                            description="Bạn có chắc chắn muốn xóa vĩnh viễn thẻ này?"
-                            disabled={isMutating}
-                          >
-                            <Button
-                              type="button"
-                              size="sm"
-                              variant="ghost"
-                              className="h-8 gap-x-1.5 text-red-600 hover:bg-red-50 hover:text-red-700 cursor-pointer"
-                              disabled={isMutating}
-                            >
-                              <Trash2 className="h-3.5 w-3.5" />
-                              {isPending && isDeletingCard ? renderLoadingText("delete") : "Xóa"}
-                            </Button>
-                          </ConfirmModal>
+                          />
                         </div>
                       </div>
                     );
