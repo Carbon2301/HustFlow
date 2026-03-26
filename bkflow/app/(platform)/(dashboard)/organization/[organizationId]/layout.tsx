@@ -25,10 +25,10 @@ export async function generateMetadata({
   } catch {
     return { title: "Tổ chức" };
   }
-};
+}
 
 const OrganizationIdLayout = ({
-  children
+  children,
 }: {
   children: React.ReactNode;
 }) => {
