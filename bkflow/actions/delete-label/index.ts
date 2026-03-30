@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
 import { createAuditLog } from "@/lib/create-audit-log";
 import { db } from "@/lib/db";
 import { createSafeAction } from "@/lib/create-safe-action";
-import { requireBoardMember } from "@/lib/permissions";
+import { requireBoardEditor } from "@/lib/permissions";
 import { triggerLabelDeleted } from "@/lib/boards/realtime";
 
 import { DeleteLabel } from "./schema";
@@ -25,7 +25,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   const { boardId, labelId } = data;
 
   try {
-    const permission = await requireBoardMember({ boardId, orgId, userId });
+    const permission = await requireBoardEditor({ boardId, orgId, userId });
 
     if (permission.error) {
       return { error: permission.error };

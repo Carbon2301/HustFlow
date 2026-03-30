@@ -59,7 +59,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
     if (
       existingBoardMember.role === BoardMemberRole.ADMIN &&
-      role === BoardMemberRole.MEMBER
+      role !== BoardMemberRole.ADMIN
     ) {
       const adminCount = await db.boardMember.count({
         where: {
@@ -83,7 +83,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     });
 
     const actionLabel =
-      role === BoardMemberRole.ADMIN ? "đã thăng quyền" : "đã hạ quyền";
+      role === BoardMemberRole.ADMIN ? "đã thăng quyền" : "đã đổi vai trò";
 
     await createAuditLog({
       entityId: existingBoardMember.board.id,

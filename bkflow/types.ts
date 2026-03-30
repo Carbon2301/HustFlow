@@ -1,4 +1,4 @@
-import { BoardMember, Card, CardAttachment, List, Prisma, Label, CardLabel, Checklist, ChecklistItem } from "@prisma/client";
+import { BoardMember, BoardMemberRole, Card, CardAttachment, List, Prisma, Label, CardLabel, Checklist, ChecklistItem } from "@prisma/client";
 
 export type ChecklistItemWithAssignee = ChecklistItem & {
   assignee: BoardMember | null;
@@ -43,6 +43,7 @@ export type CardWithList = Card & {
     items: ChecklistItemWithAssignee[];
   })[];
   boardMembers: BoardMember[];
+  currentMemberRole?: BoardMemberRole;
   boardLabels: Label[];
   boardChecklists: (Checklist & {
     items: ChecklistItemWithAssignee[];
@@ -158,8 +159,8 @@ export type BoardCalendarResponse = {
   unscheduledCards: BoardCalendarUnscheduledCard[];
 };
 
-export type BoardSearchResult =
-  | {
+export type BoardSearchResult = (
+  {
       type: "card";
       id: string;
       cardId: string;
@@ -225,7 +226,10 @@ export type BoardSearchResult =
       title: string;
       snippet: string | null;
       attachmentType: "LINK" | "FILE";
-    };
+    }
+) & {
+  isArchived: boolean;
+};
 
 export type BoardSearchResponse = {
   items: BoardSearchResult[];

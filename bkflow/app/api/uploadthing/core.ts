@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 
 import { db } from "@/lib/db";
-import { requireBoardMember } from "@/lib/permissions";
+import { requireBoardEditor } from "@/lib/permissions";
 import { createUploadthing, type FileRouter } from "uploadthing/next";
 import { UploadThingError } from "uploadthing/server";
 
@@ -41,7 +41,7 @@ export const ourFileRouter = {
         throw new UploadThingError("Không có quyền truy cập.");
       }
 
-      const permission = await requireBoardMember({
+      const permission = await requireBoardEditor({
         boardId: input.boardId,
         orgId,
         userId,

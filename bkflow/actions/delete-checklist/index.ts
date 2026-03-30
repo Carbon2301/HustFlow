@@ -6,7 +6,7 @@ import { ACTION, AUDIT_EVENT_TYPE, ENTITY_TYPE, NOTIFICATION_TYPE } from "@prism
 
 import { db } from "@/lib/db";
 import { createSafeAction } from "@/lib/create-safe-action";
-import { requireBoardMember } from "@/lib/permissions";
+import { requireBoardEditor } from "@/lib/permissions";
 import { createAuditLog } from "@/lib/create-audit-log";
 import { triggerChecklistDeleted } from "@/lib/boards/realtime";
 
@@ -25,7 +25,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   const { boardId, cardId, id } = data;
 
   try {
-    const permission = await requireBoardMember({ boardId, orgId, userId });
+    const permission = await requireBoardEditor({ boardId, orgId, userId });
 
     if (permission.error) {
       return { error: permission.error };

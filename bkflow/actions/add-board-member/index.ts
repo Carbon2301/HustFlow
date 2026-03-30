@@ -9,7 +9,7 @@ import { createNotification } from "@/lib/create-notification";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { getOrganizationMember } from "@/lib/clerk-org-members";
-import { requireBoardAdmin } from "@/lib/permissions";
+import { getRoleLabel, requireBoardAdmin } from "@/lib/permissions";
 import { triggerBoardMemberAdded } from "@/lib/boards/realtime";
 
 import { AddBoardMember } from "./schema";
@@ -23,7 +23,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     return { error: "Không có quyền truy cập." };
   }
 
-  const { boardId, memberUserId } = data;
+  const { boardId, memberUserId, role = BoardMemberRole.MEMBER } = data;
   let boardMember;
 
   try {
@@ -74,13 +74,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         userName: orgMember.name,
         userImage: orgMember.imageUrl,
         userEmail: orgMember.email,
-        role: BoardMemberRole.MEMBER,
+        role,
       },
     });
 
     await createAuditLog({
       entityId: board.id,
-      entityTitle: `detail:đã thêm ${boardMember.userName} vào bảng "${board.title}"`,
+      entityTitle: `detail:đã thêm ${boardMember.userName} vào bảng "${board.title}" với vai trò ${getRoleLabel(role).toLowerCase()}`,
       entityType: ENTITY_TYPE.BOARD,
       action: ACTION.UPDATE,
       eventType: AUDIT_EVENT_TYPE.ASSIGN_MEMBER,

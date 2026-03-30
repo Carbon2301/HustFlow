@@ -6,7 +6,7 @@ import { ACTION, AUDIT_EVENT_TYPE, ENTITY_TYPE } from "@prisma/client";
 import { createAuditLog } from "@/lib/create-audit-log";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
-import { requireBoardMember } from "@/lib/permissions";
+import { requireBoardEditor } from "@/lib/permissions";
 import { triggerCardMemberUnassigned } from "@/lib/cards/realtime";
 
 import { UnassignCardMember } from "./schema";
@@ -23,7 +23,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   let cardAssignee;
 
   try {
-    const permission = await requireBoardMember({ boardId, orgId, userId });
+    const permission = await requireBoardEditor({ boardId, orgId, userId });
 
     if (permission.error) {
       return { error: permission.error };

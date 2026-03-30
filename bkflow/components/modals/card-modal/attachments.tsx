@@ -10,21 +10,24 @@ import {
 } from "lucide-react";
 import { useState } from "react";
 
+import { Button } from "@/components/ui/button";
+
 import { AttachmentAddPopover } from "./attachments/attachment-add-popover";
 import { AttachmentItem } from "./attachments/attachment-item";
 import { useAttachmentActions } from "./attachments/use-attachment-actions";
-import { Button } from "@/components/ui/button";
 
 interface AttachmentsProps {
   cardId: string;
   boardId: string;
   items: CardAttachment[];
+  canEdit?: boolean;
 }
 
 export const Attachments = ({
   cardId,
   boardId,
   items,
+  canEdit = true,
 }: AttachmentsProps) => {
   const [editingId, setEditingId] = useState<string | null>(null);
   const [deletingId, setDeletingId] = useState<string | null>(null);
@@ -65,26 +68,27 @@ export const Attachments = ({
             Các tập tin đính kèm
           </p>
 
-          <AttachmentAddPopover
-            cardId={cardId}
-            boardId={boardId}
-            side="bottom"
-            align="end"
-          >
-            <Button
-              type="button"
-              variant="outline"
-              size="sm"
-              className="h-8 text-sm text-neutral-700 bg-white border border-neutral-300 hover:bg-neutral-50 px-3 cursor-pointer"
+          {canEdit && (
+            <AttachmentAddPopover
+              cardId={cardId}
+              boardId={boardId}
+              side="bottom"
+              align="end"
             >
-              Thêm
-            </Button>
-          </AttachmentAddPopover>
+              <Button
+                type="button"
+                variant="outline"
+                size="sm"
+                className="h-8 text-sm text-neutral-700 bg-white border border-neutral-300 hover:bg-neutral-50 px-3 cursor-pointer"
+              >
+                Thêm
+              </Button>
+            </AttachmentAddPopover>
+          )}
         </div>
 
-        <DragDropContext onDragEnd={onDragEnd}>
+        <DragDropContext onDragEnd={canEdit ? onDragEnd : () => undefined}>
           <div className="space-y-4">
-            {/* Links section */}
             {links.length > 0 && (
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">
@@ -109,8 +113,8 @@ export const Attachments = ({
                             key={item.id}
                             item={item}
                             index={index}
-                            isDragDisabled={isUpdating || isDeleting || isOrdering || Boolean(editingId)}
-                            isEditing={isItemEditing}
+                            isDragDisabled={!canEdit || isUpdating || isDeleting || isOrdering || Boolean(editingId)}
+                            isEditing={canEdit && isItemEditing}
                             isUpdating={isItemUpdating}
                             isDeleting={isDeleting}
                             deletingId={deletingId}
@@ -119,6 +123,7 @@ export const Attachments = ({
                             onCancelEdit={() => setEditingId(null)}
                             onEdit={setEditingId}
                             onDelete={onDelete}
+                            canEdit={canEdit}
                           />
                         );
                       })}
@@ -129,7 +134,6 @@ export const Attachments = ({
               </div>
             )}
 
-            {/* Files section */}
             {files.length > 0 && (
               <div className="space-y-2">
                 <p className="text-xs font-semibold text-neutral-500 uppercase tracking-wider">
@@ -154,8 +158,8 @@ export const Attachments = ({
                             key={item.id}
                             item={item}
                             index={index}
-                            isDragDisabled={isUpdating || isDeleting || isOrdering || Boolean(editingId)}
-                            isEditing={isItemEditing}
+                            isDragDisabled={!canEdit || isUpdating || isDeleting || isOrdering || Boolean(editingId)}
+                            isEditing={canEdit && isItemEditing}
                             isUpdating={isItemUpdating}
                             isDeleting={isDeleting}
                             deletingId={deletingId}
@@ -164,6 +168,7 @@ export const Attachments = ({
                             onCancelEdit={() => setEditingId(null)}
                             onEdit={setEditingId}
                             onDelete={onDelete}
+                            canEdit={canEdit}
                           />
                         );
                       })}

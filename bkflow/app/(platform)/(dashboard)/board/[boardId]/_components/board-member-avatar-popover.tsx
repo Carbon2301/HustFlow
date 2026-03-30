@@ -1,9 +1,9 @@
 "use client";
 
-import { useEffect, useMemo, useRef, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { BoardMember, BoardMemberRole } from "@prisma/client";
 import { useRouter } from "next/navigation";
-import { ShieldCheck, UserRound, X } from "lucide-react";
+import { Check, Eye, ShieldCheck, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { updateBoardMemberRole } from "@/actions/update-board-member-role";
@@ -19,7 +19,11 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { useAction } from "@/hooks/use-action";
-import { getRoleLabel } from "@/lib/board-member-role";
+import {
+  boardMemberRoleDescriptions,
+  boardMemberRoleOptions,
+  getRoleLabel,
+} from "@/lib/board-member-role";
 import { cn } from "@/lib/utils";
 
 import { MemberProfileModal } from "./member-profile-modal";
@@ -52,6 +56,18 @@ const getUsername = (member: BoardMember) => {
   return normalized ? `@${normalized}` : "@user";
 };
 
+const RoleIcon = ({ role }: { role: BoardMemberRole }) => {
+  if (role === BoardMemberRole.ADMIN) {
+    return <ShieldCheck className="h-5 w-5 text-neutral-500" />;
+  }
+
+  if (role === BoardMemberRole.VIEWER) {
+    return <Eye className="h-5 w-5 text-neutral-500" />;
+  }
+
+  return <UserRound className="h-5 w-5 text-neutral-500" />;
+};
+
 export const BoardMemberAvatarPopover = ({
   boardId,
   member,
@@ -62,14 +78,6 @@ export const BoardMemberAvatarPopover = ({
   const [popoverOpen, setPopoverOpen] = useState(false);
   const [profileOpen, setProfileOpen] = useState(false);
   const pushedPopoverHistoryRef = useRef(false);
-
-  const nextRole = useMemo(
-    () =>
-      member.role === BoardMemberRole.ADMIN
-        ? BoardMemberRole.MEMBER
-        : BoardMemberRole.ADMIN,
-    [member.role],
-  );
 
   const { execute: executeUpdateRole, isLoading } = useAction(
     updateBoardMemberRole,
@@ -185,30 +193,34 @@ export const BoardMemberAvatarPopover = ({
             {canManage && (
               <>
                 <div className="mx-4 border-t border-neutral-200" />
-                <button
-                  type="button"
-                  disabled={isLoading || isLastAdmin}
-                  onClick={() =>
-                    executeUpdateRole({
-                      boardId,
-                      boardMemberId: member.id,
-                      role: nextRole,
-                    })
-                  }
-                  className={cn(
-                    "flex min-h-13 w-full cursor-pointer items-center gap-x-3 px-4 text-left text-base text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50",
-                    isLastAdmin && "text-neutral-400",
-                  )}
-                >
-                  {nextRole === BoardMemberRole.ADMIN ? (
-                    <ShieldCheck className="h-5 w-5 text-neutral-500" />
-                  ) : (
-                    <UserRound className="h-5 w-5 text-neutral-500" />
-                  )}
-                  <span>
-                    Đổi vai trò thành {getRoleLabel(nextRole)}
-                  </span>
-                </button>
+                <div className={cn(isLastAdmin && "opacity-50")}>
+                  {boardMemberRoleOptions.map((role) => (
+                    <button
+                      key={role}
+                      type="button"
+                      disabled={isLoading || isLastAdmin || role === member.role}
+                      onClick={() =>
+                        executeUpdateRole({
+                          boardId,
+                          boardMemberId: member.id,
+                          role,
+                        })
+                      }
+                      className="flex min-h-13 w-full cursor-pointer items-center gap-x-3 px-4 text-left text-base text-neutral-700 transition hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-60"
+                    >
+                      <RoleIcon role={role} />
+                      <span className="min-w-0 flex-1">
+                        <span className="block">{getRoleLabel(role)}</span>
+                        <span className="block text-xs leading-snug text-neutral-400">
+                          {boardMemberRoleDescriptions[role]}
+                        </span>
+                      </span>
+                      {role === member.role && (
+                        <Check className="h-4 w-4 text-violet-600" />
+                      )}
+                    </button>
+                  ))}
+                </div>
                 {isLastAdmin && (
                   <p className="-mt-2 px-4 pb-3 text-xs text-neutral-400">
                     Bảng phải có ít nhất một quản trị viên.

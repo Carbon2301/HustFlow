@@ -151,6 +151,7 @@ export async function GET(
       boardMembers,
       boardLabels,
       boardChecklists,
+      currentMemberRole: permission.membership?.role,
     });
   } catch (error) {
     console.error("[CARD_GET_ERROR]", error);

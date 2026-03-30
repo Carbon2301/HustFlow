@@ -14,6 +14,7 @@ interface ChecklistHeaderProps {
   onDelete: () => void;
   onRename: (title: string) => void;
   onToggleHideCompleted: () => void;
+  canEdit?: boolean;
 }
 
 export const ChecklistHeader = ({
@@ -24,6 +25,7 @@ export const ChecklistHeader = ({
   onDelete,
   onRename,
   onToggleHideCompleted,
+  canEdit = true,
 }: ChecklistHeaderProps) => {
   const inputRef = useRef<HTMLInputElement>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -34,6 +36,10 @@ export const ChecklistHeader = ({
   }, [title]);
 
   const startEditing = () => {
+    if (!canEdit) {
+      return;
+    }
+
     setIsEditing(true);
     setTimeout(() => inputRef.current?.focus());
   };
@@ -85,7 +91,8 @@ export const ChecklistHeader = ({
           <button
             type="button"
             onClick={startEditing}
-            className="min-w-0 rounded-md px-1 py-1 text-left text-base font-semibold text-neutral-800 hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300"
+            disabled={!canEdit}
+            className="min-w-0 rounded-md px-1 py-1 text-left text-base font-semibold text-neutral-800 hover:bg-neutral-100 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:cursor-default disabled:hover:bg-transparent"
           >
             <span className="block break-words">{title}</span>
           </button>
@@ -102,14 +109,16 @@ export const ChecklistHeader = ({
             {isHidingCompleted ? "Hiện đã hoàn thành" : "Ẩn đã hoàn thành"}
           </Button>
         )}
-        <Button
-          onClick={onDelete}
-          variant="outline"
-          size="sm"
-          className="h-8 rounded-lg border-neutral-200 text-xs text-neutral-600 hover:bg-neutral-50 font-semibold cursor-pointer"
-        >
-          Xoá
-        </Button>
+        {canEdit && (
+          <Button
+            onClick={onDelete}
+            variant="outline"
+            size="sm"
+            className="h-8 rounded-lg border-neutral-200 text-xs text-neutral-600 hover:bg-neutral-50 font-semibold cursor-pointer"
+          >
+            Xóa
+          </Button>
+        )}
       </div>
     </div>
   );

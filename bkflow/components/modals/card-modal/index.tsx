@@ -6,7 +6,7 @@ import { toast } from "sonner";
 
 import { CardCommentWithReplies, CardWithList } from "@/types";
 import { fetcher } from "@/lib/fetcher";
-import { AuditLog } from "@prisma/client";
+import { AuditLog, BoardMemberRole } from "@prisma/client";
 import { useCardModal } from "@/hooks/use-card-modal";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
@@ -56,6 +56,7 @@ export const CardModal = () => {
     queryFn: () => fetcher(`/api/cards/${id}/comments`),
     enabled: !!id,
   });
+  const canEdit = cardData?.currentMemberRole !== BoardMemberRole.VIEWER;
 
   return (
     <Dialog
@@ -77,30 +78,33 @@ export const CardModal = () => {
           <div className="col-span-1 md:col-span-7 border-r border-transparent md:border-neutral-200/80 pr-0 md:pr-8 space-y-7">
             {!cardData
               ? <Header.Skeleton />
-              : <Header data={cardData} />
+              : <Header data={cardData} canEdit={canEdit} />
             }
             {!cardData
               ? <Metadata.Skeleton />
-              : <Metadata data={cardData} />
+              : <Metadata data={cardData} canEdit={canEdit} />
             }
             {!cardData
               ? <Description.Skeleton />
               : (
                   <>
-                    <Description data={cardData} />
-                    <AiCardQualityAssistant
-                      cardId={cardData.id}
-                      boardId={cardData.list.boardId}
-                      description={cardData.description}
-                      labels={cardData.labels || []}
-                      boardLabels={cardData.boardLabels || []}
-                      checklists={cardData.checklists || []}
-                    />
+                    <Description data={cardData} canEdit={canEdit} />
+                    {canEdit && (
+                      <AiCardQualityAssistant
+                        cardId={cardData.id}
+                        boardId={cardData.list.boardId}
+                        description={cardData.description}
+                        labels={cardData.labels || []}
+                        boardLabels={cardData.boardLabels || []}
+                        checklists={cardData.checklists || []}
+                      />
+                    )}
                     {(cardData.attachments ?? []).length > 0 && (
                       <Attachments
                         cardId={cardData.id}
                         boardId={cardData.list.boardId}
                         items={cardData.attachments ?? []}
+                        canEdit={canEdit}
                       />
                     )}
                     <Checklists
@@ -109,6 +113,7 @@ export const CardModal = () => {
                       cardDueDate={cardData.dueDate}
                       boardMembers={cardData.boardMembers || []}
                       checklists={cardData.checklists || []}
+                      canEdit={canEdit}
                     />
                   </>
                 )
@@ -125,12 +130,14 @@ export const CardModal = () => {
             }
             {!id
               ? <Comments.Skeleton />
-              : <Comments
-                  cardId={id}
-                  boardId={cardData?.list.boardId}
-                  items={commentsData ?? []}
-                  boardMembers={cardData?.boardMembers}
-                />
+              : canEdit ? (
+                  <Comments
+                    cardId={id}
+                    boardId={cardData?.list.boardId}
+                    items={commentsData ?? []}
+                    boardMembers={cardData?.boardMembers}
+                  />
+                ) : null
             }
           </div>
         </div>

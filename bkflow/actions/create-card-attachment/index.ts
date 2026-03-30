@@ -7,7 +7,7 @@ import { createSafeAction } from "@/lib/create-safe-action";
 import { createAuditLog } from "@/lib/create-audit-log";
 import { triggerAttachmentCreated } from "@/lib/cards/realtime";
 import { db } from "@/lib/db";
-import { requireBoardMember } from "@/lib/permissions";
+import { requireBoardEditor } from "@/lib/permissions";
 
 import { CreateCardAttachment } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -25,7 +25,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   const name = data.name?.trim() || url;
 
   try {
-    const permission = await requireBoardMember({ boardId, orgId, userId });
+    const permission = await requireBoardEditor({ boardId, orgId, userId });
 
     if (permission.error) {
       return { error: permission.error };

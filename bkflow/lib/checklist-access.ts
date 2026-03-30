@@ -1,7 +1,7 @@
 import { ChecklistItem } from "@prisma/client";
 
 import { db } from "@/lib/db";
-import { requireBoardMember } from "@/lib/permissions";
+import { requireBoardEditor } from "@/lib/permissions";
 
 type ChecklistAccessInput = {
   boardId: string;
@@ -50,7 +50,7 @@ export const getChecklistAccess = async ({
   userId,
   cardId,
 }: ChecklistAccessInput) => {
-  const permission = await requireBoardMember({ boardId, orgId, userId });
+  const permission = await requireBoardEditor({ boardId, orgId, userId });
 
   if (permission.error) {
     return { error: permission.error, checklist: null };
@@ -104,7 +104,7 @@ export const getChecklistItemAccess = async ({
   userId,
   cardId,
 }: ChecklistItemAccessInput) => {
-  const permission = await requireBoardMember({ boardId, orgId, userId });
+  const permission = await requireBoardEditor({ boardId, orgId, userId });
 
   if (permission.error) {
     return { error: permission.error, item: null };
@@ -226,7 +226,7 @@ export const validateChecklistItemMove = async ({
     };
   }
 
-  const permission = await requireBoardMember({ boardId, orgId, userId });
+  const permission = await requireBoardEditor({ boardId, orgId, userId });
 
   if (permission.error) {
     return {

@@ -12,6 +12,7 @@ interface CardLabelSummaryProps {
   boardId: string;
   labels: CardWithList["labels"];
   boardLabels: CardWithList["boardLabels"];
+  canEdit?: boolean;
 }
 
 export const CardLabelSummary = ({
@@ -19,6 +20,7 @@ export const CardLabelSummary = ({
   boardId,
   labels,
   boardLabels,
+  canEdit = true,
 }: CardLabelSummaryProps) => {
   return (
     <div className="flex flex-col gap-y-1.5">
@@ -52,7 +54,7 @@ export const CardLabelSummary = ({
         ))}
 
         {/* Plus button inside active state to add/remove labels */}
-        <LabelPopover
+        {canEdit && <LabelPopover
           cardId={cardId}
           boardId={boardId}
           labels={labels}
@@ -65,7 +67,7 @@ export const CardLabelSummary = ({
           >
             <Plus className="h-4 w-4 text-neutral-600" />
           </button>
-        </LabelPopover>
+        </LabelPopover>}
       </div>
     </div>
   );

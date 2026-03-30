@@ -5,7 +5,7 @@ import { ACTION, AUDIT_EVENT_TYPE, ENTITY_TYPE } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { createSafeAction } from "@/lib/create-safe-action";
-import { requireBoardMemberForUser } from "@/lib/permissions";
+import { requireBoardEditorForUser, requireBoardMemberForUser } from "@/lib/permissions";
 import { triggerCardCreated } from "@/lib/boards/realtime";
 
 import { CopyCard } from "./schema";
@@ -48,7 +48,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   try {
     const [sourcePermission, targetPermission] = await Promise.all([
       requireBoardMemberForUser({ boardId: sourceBoardId, userId }),
-      requireBoardMemberForUser({ boardId: targetBoardId, userId }),
+      requireBoardEditorForUser({ boardId: targetBoardId, userId }),
     ]);
 
     if (sourcePermission.error) {

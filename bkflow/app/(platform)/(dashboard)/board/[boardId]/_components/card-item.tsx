@@ -29,6 +29,7 @@ import { useBoardState } from "./list-container/board-state-context";
 interface CardItemProps {
   data: CardWithAssignees;
   index: number;
+  canEdit: boolean;
 }
 
 const getInitials = (name: string) => {
@@ -42,6 +43,7 @@ const getInitials = (name: string) => {
 export const CardItem = memo(function CardItem({
   data,
   index,
+  canEdit,
 }: CardItemProps) {
   const cardModal = useCardModal();
   const params = useParams();
@@ -102,6 +104,10 @@ export const CardItem = memo(function CardItem({
 
   const enableEditing = (e: React.MouseEvent) => {
     e.stopPropagation();
+    if (!canEdit) {
+      return;
+    }
+
     setShowMenu(false);
     setIsEditing(true);
     setTimeout(() => {
@@ -157,6 +163,10 @@ export const CardItem = memo(function CardItem({
   };
 
   const handleContextMenu = (e: React.MouseEvent) => {
+    if (!canEdit) {
+      return;
+    }
+
     e.preventDefault();
     e.stopPropagation();
     const rect = cardRef.current?.getBoundingClientRect();
@@ -247,7 +257,7 @@ export const CardItem = memo(function CardItem({
 
   return (
     <>
-      <Draggable draggableId={data.id} index={index}>
+      <Draggable draggableId={data.id} index={index} isDragDisabled={!canEdit}>
       {(provided, snapshot) => {
         const combinedRef = (node: HTMLDivElement | null) => {
           provided.innerRef(node);
@@ -257,11 +267,11 @@ export const CardItem = memo(function CardItem({
         const cardContent = (
           <div
             {...provided.draggableProps}
-            {...provided.dragHandleProps}
+            {...(canEdit ? provided.dragHandleProps : {})}
             ref={combinedRef}
             role="button"
             onClick={() => onOpen()}
-            onContextMenu={handleContextMenu}
+            onContextMenu={canEdit ? handleContextMenu : undefined}
             data-active-card={showMenu || copyDialogOpen ? "true" : undefined}
             className={cn(
               "group relative flex flex-col justify-between border border-transparent pb-2.5 px-3 text-sm bg-white rounded-lg shadow-sm transition-[border-color,box-shadow,background-color] duration-100 !cursor-pointer select-none overflow-hidden",
@@ -407,7 +417,7 @@ export const CardItem = memo(function CardItem({
               </div>
             )}
 
-            {showMenu && createPortal(
+            {canEdit && showMenu && createPortal(
               <>
                 {/* Backdrop overlay */}
                 <div
@@ -476,17 +486,19 @@ export const CardItem = memo(function CardItem({
         return cardContent;
       }}
       </Draggable>
-      <CopyCardDialog
-        open={copyDialogOpen}
-        onOpenChange={setCopyDialogOpen}
-        triggerRect={triggerRect}
-        data={{
-          ...data,
-          list: {
-            boardId,
-          },
-        }}
-      />
+      {canEdit && (
+        <CopyCardDialog
+          open={copyDialogOpen}
+          onOpenChange={setCopyDialogOpen}
+          triggerRect={triggerRect}
+          data={{
+            ...data,
+            list: {
+              boardId,
+            },
+          }}
+        />
+      )}
     </>
   );
 });

@@ -29,6 +29,7 @@ interface CardDateStatusColumnProps {
   onDateSubmit: (event: React.FormEvent<HTMLFormElement>) => void;
   onClearStartDate: () => void;
   onClearDueDate: () => void;
+  canEdit?: boolean;
 }
 
 export const CardDateStatusColumn = ({
@@ -52,6 +53,7 @@ export const CardDateStatusColumn = ({
   onDateSubmit,
   onClearStartDate,
   onClearDueDate,
+  canEdit = true,
 }: CardDateStatusColumnProps) => {
   return (
     <div className="flex flex-col gap-y-1.5">
@@ -63,14 +65,15 @@ export const CardDateStatusColumn = ({
           <input
             type="checkbox"
             checked={data.isCompleted}
-            onChange={onToggleComplete}
-            disabled={isLoadingUpdate}
+            onChange={(event) => canEdit && onToggleComplete(event)}
+            disabled={isLoadingUpdate || !canEdit}
             className="h-4.5 w-4.5 rounded-sm border-neutral-300 accent-violet-600 cursor-pointer shadow-xs"
             aria-label={data.isCompleted ? "Đánh dấu chưa hoàn thành" : "Đánh dấu hoàn thành"}
           />
         </Hint>
 
         {hasDateRange ? (
+          canEdit ? (
           <CardDatePopover
             open={isDateOpen}
             onOpenChange={onDateOpenChange}
@@ -112,6 +115,15 @@ export const CardDateStatusColumn = ({
               </button>
             )}
           />
+          ) : (
+            <button
+              type="button"
+              disabled
+              className="inline-flex h-8 max-w-full items-center gap-x-1.5 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs font-medium text-neutral-700 shadow-xs"
+            >
+              <span className="truncate">{dateSummary}</span>
+            </button>
+          )
         ) : (
           <span className={cn(
             "text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider shadow-xs",

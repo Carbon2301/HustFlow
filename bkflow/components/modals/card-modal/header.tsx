@@ -15,10 +15,12 @@ import { patchBoardCardPreview, patchCardQueryData } from "./card-cache-utils";
 
 interface HeaderProps {
   data: CardWithList;
+  canEdit?: boolean;
 }
 
 export const Header = ({
   data,
+  canEdit = true,
 }: HeaderProps) => {
   const queryClient = useQueryClient();
   const boardId = data.list.boardId;
@@ -65,12 +67,20 @@ export const Header = ({
   }, [title]);
 
   const onBlur = () => {
+    if (!canEdit) {
+      return;
+    }
+
     titleRef.current?.form?.requestSubmit();
   };
 
   const onSubmit = (formData: FormData) => {
     const title = formData.get("title") as string;
     const trimmedTitle = title.trim();
+
+    if (!canEdit) {
+      return;
+    }
 
     if (!trimmedTitle) {
       if (titleRef.current) {
@@ -121,8 +131,9 @@ export const Header = ({
             id="title"
             name="title"
             defaultValue={title}
+            readOnly={!canEdit}
             rows={1}
-            className="relative -left-2 mb-0.5 min-h-10 w-[calc(100%+0.5rem)] resize-none overflow-hidden whitespace-pre-wrap break-words rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-2xl font-bold leading-tight text-neutral-800 outline-none transition focus-visible:border-neutral-300 focus-visible:bg-white focus-visible:ring-1 focus-visible:ring-violet-200 md:text-2xl"
+            className="relative -left-2 mb-0.5 min-h-10 w-[calc(100%+0.5rem)] resize-none overflow-hidden whitespace-pre-wrap break-words rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-2xl font-bold leading-tight text-neutral-800 outline-none transition focus-visible:border-neutral-300 focus-visible:bg-white focus-visible:ring-1 focus-visible:ring-violet-200 read-only:cursor-default read-only:focus-visible:border-transparent read-only:focus-visible:bg-transparent read-only:focus-visible:ring-0 md:text-2xl"
           />
         </form>
         <p className="text-sm text-neutral-400 pl-0.5">

@@ -1,8 +1,8 @@
 "use client";
 
 import { BoardMember, BoardMemberRole } from "@prisma/client";
-import { Plus, ShieldCheck, UserRound, X } from "lucide-react";
-import { useMemo } from "react";
+import { Check, Eye, Plus, ShieldCheck, UserRound, X } from "lucide-react";
+import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
@@ -23,7 +23,11 @@ import {
 } from "@/components/ui/popover";
 import { Hint } from "@/components/hint";
 import { useAction } from "@/hooks/use-action";
-import { getRoleLabel } from "@/lib/board-member-role";
+import {
+  boardMemberRoleDescriptions,
+  boardMemberRoleOptions,
+  getRoleLabel,
+} from "@/lib/board-member-role";
 import { ClerkOrgMember } from "@/lib/clerk-org-members";
 import { cn } from "@/lib/utils";
 
@@ -44,17 +48,82 @@ const getInitials = (name: string) => {
   return initials.toUpperCase() || "U";
 };
 
+const RoleIcon = ({ role }: { role: BoardMemberRole }) => {
+  if (role === BoardMemberRole.ADMIN) {
+    return <ShieldCheck className="h-3.5 w-3.5" />;
+  }
+
+  if (role === BoardMemberRole.VIEWER) {
+    return <Eye className="h-3.5 w-3.5" />;
+  }
+
+  return <UserRound className="h-3.5 w-3.5" />;
+};
+
 const RoleBadge = ({ role }: { role: BoardMemberRole }) => (
   <span
     className={cn(
       "inline-flex items-center rounded-md px-1.5 py-0.5 text-[11px] font-medium",
       role === BoardMemberRole.ADMIN
         ? "bg-violet-50 text-violet-700"
-        : "bg-neutral-100 text-neutral-600",
+        : role === BoardMemberRole.VIEWER
+          ? "bg-sky-50 text-sky-700"
+          : "bg-neutral-100 text-neutral-600",
     )}
   >
     {getRoleLabel(role)}
   </span>
+);
+
+const RolePicker = ({
+  value,
+  onChange,
+  disabled,
+}: {
+  value: BoardMemberRole;
+  onChange: (role: BoardMemberRole) => void;
+  disabled?: boolean;
+}) => (
+  <Popover>
+    <PopoverTrigger asChild>
+      <Button
+        type="button"
+        variant="ghost"
+        size="sm"
+        disabled={disabled}
+        className="h-8 min-w-[112px] justify-start gap-x-1.5 rounded-md px-2 text-xs text-neutral-600"
+      >
+        <RoleIcon role={value} />
+        {getRoleLabel(value)}
+      </Button>
+    </PopoverTrigger>
+    <PopoverContent align="end" className="w-64 p-1.5">
+      {boardMemberRoleOptions.map((role) => (
+        <button
+          key={role}
+          type="button"
+          onClick={() => onChange(role)}
+          className={cn(
+            "flex w-full items-start gap-x-2 rounded-md px-2 py-2 text-left transition hover:bg-neutral-50",
+            value === role && "bg-neutral-50",
+          )}
+        >
+          <span className="mt-0.5 text-neutral-500">
+            <RoleIcon role={role} />
+          </span>
+          <span className="min-w-0 flex-1">
+            <span className="block text-sm font-medium text-neutral-700">
+              {getRoleLabel(role)}
+            </span>
+            <span className="block text-xs leading-snug text-neutral-400">
+              {boardMemberRoleDescriptions[role]}
+            </span>
+          </span>
+          {value === role && <Check className="mt-0.5 h-3.5 w-3.5 text-violet-600" />}
+        </button>
+      ))}
+    </PopoverContent>
+  </Popover>
 );
 
 export const BoardMembers = ({
@@ -65,6 +134,7 @@ export const BoardMembers = ({
   canManage,
 }: BoardMembersProps) => {
   const router = useRouter();
+  const [newMemberRoles, setNewMemberRoles] = useState<Record<string, BoardMemberRole>>({});
   const boardMemberUserIds = useMemo(
     () => new Set(members.map((member) => member.userId)),
     [members],
@@ -144,7 +214,7 @@ export const BoardMembers = ({
             {canManage ? "Thêm thành viên" : "Thành viên"}
           </Button>
         </PopoverTrigger>
-        <PopoverContent align="end" className="w-96 p-3">
+        <PopoverContent align="end" className="w-[430px] p-3">
           <div className="space-y-3">
             <div>
               <p className="text-sm font-semibold text-neutral-800">
@@ -162,10 +232,6 @@ export const BoardMembers = ({
                 const isLastAdmin =
                   member.role === BoardMemberRole.ADMIN && adminCount <= 1;
                 const isCurrentUser = member.userId === currentUserId;
-                const nextRole =
-                  member.role === BoardMemberRole.ADMIN
-                    ? BoardMemberRole.MEMBER
-                    : BoardMemberRole.ADMIN;
 
                 return (
                   <div
@@ -191,28 +257,21 @@ export const BoardMembers = ({
                     </div>
                     {canManage && (
                       <div className="flex items-center gap-x-1">
-                        <Hint description="Đổi vai trò">
-                          <Button
-                            type="button"
-                            variant="ghost"
-                            size="icon-xs"
-                            disabled={isMutating || isLastAdmin}
-                            onClick={() =>
-                              executeUpdateRole({
-                                boardId,
-                                boardMemberId: member.id,
-                                role: nextRole,
-                              })
+                        <RolePicker
+                          value={member.role}
+                          disabled={isMutating || isLastAdmin}
+                          onChange={(role) => {
+                            if (role === member.role) {
+                              return;
                             }
-                            aria-label={`Đổi vai trò của ${member.userName}`}
-                          >
-                            {nextRole === BoardMemberRole.ADMIN ? (
-                              <ShieldCheck className="h-3.5 w-3.5" />
-                            ) : (
-                              <UserRound className="h-3.5 w-3.5" />
-                            )}
-                          </Button>
-                        </Hint>
+
+                            executeUpdateRole({
+                              boardId,
+                              boardMemberId: member.id,
+                              role,
+                            });
+                          }}
+                        />
                         <Hint
                           description={
                             isLastAdmin
@@ -257,35 +316,59 @@ export const BoardMembers = ({
                       Tất cả thành viên đã có trong bảng này.
                     </p>
                   ) : (
-                    availableMembers.map((member) => (
-                      <button
-                        key={member.userId}
-                        type="button"
-                        disabled={isMutating}
-                        onClick={() =>
-                          executeAddBoardMember({
-                            boardId,
-                            memberUserId: member.userId,
-                          })
-                        }
-                        className="flex w-full items-center gap-x-2 rounded-md px-2 py-1.5 text-left transition hover:bg-neutral-50 disabled:opacity-50"
-                      >
-                        <Avatar size="sm">
-                          <AvatarImage src={member.imageUrl} alt={member.name} />
-                          <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
-                        </Avatar>
-                        <div className="min-w-0">
-                          <p className="truncate text-sm font-medium text-neutral-700">
-                            {member.name}
-                          </p>
-                          {member.email && (
-                            <p className="truncate text-xs text-neutral-400">
-                              {member.email}
+                    availableMembers.map((member) => {
+                      const selectedRole = newMemberRoles[member.userId] ?? BoardMemberRole.MEMBER;
+
+                      return (
+                        <div
+                          key={member.userId}
+                          className="flex w-full items-center gap-x-2 rounded-md px-2 py-1.5 text-left transition hover:bg-neutral-50"
+                        >
+                          <Avatar size="sm">
+                            <AvatarImage src={member.imageUrl} alt={member.name} />
+                            <AvatarFallback>{getInitials(member.name)}</AvatarFallback>
+                          </Avatar>
+                          <div className="min-w-0 flex-1">
+                            <p className="truncate text-sm font-medium text-neutral-700">
+                              {member.name}
                             </p>
-                          )}
+                            {member.email && (
+                              <p className="truncate text-xs text-neutral-400">
+                                {member.email}
+                              </p>
+                            )}
+                          </div>
+                          <div className="flex shrink-0 items-center gap-x-1">
+                            <RolePicker
+                              value={selectedRole}
+                              disabled={isMutating}
+                              onChange={(role) =>
+                                setNewMemberRoles((current) => ({
+                                  ...current,
+                                  [member.userId]: role,
+                                }))
+                              }
+                            />
+                            <Button
+                              type="button"
+                              size="icon-xs"
+                              variant="ghost"
+                              disabled={isMutating}
+                              onClick={() =>
+                                executeAddBoardMember({
+                                  boardId,
+                                  memberUserId: member.userId,
+                                  role: selectedRole,
+                                })
+                              }
+                              aria-label={`Thêm ${member.name}`}
+                            >
+                              <Plus className="h-3.5 w-3.5" />
+                            </Button>
+                          </div>
                         </div>
-                      </button>
-                    ))
+                      );
+                    })
                   )}
                 </div>
               </div>

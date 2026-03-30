@@ -43,6 +43,7 @@ interface ChecklistsProps {
   cardDueDate: Date | string | null;
   boardMembers: BoardMember[];
   checklists: ChecklistWithItems[];
+  canEdit?: boolean;
 }
 
 const reorder = <T,>(list: T[], startIndex: number, endIndex: number) => {
@@ -87,6 +88,7 @@ export const Checklists = ({
   cardDueDate,
   boardMembers,
   checklists,
+  canEdit = true,
 }: ChecklistsProps) => {
   const queryClient = useQueryClient();
   const [localChecklists, setLocalChecklists] = useState(checklists);
@@ -495,7 +497,7 @@ export const Checklists = ({
 
   return (
     <div className="flex w-full flex-col gap-y-6">
-      <DragDropContext onDragEnd={onDragEnd}>
+      <DragDropContext onDragEnd={canEdit ? onDragEnd : () => undefined}>
         {localChecklists.map((checklist) => {
           const completedCount = checklist.items.filter((item) => item.isCompleted).length;
           const isHiding = !!hideCompleted[checklist.id];
@@ -512,6 +514,7 @@ export const Checklists = ({
                 isRenaming={pendingChecklistIds.has(checklist.id)}
                 onRename={(title) => handleRenameChecklist(checklist.id, title)}
                 onDelete={() => executeDeleteChecklist({ id: checklist.id, boardId, cardId })}
+                canEdit={canEdit}
                 onToggleHideCompleted={() =>
                   setHideCompleted((current) => ({
                     ...current,
@@ -534,7 +537,7 @@ export const Checklists = ({
                     )}
                   >
                     {displayItems.map((item, index) => (
-                      <Draggable key={item.id} draggableId={item.id} index={index}>
+                      <Draggable key={item.id} draggableId={item.id} index={index} isDragDisabled={!canEdit}>
                         {(provided, snapshot) => {
                           const child = (
                             <div
@@ -555,6 +558,7 @@ export const Checklists = ({
                                 onRename={handleRenameItem}
                                 onSetDueDate={handleSetDueDate}
                                 onToggle={handleToggleItem}
+                                canEdit={canEdit}
                               />
                             </div>
                           );
@@ -574,7 +578,7 @@ export const Checklists = ({
                 )}
               </Droppable>
 
-              <div className="pl-[52px]">
+              {canEdit && <div className="pl-[52px]">
                 {activeChecklistIdForNewItem === checklist.id ? (
                   <form
                     onSubmit={(event) => handleCreateItem(event, checklist.id)}
@@ -627,7 +631,7 @@ export const Checklists = ({
                     Thêm một mục
                   </Button>
                 )}
-              </div>
+              </div>}
             </div>
           );
         })}

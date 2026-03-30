@@ -212,6 +212,7 @@ model BoardMember {
 enum BoardMemberRole {
   ADMIN
   MEMBER
+  VIEWER
 }
 
 model CardAssignee {

@@ -8,7 +8,7 @@ import { AI_CHECKLIST_LIMITS } from "@/lib/ai/config";
 import { parseAiJson } from "@/lib/ai/json";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
-import { requireBoardMember } from "@/lib/permissions";
+import { requireBoardEditor } from "@/lib/permissions";
 
 import { GenerateAiChecklist } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -74,7 +74,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   const { boardId, cardId } = data;
 
   try {
-    const permission = await requireBoardMember({ boardId, orgId, userId });
+    const permission = await requireBoardEditor({ boardId, orgId, userId });
 
     if (permission.error) {
       return { error: permission.error };

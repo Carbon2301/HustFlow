@@ -7,7 +7,7 @@ import { generateAiText } from "@/lib/ai/client";
 import { parseAiJson } from "@/lib/ai/json";
 import { getBoardAnalyticsData } from "@/lib/analytics/board-report-data";
 import { createSafeAction } from "@/lib/create-safe-action";
-import { requireBoardMember } from "@/lib/permissions";
+import { requireBoardEditor } from "@/lib/permissions";
 
 import { GenerateAiBoardReport } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -61,7 +61,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   const { boardId, range } = data;
 
   try {
-    const permission = await requireBoardMember({ boardId, orgId, userId });
+    const permission = await requireBoardEditor({ boardId, orgId, userId });
 
     if (permission.error) {
       return { error: permission.error };

@@ -26,6 +26,7 @@ interface ChecklistItemProps {
   onRename: (itemId: string, title: string) => void;
   onSetDueDate: (itemId: string, dueDate: Date | null) => void;
   onToggle: (itemId: string, isCompleted: boolean) => void;
+  canEdit?: boolean;
 }
 
 export const ChecklistItem = ({
@@ -41,6 +42,7 @@ export const ChecklistItem = ({
   onRename,
   onSetDueDate,
   onToggle,
+  canEdit = true,
 }: ChecklistItemProps) => {
   const itemRef = useRef<HTMLDivElement>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -111,8 +113,8 @@ export const ChecklistItem = ({
         <input
           type="checkbox"
           checked={item.isCompleted}
-          disabled={isTogglePending}
-          onChange={(event) => onToggle(item.id, event.target.checked)}
+          disabled={isTogglePending || !canEdit}
+          onChange={(event) => canEdit && onToggle(item.id, event.target.checked)}
           className="mt-1 h-4.5 w-4.5 rounded-md border-neutral-300 accent-violet-600 shadow-xs disabled:opacity-50"
           aria-label={item.isCompleted ? "Bỏ hoàn thành" : "Hoàn thành"}
         />
@@ -141,16 +143,20 @@ export const ChecklistItem = ({
             <div
               role="button"
               tabIndex={0}
-              {...dragHandleProps}
+              {...(canEdit ? dragHandleProps : {})}
               style={{
-                cursor: isDragging ? "grabbing" : "pointer",
+                cursor: canEdit ? (isDragging ? "grabbing" : "pointer") : "default",
               }}
               onClick={() => {
+                if (!canEdit) {
+                  return;
+                }
+
                 setTitle(item.title);
                 setIsEditing(true);
               }}
               onKeyDown={(e) => {
-                if (e.key === "Enter" || e.key === " ") {
+                if (canEdit && (e.key === "Enter" || e.key === " ")) {
                   e.preventDefault();
                   setTitle(item.title);
                   setIsEditing(true);
@@ -171,14 +177,14 @@ export const ChecklistItem = ({
                 isCompleted={item.isCompleted}
                 isPending={isMutating}
                 maxDueDate={maxDueDate}
-                onChange={(dueDate) => onSetDueDate(item.id, dueDate)}
+                onChange={(dueDate) => canEdit && onSetDueDate(item.id, dueDate)}
               />
             </div>
           )}
         </div>
       </div>
       <div className="flex shrink-0 items-center gap-x-1">
-        {!item.dueDate && (
+        {canEdit && !item.dueDate && (
           <ChecklistItemDueDate
             dueDate={item.dueDate}
             isCompleted={item.isCompleted}
@@ -190,13 +196,15 @@ export const ChecklistItem = ({
         <ChecklistItemAssignee
           assignee={item.assignee}
           boardMembers={boardMembers}
-          isPending={isMutating}
-          onChange={(assigneeId) => onAssign(item.id, assigneeId)}
+          isPending={isMutating || !canEdit}
+          onChange={(assigneeId) => canEdit && onAssign(item.id, assigneeId)}
         />
-        <ChecklistItemActions
-          isPending={isMutating}
-          onDelete={() => onDelete(item.id)}
-        />
+        {canEdit && (
+          <ChecklistItemActions
+            isPending={isMutating}
+            onDelete={() => onDelete(item.id)}
+          />
+        )}
       </div>
     </div>
   );

@@ -41,6 +41,7 @@ export const ListContainer = ({
   boardId,
   boardMembers,
   currentUserId,
+  currentMemberRole,
   enableCalendarDragHandle = false,
 }: ListContainerProps) => {
   const router = useRouter();
@@ -50,6 +51,7 @@ export const ListContainer = ({
   const filters = useBoardFilters((state) =>
     state.filtersByBoardId[boardId] ?? emptyBoardFilters,
   );
+  const canEdit = currentMemberRole !== BoardMemberRole.VIEWER;
 
   const rollbackRef = useRef<(() => void) | null>(null);
   const subscriptionCatchUpDoneRef = useRef(false);
@@ -153,7 +155,10 @@ export const ListContainer = ({
           Không có thẻ nào phù hợp với bộ lọc hiện tại.
         </div>
       )}
-      <DragDropContext onDragStart={onDragStart} onDragEnd={onDragEnd}>
+      <DragDropContext
+        onDragStart={canEdit ? onDragStart : () => undefined}
+        onDragEnd={canEdit ? onDragEnd : () => undefined}
+      >
         <Droppable droppableId="lists" type="list" direction="horizontal">
           {(provided) => (
             <ol
@@ -167,11 +172,12 @@ export const ListContainer = ({
                     key={list.id}
                     index={index}
                     data={list}
+                    canEdit={canEdit}
                   />
                 )
               })}
               {provided.placeholder}
-              <ListForm />
+              {canEdit && <ListForm />}
               <div className="flex-shrink-0 w-1" />
             </ol>
           )}

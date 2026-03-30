@@ -23,6 +23,7 @@ interface CardAssigneeSummaryProps {
   isLoadingAssign: boolean;
   isLoadingUnassign: boolean;
   onToggleMember: (memberId: string, isAssigned: boolean) => void;
+  canEdit?: boolean;
 }
 
 export const CardAssigneeSummary = ({
@@ -35,6 +36,7 @@ export const CardAssigneeSummary = ({
   isLoadingAssign,
   isLoadingUnassign,
   onToggleMember,
+  canEdit = true,
 }: CardAssigneeSummaryProps) => {
   return (
     <div className="flex flex-col gap-y-1.5">
@@ -60,7 +62,7 @@ export const CardAssigneeSummary = ({
         ))}
 
         {/* Plus button inside active state to add more */}
-        <CardMemberPopover
+        {canEdit && <CardMemberPopover
           open={isMemberOpen}
           onOpenChange={onMemberOpenChange}
           searchQuery={searchQuery}
@@ -79,7 +81,7 @@ export const CardAssigneeSummary = ({
               <Plus className="h-3.5 w-3.5 text-neutral-600" />
             </button>
           )}
-        />
+        />}
       </div>
     </div>
   );

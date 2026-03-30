@@ -32,6 +32,7 @@ interface AttachmentItemProps {
   onCancelEdit: () => void;
   onEdit: (id: string) => void;
   onDelete: (item: CardAttachment) => void;
+  canEdit?: boolean;
 }
 
 export const AttachmentItem = ({
@@ -47,6 +48,7 @@ export const AttachmentItem = ({
   onCancelEdit,
   onEdit,
   onDelete,
+  canEdit = true,
 }: AttachmentItemProps) => {
   const Icon = getAttachmentIcon(item);
 
@@ -63,10 +65,10 @@ export const AttachmentItem = ({
             <li
               ref={dragProvided.innerRef}
               {...dragProvided.draggableProps}
-              {...dragProvided.dragHandleProps}
+              {...(canEdit ? dragProvided.dragHandleProps : {})}
               style={dragProvided.draggableProps.style}
               className={`rounded-xl border border-neutral-200 bg-white p-3 hover:border-neutral-300 transition-colors select-none ${
-                snapshot.isDragging ? "shadow-lg cursor-grabbing" : "cursor-grab"
+                snapshot.isDragging ? "shadow-lg cursor-grabbing" : canEdit ? "cursor-grab" : "cursor-default"
               }`}
             >
               <div className="flex flex-col w-full">
@@ -91,13 +93,15 @@ export const AttachmentItem = ({
                       {item.name}
                     </a>
                   </div>
-                  <AttachmentActionsPopover
-                    item={item}
-                    isDeleting={isDeleting}
-                    deletingId={deletingId}
-                    onEdit={onEdit}
-                    onDelete={onDelete}
-                  />
+                  {canEdit && (
+                    <AttachmentActionsPopover
+                      item={item}
+                      isDeleting={isDeleting}
+                      deletingId={deletingId}
+                      onEdit={onEdit}
+                      onDelete={onDelete}
+                    />
+                  )}
                 </div>
 
                 {isEditing && (
@@ -138,10 +142,10 @@ export const AttachmentItem = ({
           <li
             ref={dragProvided.innerRef}
             {...dragProvided.draggableProps}
-            {...dragProvided.dragHandleProps}
+            {...(canEdit ? dragProvided.dragHandleProps : {})}
             style={dragProvided.draggableProps.style}
             className={`rounded-xl border border-neutral-200 bg-neutral-50 p-3 hover:border-neutral-300 hover:bg-neutral-100/50 transition-colors select-none ${
-              snapshot.isDragging ? "shadow-lg cursor-grabbing" : "cursor-grab"
+              snapshot.isDragging ? "shadow-lg cursor-grabbing" : canEdit ? "cursor-grab" : "cursor-default"
             }`}
           >
             <div className="flex flex-col w-full">
@@ -209,13 +213,15 @@ export const AttachmentItem = ({
                       <ExternalLink className="h-4 w-4" />
                     </a>
                   </Button>
-                  <AttachmentActionsPopover
-                    item={item}
-                    isDeleting={isDeleting}
-                    deletingId={deletingId}
-                    onEdit={onEdit}
-                    onDelete={onDelete}
-                  />
+                  {canEdit && (
+                    <AttachmentActionsPopover
+                      item={item}
+                      isDeleting={isDeleting}
+                      deletingId={deletingId}
+                      onEdit={onEdit}
+                      onDelete={onDelete}
+                    />
+                  )}
                 </div>
               </div>
 

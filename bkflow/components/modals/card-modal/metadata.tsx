@@ -21,10 +21,12 @@ import { useCardMetadataActions } from "./metadata/use-card-metadata-actions";
 
 interface MetadataProps {
   data: CardWithList;
+  canEdit?: boolean;
 }
 
 export const Metadata = ({
   data,
+  canEdit = true,
 }: MetadataProps) => {
   const boardId = data.list.boardId;
   const queryClient = useQueryClient();
@@ -80,7 +82,7 @@ export const Metadata = ({
     hasDueDate,
   });
 
-  const showActionButtonRow = true;
+  const showActionButtonRow = canEdit;
 
   return (
     <div className="space-y-5">
@@ -142,6 +144,7 @@ export const Metadata = ({
             boardId={boardId}
             labels={data.labels}
             boardLabels={data.boardLabels}
+            canEdit={canEdit}
           />
         )}
 
@@ -167,6 +170,7 @@ export const Metadata = ({
           onDateSubmit={onDateSubmit}
           onClearStartDate={() => updateStartDate(null)}
           onClearDueDate={() => updateDueDate(null)}
+          canEdit={canEdit}
         />
       </div>
     </div>

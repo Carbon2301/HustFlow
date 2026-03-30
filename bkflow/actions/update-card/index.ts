@@ -8,7 +8,7 @@ import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { formatDateTimeInOffset } from "@/lib/date-utils";
 import { deleteCardReminderNotifications } from "@/lib/reminder-notifications";
-import { requireBoardMember } from "@/lib/permissions";
+import { requireBoardEditor } from "@/lib/permissions";
 import { triggerCardUpdated } from "@/lib/cards/realtime";
 import type { CardUpdatedField } from "@/lib/realtime/types";
 
@@ -88,7 +88,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   let card;
 
   try {
-    const permission = await requireBoardMember({ boardId, orgId, userId });
+    const permission = await requireBoardEditor({ boardId, orgId, userId });
 
     if (permission.error) {
       return { error: permission.error };

@@ -8,7 +8,7 @@ import { createNotification } from "@/lib/create-notification";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { getOrganizationMember } from "@/lib/clerk-org-members";
-import { requireBoardMember } from "@/lib/permissions";
+import { requireBoardEditor } from "@/lib/permissions";
 import { triggerCardMemberAssigned } from "@/lib/cards/realtime";
 
 import { AssignCardMember } from "./schema";
@@ -26,7 +26,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   let cardAssignee;
 
   try {
-    const permission = await requireBoardMember({ boardId, orgId, userId });
+    const permission = await requireBoardEditor({ boardId, orgId, userId });
 
     if (permission.error) {
       return { error: permission.error };

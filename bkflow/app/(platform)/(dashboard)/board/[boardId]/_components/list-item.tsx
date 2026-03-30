@@ -13,11 +13,13 @@ import { ListHeader } from "./list-header";
 interface ListItemProps {
   data: ListWithCards;
   index: number;
+  canEdit: boolean;
 };
 
 export const ListItem = memo(function ListItem({
   data,
   index,
+  canEdit,
 }: ListItemProps) {
   const textareaRef = useRef<HTMLTextAreaElement | null>(null);
 
@@ -29,6 +31,10 @@ export const ListItem = memo(function ListItem({
   };
 
   const enableEditing = () => {
+    if (!canEdit) {
+      return;
+    }
+
     setIsEditing(true);
     setTimeout(() => {
       textareaRef.current?.focus();
@@ -43,11 +49,13 @@ export const ListItem = memo(function ListItem({
     }
 
     event.preventDefault();
-    setIsOptionsOpen(true);
+    if (canEdit) {
+      setIsOptionsOpen(true);
+    }
   };
 
   return (
-    <Draggable draggableId={data.id} index={index} disableInteractiveElementBlocking>
+    <Draggable draggableId={data.id} index={index} disableInteractiveElementBlocking isDragDisabled={!canEdit}>
       {(provided, snapshot) => (
         <li
           {...provided.draggableProps}
@@ -68,6 +76,7 @@ export const ListItem = memo(function ListItem({
                 optionsOpen={isOptionsOpen}
                 onOptionsOpenChange={setIsOptionsOpen}
                 dragHandleProps={provided.dragHandleProps}
+                canEdit={canEdit}
               />
             </div>
             <Droppable droppableId={data.id} type="card">
@@ -88,19 +97,22 @@ export const ListItem = memo(function ListItem({
                       index={index}
                       key={card.id}
                       data={card}
+                      canEdit={canEdit}
                     />
                   ))}
                   {provided.placeholder}
                 </ol>
               )}
             </Droppable>
-            <CardForm
-              listId={data.id}
-              ref={textareaRef}
-              isEditing={isEditing}
-              enableEditing={enableEditing}
-              disableEditing={disableEditing}
-            />
+            {canEdit && (
+              <CardForm
+                listId={data.id}
+                ref={textareaRef}
+                isEditing={isEditing}
+                enableEditing={enableEditing}
+                disableEditing={disableEditing}
+              />
+            )}
           </div>
         </li>
       )}

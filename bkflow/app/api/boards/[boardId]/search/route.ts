@@ -6,7 +6,7 @@ import { db } from "@/lib/db";
 import { requireBoardMember } from "@/lib/permissions";
 import type { BoardSearchResponse, BoardSearchResult } from "@/types";
 
-const MIN_QUERY_LENGTH = 2;
+const MIN_QUERY_LENGTH = 1;
 const MAX_QUERY_LENGTH = 100;
 const PER_TYPE_LIMIT = 6;
 const TOTAL_LIMIT = 25;
@@ -36,6 +36,11 @@ const makeSnippet = (value: string | null | undefined, query: string) => {
 
   return `${prefix}${normalized.slice(start, end)}${suffix}`;
 };
+
+const isCardArchived = (card: {
+  archivedAt: Date | null;
+  list: { archivedAt: Date | null };
+}) => card.archivedAt !== null || card.list.archivedAt !== null;
 
 export async function GET(
   request: NextRequest,
@@ -67,12 +72,10 @@ export async function GET(
       await Promise.all([
         db.card.findMany({
           where: {
-            archivedAt: null,
             title: {
               contains: query,
             },
             list: {
-              archivedAt: null,
               board: {
                 id: boardId,
                 orgId,
@@ -84,10 +87,12 @@ export async function GET(
             title: true,
             description: true,
             listId: true,
+            archivedAt: true,
             list: {
               select: {
                 title: true,
                 order: true,
+                archivedAt: true,
               },
             },
             order: true,
@@ -106,12 +111,10 @@ export async function GET(
         }),
         db.card.findMany({
           where: {
-            archivedAt: null,
             description: {
               contains: query,
             },
             list: {
-              archivedAt: null,
               board: {
                 id: boardId,
                 orgId,
@@ -123,10 +126,12 @@ export async function GET(
             title: true,
             description: true,
             listId: true,
+            archivedAt: true,
             list: {
               select: {
                 title: true,
                 order: true,
+                archivedAt: true,
               },
             },
             order: true,
@@ -149,9 +154,7 @@ export async function GET(
               contains: query,
             },
             card: {
-              archivedAt: null,
               list: {
-                archivedAt: null,
                 board: {
                   id: boardId,
                   orgId,
@@ -169,10 +172,12 @@ export async function GET(
                 title: true,
                 order: true,
                 listId: true,
+                archivedAt: true,
                 list: {
                   select: {
                     title: true,
                     order: true,
+                    archivedAt: true,
                   },
                 },
               },
@@ -204,9 +209,7 @@ export async function GET(
             },
             checklist: {
               card: {
-                archivedAt: null,
                 list: {
-                  archivedAt: null,
                   board: {
                     id: boardId,
                     orgId,
@@ -229,10 +232,12 @@ export async function GET(
                     title: true,
                     order: true,
                     listId: true,
+                    archivedAt: true,
                     list: {
                       select: {
                         title: true,
                         order: true,
+                        archivedAt: true,
                       },
                     },
                   },
@@ -274,9 +279,7 @@ export async function GET(
               contains: query,
             },
             card: {
-              archivedAt: null,
               list: {
-                archivedAt: null,
                 board: {
                   id: boardId,
                   orgId,
@@ -295,10 +298,12 @@ export async function GET(
                 title: true,
                 order: true,
                 listId: true,
+                archivedAt: true,
                 list: {
                   select: {
                     title: true,
                     order: true,
+                    archivedAt: true,
                   },
                 },
               },
@@ -325,9 +330,7 @@ export async function GET(
               },
             ],
             card: {
-              archivedAt: null,
               list: {
-                archivedAt: null,
                 board: {
                   id: boardId,
                   orgId,
@@ -347,10 +350,12 @@ export async function GET(
                 title: true,
                 order: true,
                 listId: true,
+                archivedAt: true,
                 list: {
                   select: {
                     title: true,
                     order: true,
+                    archivedAt: true,
                   },
                 },
               },
@@ -389,6 +394,7 @@ export async function GET(
       listTitle: card.list.title,
       title: card.title,
       snippet: null,
+      isArchived: isCardArchived(card),
     }));
 
     const descriptionResults: BoardSearchResult[] = descriptionCards.map((card) => ({
@@ -400,6 +406,7 @@ export async function GET(
       listTitle: card.list.title,
       title: "Mô tả thẻ",
       snippet: makeSnippet(card.description, query),
+      isArchived: isCardArchived(card),
     }));
 
     const checklistTitleResults: BoardSearchResult[] = checklists.map((checklist) => ({
@@ -412,6 +419,7 @@ export async function GET(
       listTitle: checklist.card.list.title,
       title: checklist.title,
       snippet: null,
+      isArchived: isCardArchived(checklist.card),
     }));
 
     const checklistResults: BoardSearchResult[] = checklistItems.map((item) => ({
@@ -425,6 +433,7 @@ export async function GET(
       listTitle: item.checklist.card.list.title,
       title: item.title,
       snippet: null,
+      isArchived: isCardArchived(item.checklist.card),
     }));
 
     const commentResults: BoardSearchResult[] = comments.map((comment) => ({
@@ -438,6 +447,7 @@ export async function GET(
       title: makeSnippet(comment.content, query),
       snippet: null,
       userName: comment.userName,
+      isArchived: isCardArchived(comment.card),
     }));
 
     const attachmentResults: BoardSearchResult[] = attachments.map((attachment) => {
@@ -456,6 +466,7 @@ export async function GET(
         title: attachment.name,
         snippet: urlMatches ? makeSnippet(attachment.url, query) : null,
         attachmentType: attachment.type,
+        isArchived: isCardArchived(attachment.card),
       };
     });
 

@@ -43,6 +43,8 @@ interface BoardSearchProps {
   boardId: string;
 }
 
+const MIN_SEARCH_LENGTH = 1;
+
 type BoardSearchSurfaceProps = BoardSearchProps & {
   compact?: boolean;
   onPick?: () => void;
@@ -202,7 +204,7 @@ const BoardSearchSurface = ({
   const [debouncedQuery, setDebouncedQuery] = useState("");
   const [focused, setFocused] = useState(false);
   const trimmedQuery = query.trim();
-  const shouldSearch = debouncedQuery.trim().length >= 2;
+  const shouldSearch = debouncedQuery.trim().length >= MIN_SEARCH_LENGTH;
 
   useEffect(() => {
     const timeout = window.setTimeout(() => {
@@ -225,8 +227,8 @@ const BoardSearchSurface = ({
   const isOpen = focused && trimmedQuery.length > 0;
 
   const statusLabel = useMemo(() => {
-    if (trimmedQuery.length < 2) {
-      return "Nhập ít nhất 2 ký tự để tìm trong bảng.";
+    if (trimmedQuery.length < MIN_SEARCH_LENGTH) {
+      return "Nhập ít nhất 1 ký tự để tìm trong bảng.";
     }
 
     if (searchQuery.isLoading || debouncedQuery !== trimmedQuery) {
@@ -317,7 +319,7 @@ const BoardSearchSurface = ({
         </div>
         {statusLabel ? (
           <div className="flex min-h-24 items-center justify-center px-4 py-6 text-center text-sm text-neutral-500">
-            {(searchQuery.isLoading || debouncedQuery !== trimmedQuery) && trimmedQuery.length >= 2 ? (
+            {(searchQuery.isLoading || debouncedQuery !== trimmedQuery) && trimmedQuery.length >= MIN_SEARCH_LENGTH ? (
               <Loader2 className="mr-2 h-4 w-4 animate-spin text-neutral-400" />
             ) : null}
             {statusLabel}
@@ -351,6 +353,11 @@ const BoardSearchSurface = ({
                       <p className="truncate text-sm font-semibold text-neutral-900">
                         {item.title}
                       </p>
+                      {item.isArchived ? (
+                        <span className="shrink-0 rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[10px] font-bold uppercase tracking-wide text-amber-700">
+                          Đã lưu trữ
+                        </span>
+                      ) : null}
                     </div>
                     <div className="mt-1">
                       <ResultBreadcrumbs item={item} />

@@ -18,6 +18,7 @@ interface ListHeaderProps {
   optionsOpen?: boolean;
   onOptionsOpenChange?: (open: boolean) => void;
   dragHandleProps?: DraggableProvidedDragHandleProps | null;
+  canEdit: boolean;
 };
 
 export const ListHeader = ({
@@ -26,6 +27,7 @@ export const ListHeader = ({
   optionsOpen,
   onOptionsOpenChange,
   dragHandleProps,
+  canEdit,
 }: ListHeaderProps) => {
   const [isEditing, setIsEditing] = useState(false);
 
@@ -40,6 +42,10 @@ export const ListHeader = ({
   const rollbackRef = useRef<ListWithCards[] | null>(null);
 
   const enableEditing = () => {
+    if (!canEdit) {
+      return;
+    }
+
     setIsEditing(true);
     setTimeout(() => {
       resizeTitle();
@@ -153,7 +159,9 @@ export const ListHeader = ({
     const elapsed = window.performance.now() - pointerDown.time;
 
     if (moved <= 4 && elapsed < 250) {
-      enableEditing();
+      if (canEdit) {
+        enableEditing();
+      }
     }
   };
 
@@ -161,8 +169,8 @@ export const ListHeader = ({
 
   return (
     <div
-      {...(!isEditing ? dragHandleProps : {})}
-      className={`${!isEditing ? "cursor-pointer" : ""} pt-3 px-3 pb-1 text-sm font-semibold flex justify-between items-center gap-x-1`}
+      {...(!isEditing && canEdit ? dragHandleProps : {})}
+      className={`${!isEditing && canEdit ? "cursor-pointer" : ""} pt-3 px-3 pb-1 text-sm font-semibold flex justify-between items-center gap-x-1`}
     >
       {isEditing && (
         <div {...dragHandleProps} style={{ display: "none" }} />
@@ -217,13 +225,15 @@ export const ListHeader = ({
             {data.cards.length}
           </span>
         </Hint>
-        <ListOptions
-          onAddCard={onAddCard}
-          onRename={enableEditing}
-          data={data}
-          open={optionsOpen}
-          onOpenChange={onOptionsOpenChange}
-        />
+        {canEdit && (
+          <ListOptions
+            onAddCard={onAddCard}
+            onRename={enableEditing}
+            data={data}
+            open={optionsOpen}
+            onOpenChange={onOptionsOpenChange}
+          />
+        )}
       </div>
     </div>
   );

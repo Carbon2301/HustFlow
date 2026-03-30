@@ -18,10 +18,12 @@ import { patchBoardCardPreview, patchCardQueryData } from "./card-cache-utils";
 
 interface DescriptionProps {
   data: CardWithList;
+  canEdit?: boolean;
 };
 
 export const Description = ({
-  data
+  data,
+  canEdit = true,
 }: DescriptionProps) => {
   const queryClient = useQueryClient();
 
@@ -31,6 +33,10 @@ export const Description = ({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   const enableEditing = () => {
+    if (!canEdit) {
+      return;
+    }
+
     setIsEditing(true);
     setTimeout(() => {
       textareaRef.current?.focus();
@@ -70,6 +76,10 @@ export const Description = ({
   });
 
   const onSubmit = (formData: FormData) => {
+    if (!canEdit) {
+      return;
+    }
+
     const description = formData.get("description") as string;
     const boardId = data.list.boardId;
 
@@ -101,7 +111,7 @@ export const Description = ({
             <FormTextarea
               id="description"
               className="w-full text-base md:text-base leading-relaxed resize-none rounded-xl border-neutral-200 focus:border-violet-400 focus:ring-1 focus:ring-violet-200 shadow-sm min-h-[110px] px-3.5 py-2.5"
-              placeholder="Thêm mô tả chi tiết hơn…"
+              placeholder="Thêm mô tả chi tiết hơn..."
               defaultValue={data.description || undefined}
               errors={fieldErrors}
               ref={textareaRef}
@@ -124,17 +134,17 @@ export const Description = ({
         ) : (
           <div
             onClick={enableEditing}
-            role="button"
+            role={canEdit ? "button" : undefined}
             className={`
-              min-h-[96px] text-base md:text-base leading-relaxed rounded-xl px-4 py-3 cursor-pointer
+              min-h-[96px] text-base md:text-base leading-relaxed rounded-xl px-4 py-3 ${canEdit ? "cursor-pointer" : "cursor-default"}
               transition-colors duration-150
               ${data.description
-                ? "text-neutral-700 bg-neutral-50 border border-neutral-200 hover:bg-neutral-100"
-                : "text-neutral-400 bg-neutral-50 border border-dashed border-neutral-200 hover:bg-neutral-100 hover:border-neutral-300"
+                ? `text-neutral-700 bg-neutral-50 border border-neutral-200 ${canEdit ? "hover:bg-neutral-100" : ""}`
+                : `text-neutral-400 bg-neutral-50 border border-dashed border-neutral-200 ${canEdit ? "hover:bg-neutral-100 hover:border-neutral-300" : ""}`
               }
             `}
           >
-            {data.description || "Nhấp để thêm mô tả…"}
+            {data.description || (canEdit ? "Nhập để thêm mô tả..." : "Chưa có mô tả.")}
           </div>
         )}
       </div>

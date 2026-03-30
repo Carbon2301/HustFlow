@@ -7,7 +7,7 @@ import { createAuditLog } from "@/lib/create-audit-log";
 import { triggerAttachmentReordered } from "@/lib/cards/realtime";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
-import { requireBoardMember } from "@/lib/permissions";
+import { requireBoardEditor } from "@/lib/permissions";
 
 import { UpdateCardAttachmentOrder } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -24,7 +24,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   const { boardId, cardId, type, items } = data;
 
   try {
-    const permission = await requireBoardMember({ boardId, orgId, userId });
+    const permission = await requireBoardEditor({ boardId, orgId, userId });
 
     if (permission.error) {
       return { error: permission.error };
