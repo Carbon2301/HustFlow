@@ -19,6 +19,7 @@ import { CardRealtimeSync } from "./card-realtime-sync";
 import { Checklists } from "./checklists";
 import { Attachments } from "./attachments";
 import { AiCardQualityAssistant } from "./ai-card-quality-assistant";
+import { CardDependencies } from "./card-dependencies";
 
 export const CardModal = () => {
   const id = useCardModal((state) => state.id);
@@ -78,7 +79,7 @@ export const CardModal = () => {
           <div className="col-span-1 md:col-span-7 border-r border-transparent md:border-neutral-200/80 pr-0 md:pr-8 space-y-7">
             {!cardData
               ? <Header.Skeleton />
-              : <Header data={cardData} canEdit={canEdit} />
+              : <Header key={cardData.id} data={cardData} canEdit={canEdit} />
             }
             {!cardData
               ? <Metadata.Skeleton />
@@ -89,6 +90,7 @@ export const CardModal = () => {
               : (
                   <>
                     <Description data={cardData} canEdit={canEdit} />
+                    <CardDependencies data={cardData} canEdit={canEdit} />
                     {canEdit && (
                       <AiCardQualityAssistant
                         cardId={cardData.id}

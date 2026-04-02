@@ -1,7 +1,7 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
-import { ACTION, AUDIT_EVENT_TYPE, ENTITY_TYPE } from "@prisma/client";
+import { ACTION, AUDIT_EVENT_TYPE, ENTITY_TYPE, type Card } from "@prisma/client";
 
 import { createAuditLog } from "@/lib/create-audit-log";
 import { createSafeAction } from "@/lib/create-safe-action";
@@ -9,7 +9,10 @@ import { db } from "@/lib/db";
 import { formatDateTimeInOffset } from "@/lib/date-utils";
 import { deleteCardReminderNotifications } from "@/lib/reminder-notifications";
 import { requireBoardEditor } from "@/lib/permissions";
-import { triggerCardUpdated } from "@/lib/cards/realtime";
+import {
+  triggerCardUpdated,
+  triggerRelatedDependencyCardsUpdated,
+} from "@/lib/cards/realtime";
 import type { CardUpdatedField } from "@/lib/realtime/types";
 
 import { UpdateCard } from "./schema";
@@ -85,7 +88,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     reminder,
     ...values
   } = data;
-  let card;
+  let card: Card;
 
   try {
     const permission = await requireBoardEditor({ boardId, orgId, userId });
@@ -306,6 +309,37 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       card,
       updatedAt: card.updatedAt,
     });
+
+    if (isCompleted !== undefined && isCompleted !== currentCard.isCompleted) {
+      const dependencyCards = await db.cardDependency.findMany({
+        where: {
+          OR: [
+            {
+              blockerCardId: card.id,
+            },
+            {
+              blockedCardId: card.id,
+            },
+          ],
+        },
+        select: {
+          blockerCardId: true,
+          blockedCardId: true,
+        },
+      });
+      const relatedCardIds = dependencyCards.map((dependency) =>
+        dependency.blockerCardId === card.id
+          ? dependency.blockedCardId
+          : dependency.blockerCardId,
+      );
+
+      await triggerRelatedDependencyCardsUpdated({
+        boardId,
+        sourceCardId: card.id,
+        relatedCardIds,
+        actorUserId: userId,
+      });
+    }
   } catch {
     return {
       error: "Cập nhật thẻ thất bại.",

@@ -47,6 +47,36 @@ export async function GET(
             createdAt: "asc",
           },
         },
+        blockedByDependencies: {
+          include: {
+            blockerCard: {
+              select: {
+                id: true,
+                title: true,
+                isCompleted: true,
+                archivedAt: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: "asc",
+          },
+        },
+        blockingDependencies: {
+          include: {
+            blockedCard: {
+              select: {
+                id: true,
+                title: true,
+                isCompleted: true,
+                archivedAt: true,
+              },
+            },
+          },
+          orderBy: {
+            createdAt: "asc",
+          },
+        },
         _count: {
           select: {
             comments: true,

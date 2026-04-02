@@ -28,6 +28,32 @@ export type CardWithAssignees = Card & {
 
 export type ListWithCards = List & { cards: CardWithAssignees[] };
 
+export type CardDependencyWithBlockerCard = Prisma.CardDependencyGetPayload<{
+  include: {
+    blockerCard: {
+      select: {
+        id: true;
+        title: true;
+        isCompleted: true;
+        archivedAt: true;
+      };
+    };
+  };
+}>;
+
+export type CardDependencyWithBlockedCard = Prisma.CardDependencyGetPayload<{
+  include: {
+    blockedCard: {
+      select: {
+        id: true;
+        title: true;
+        isCompleted: true;
+        archivedAt: true;
+      };
+    };
+  };
+}>;
+
 export type CardWithList = Card & {
   list: List;
   attachments: CardAttachment[];
@@ -42,6 +68,8 @@ export type CardWithList = Card & {
   checklists: (Checklist & {
     items: ChecklistItemWithAssignee[];
   })[];
+  blockedByDependencies: CardDependencyWithBlockerCard[];
+  blockingDependencies: CardDependencyWithBlockedCard[];
   boardMembers: BoardMember[];
   currentMemberRole?: BoardMemberRole;
   boardLabels: Label[];

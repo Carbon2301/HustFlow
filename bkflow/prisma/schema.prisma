@@ -69,12 +69,31 @@ model Card {
   labels      CardLabel[]
   checklists  Checklist[]
   attachments CardAttachment[]
+  blockingDependencies  CardDependency[] @relation("BlockerRelation")
+  blockedByDependencies CardDependency[] @relation("BlockedRelation")
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
 
   @@index([listId])
   @@index([listId, archivedAt, order])
+}
+
+model CardDependency {
+  id String @id @default(uuid())
+
+  blockerCardId String
+  blockerCard   Card   @relation("BlockerRelation", fields: [blockerCardId], references: [id], onDelete: Cascade)
+
+  blockedCardId String
+  blockedCard   Card   @relation("BlockedRelation", fields: [blockedCardId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([blockerCardId, blockedCardId])
+  @@index([blockerCardId])
+  @@index([blockedCardId])
 }
 
 model CardAttachment {

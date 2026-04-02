@@ -92,6 +92,58 @@ export const triggerCardUpdated = async ({
   }
 };
 
+export const triggerRelatedDependencyCardsUpdated = async ({
+  boardId,
+  sourceCardId,
+  relatedCardIds,
+  actorUserId,
+}: {
+  boardId: string;
+  sourceCardId: string;
+  relatedCardIds: string[];
+  actorUserId: string;
+}) => {
+  const uniqueRelatedCardIds = Array.from(new Set(relatedCardIds))
+    .filter((cardId) => cardId && cardId !== sourceCardId);
+
+  if (uniqueRelatedCardIds.length === 0) {
+    return;
+  }
+
+  try {
+    await Promise.all(uniqueRelatedCardIds.flatMap((cardId) => {
+      const payload = {
+        eventId: randomUUID(),
+        boardId,
+        cardId,
+        actorUserId,
+        changedFields: ["dependencies"] as CardUpdatedField[],
+        updatedAt: new Date().toISOString(),
+        invalidate: [
+          {
+            queryKey: ["card", cardId],
+          } as RealtimeQueryInvalidation,
+        ],
+      };
+
+      return [
+        triggerRealtimeEvent({
+          channel: realtimeChannels.board(boardId),
+          event: REALTIME_EVENTS.CARD_UPDATED,
+          payload,
+        }),
+        triggerRealtimeEvent({
+          channel: realtimeChannels.card(cardId),
+          event: REALTIME_EVENTS.CARD_UPDATED,
+          payload,
+        }),
+      ];
+    }));
+  } catch (error) {
+    console.error("[CARD_DEPENDENCY_REALTIME_ERROR]", error);
+  }
+};
+
 export const triggerCardMemberAssigned = async ({
   boardId,
   cardId,

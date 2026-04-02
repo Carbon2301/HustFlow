@@ -56,11 +56,16 @@ export const useCardMetadataActions = ({
       invalidateBoardCalendar();
 
       if (updatedCard.isCompleted !== data.isCompleted) {
-        toast.success(
-          updatedCard.isCompleted
-            ? "Đã đánh dấu hoàn thành thẻ"
-            : "Đã bỏ đánh dấu hoàn thành thẻ"
-        );
+        const relatedDependencyCardIds = [
+          ...data.blockedByDependencies.map((dependency) => dependency.blockerCardId),
+          ...data.blockingDependencies.map((dependency) => dependency.blockedCardId),
+        ];
+
+        Array.from(new Set(relatedDependencyCardIds)).forEach((cardId) => {
+          queryClient.invalidateQueries({
+            queryKey: ["card", cardId],
+          });
+        });
       }
       setIsDateOpen(false);
     },

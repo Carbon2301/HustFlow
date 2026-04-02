@@ -28,7 +28,8 @@ export type CardUpdatedField =
   | "isCompleted"
   | "reminder"
   | "reminderSetAt"
-  | "assignees";
+  | "assignees"
+  | "dependencies";
 
 export type BoardUpdatedField = "title" | "members" | "roles";
 

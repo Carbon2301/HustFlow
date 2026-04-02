@@ -138,6 +138,59 @@ const boldMemberName = (
   return result;
 };
 
+const replaceCardMarkers = (
+  nodes: React.ReactNode[],
+  log: AuditLog,
+  isCardModal?: boolean,
+  onNavigate?: () => void,
+) => {
+  const result: React.ReactNode[] = [];
+  const markerPattern = /\[card:([^\]|]+)\|([^\]]+)\]/g;
+
+  nodes.forEach((node, nodeIndex) => {
+    if (typeof node !== "string") {
+      result.push(node);
+      return;
+    }
+
+    let lastIndex = 0;
+    let match: RegExpExecArray | null;
+
+    while ((match = markerPattern.exec(node)) !== null) {
+      const [marker, cardId, title] = match;
+
+      if (match.index > lastIndex) {
+        result.push(node.slice(lastIndex, match.index));
+      }
+
+      if (isCardModal) {
+        result.push(cardId === log.cardId ? "này" : `"${title}"`);
+      } else if (log.boardId) {
+        result.push(
+          <Link
+            key={`card-marker-${nodeIndex}-${cardId}-${match.index}`}
+            href={`/board/${log.boardId}?cardId=${cardId}`}
+            onClick={onNavigate}
+            className="text-blue-600 hover:text-blue-800 underline font-normal decoration-blue-600/30 hover:decoration-blue-800"
+          >
+            {title}
+          </Link>
+        );
+      } else {
+        result.push(title);
+      }
+
+      lastIndex = match.index + marker.length;
+    }
+
+    if (lastIndex < node.length) {
+      result.push(node.slice(lastIndex));
+    }
+  });
+
+  return result;
+};
+
 const renderMessageWithLinks = (
   message: string,
   log: AuditLog,
@@ -150,10 +203,15 @@ const renderMessageWithLinks = (
   onNavigate?: () => void,
 ) => {
   let elements: React.ReactNode[] = [message];
+  const hasCardMarkers = /\[card:[^\]|]+\|[^\]]+\]/.test(message);
   const resolvedCardTitle = cardTitle || 
     ((log.entityType === "CARD" && !log.entityTitle.startsWith("detail:")) 
       ? log.entityTitle 
       : getCardTitleFromMessage(message));
+
+  if (hasCardMarkers) {
+    elements = replaceCardMarkers(elements, log, isCardModal, onNavigate);
+  }
 
   if (!isCardModal) {
     const boardHref = log.boardId ? `/board/${log.boardId}` : null;
@@ -161,7 +219,7 @@ const renderMessageWithLinks = (
     const cardHref = log.boardId && resolvedCardId ? `/board/${log.boardId}?cardId=${resolvedCardId}` : null;
 
     // 1. Handle Card Links / Deleted / Archived notice
-    if (resolvedCardId) {
+    if (!hasCardMarkers && resolvedCardId) {
       if (cardHref && cardTitle && !cardArchived) {
         elements = replaceTextWithLink(elements, "thẻ này", cardHref, cardTitle, "thẻ", onNavigate);
         elements = replaceTextWithLink(elements, `"${cardTitle}"`, cardHref, cardTitle, undefined, onNavigate);
@@ -204,7 +262,7 @@ const renderMessageWithLinks = (
         elements = replaceTextWithLabel(elements, `“${resolvedListTitle}”`, `${resolvedListTitle} (đã bị xóa)`);
       }
     }
-  } else {
+  } else if (!hasCardMarkers) {
     // Inside card modal: replace card title with "này"
     const isCardRename = log.entityType === "CARD" && log.entityTitle.startsWith("detail:đã đổi tên thẻ thành ");
     if (resolvedCardTitle && !isCardRename) {
@@ -240,10 +298,7 @@ export const ActivityItem = ({
     : "?";
 
   const boardHref = data.boardId ? `/board/${data.boardId}` : null;
-  let message = generateLogMessage(data);
-  if (isCardModal) {
-    message = message.replace(/(?:(trong|vào|khỏi|cho)\s+)?thẻ\s+["“][^"”]+["”]/g, (match, prep) => prep ? `${prep} thẻ này` : "thẻ này");
-  }
+  const message = generateLogMessage(data);
 
   return (
     <li className="flex items-start gap-x-3.5 py-1">
