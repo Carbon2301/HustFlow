@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo, type ChangeEvent } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { CardWithList } from "@/types";
@@ -10,6 +10,7 @@ import { formatDateTimeLocalInput } from "@/lib/date-utils";
 import { useBoardCalendarInvalidation } from "@/hooks/use-board-calendar-invalidation";
 
 import { CardAssigneeSummary } from "./metadata/card-assignee-summary";
+import { BlockedCompletionDialog } from "./metadata/blocked-completion-dialog";
 import { CardDateStatusColumn } from "./metadata/card-date-status-column";
 import { CardLabelSummary } from "./metadata/card-label-summary";
 import { MetadataActionRow } from "./metadata/metadata-action-row";
@@ -39,6 +40,7 @@ export const Metadata = ({
 
   const [isDateOpen, setIsDateOpen] = useState(false);
   const [isMemberOpen, setIsMemberOpen] = useState(false);
+  const [blockedCompletionOpen, setBlockedCompletionOpen] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -47,6 +49,20 @@ export const Metadata = ({
     setReminderValue(data.reminder || "none");
   }, [data.startDate, data.dueDate, data.reminder]);
 
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setBlockedCompletionOpen(false);
+  }, [data.id]);
+
+  useEffect(() => {
+    if (!data.isCompleted) {
+      return;
+    }
+
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setBlockedCompletionOpen(false);
+  }, [data.isCompleted]);
+
   const {
     isLoadingUpdate,
     isLoadingAssign,
@@ -54,7 +70,7 @@ export const Metadata = ({
     updateDueDate,
     updateStartDate,
     onDateSubmit,
-    onToggleComplete,
+    updateCompletion,
     handleMemberToggle,
   } = useCardMetadataActions({
     data,
@@ -66,6 +82,12 @@ export const Metadata = ({
   });
 
   const filteredBoardMembers = getFilteredBoardMembers(data.boardMembers, searchQuery);
+  const unresolvedBlockers = useMemo(
+    () => data.blockedByDependencies.filter(
+      (dependency) => !dependency.blockerCard.isCompleted,
+    ),
+    [data.blockedByDependencies],
+  );
 
   const hasAssignees = data.assignees && data.assignees.length > 0;
   const hasStartDate = !!data.startDate;
@@ -84,8 +106,33 @@ export const Metadata = ({
 
   const showActionButtonRow = canEdit;
 
+  const onToggleComplete = (event: ChangeEvent<HTMLInputElement>) => {
+    const checked = event.target.checked;
+
+    if (checked && !data.isCompleted && unresolvedBlockers.length > 0) {
+      setBlockedCompletionOpen(true);
+      return;
+    }
+
+    updateCompletion(checked);
+  };
+
+  const onConfirmBlockedCompletion = () => {
+    updateCompletion(true);
+  };
+
   return (
     <div className="space-y-5">
+      {canEdit && (
+        <BlockedCompletionDialog
+          open={blockedCompletionOpen}
+          onOpenChange={setBlockedCompletionOpen}
+          blockers={unresolvedBlockers}
+          isLoading={isLoadingUpdate}
+          onConfirm={onConfirmBlockedCompletion}
+        />
+      )}
+
       {/* 1. Action Button Row */}
       {showActionButtonRow && (
         <MetadataActionRow

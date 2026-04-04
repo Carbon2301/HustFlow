@@ -9,6 +9,10 @@ import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { requireBoardEditor } from "@/lib/permissions";
 import { triggerListDeleted } from "@/lib/boards/realtime";
+import {
+  getRelatedDependencyCardIds,
+  triggerRelatedDependencyCardsUpdated,
+} from "@/lib/cards/realtime";
 
 import { ArchiveList } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -24,6 +28,8 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
   const { id, boardId } = data;
   let list;
+  let affectedCardIds: string[] = [];
+  let relatedDependencyCardIds: string[] = [];
 
   try {
     const permission = await requireBoardEditor({ boardId, orgId, userId });
@@ -59,6 +65,17 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         },
       });
 
+      const cardsToArchive = await tx.card.findMany({
+        where: {
+          listId: existingList.id,
+          archivedAt: null,
+        },
+        select: {
+          id: true,
+        },
+      });
+      affectedCardIds = cardsToArchive.map((card) => card.id);
+
       await tx.card.updateMany({
         where: {
           listId: existingList.id,
@@ -71,6 +88,11 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       });
 
       return archivedList;
+    });
+    relatedDependencyCardIds = await getRelatedDependencyCardIds({
+      boardId,
+      orgId,
+      sourceCardIds: affectedCardIds,
     });
 
     await createAuditLog({
@@ -86,6 +108,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       listId: list.id,
       actorUserId: userId,
       archived: true,
+    });
+
+    await triggerRelatedDependencyCardsUpdated({
+      boardId,
+      sourceCardId: list.id,
+      relatedCardIds: relatedDependencyCardIds,
+      actorUserId: userId,
     });
   } catch (error) {
     if (error instanceof Error && error.message === "LIST_NOT_FOUND") {

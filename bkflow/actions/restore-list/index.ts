@@ -9,6 +9,10 @@ import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { requireBoardEditor } from "@/lib/permissions";
 import { triggerListCreated } from "@/lib/boards/realtime";
+import {
+  getRelatedDependencyCardIds,
+  triggerRelatedDependencyCardsUpdated,
+} from "@/lib/cards/realtime";
 
 import { RestoreList } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -24,6 +28,8 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
   const { id, boardId } = data;
   let list;
+  let affectedCardIds: string[] = [];
+  let relatedDependencyCardIds: string[] = [];
 
   try {
     const permission = await requireBoardEditor({ boardId, orgId, userId });
@@ -59,6 +65,17 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         },
       });
 
+      const cardsToRestore = await tx.card.findMany({
+        where: {
+          listId: existingList.id,
+          archivedByListId: existingList.id,
+        },
+        select: {
+          id: true,
+        },
+      });
+      affectedCardIds = cardsToRestore.map((card) => card.id);
+
       await tx.card.updateMany({
         where: {
           listId: existingList.id,
@@ -72,6 +89,11 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
       return restoredList;
     });
+    relatedDependencyCardIds = await getRelatedDependencyCardIds({
+      boardId,
+      orgId,
+      sourceCardIds: affectedCardIds,
+    });
 
     await createAuditLog({
       entityTitle: `detail:đã khôi phục danh sách "${list.title}"`,
@@ -84,6 +106,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     await triggerListCreated({
       boardId,
       listId: list.id,
+      actorUserId: userId,
+    });
+
+    await triggerRelatedDependencyCardsUpdated({
+      boardId,
+      sourceCardId: list.id,
+      relatedCardIds: relatedDependencyCardIds,
       actorUserId: userId,
     });
   } catch (error) {

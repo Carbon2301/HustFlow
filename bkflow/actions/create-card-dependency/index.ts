@@ -6,6 +6,7 @@ import { ACTION, AUDIT_EVENT_TYPE, ENTITY_TYPE } from "@prisma/client";
 import { createAuditLog } from "@/lib/create-audit-log";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
+import { triggerRelatedDependencyCardsUpdated } from "@/lib/cards/realtime";
 import { requireBoardEditor } from "@/lib/permissions";
 
 import { CreateCardDependency } from "./schema";
@@ -172,6 +173,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       eventType: AUDIT_EVENT_TYPE.UPDATE,
       boardId,
       cardId: blockedCard.id,
+    });
+
+    await triggerRelatedDependencyCardsUpdated({
+      boardId,
+      sourceCardId: blockerCard.id,
+      relatedCardIds: [blockedCard.id],
+      actorUserId: userId,
     });
 
     return { data: dependency };

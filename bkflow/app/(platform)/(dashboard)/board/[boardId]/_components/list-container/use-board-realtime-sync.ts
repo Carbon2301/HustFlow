@@ -91,6 +91,9 @@ const normalizeCardForBoard = (card: BoardCardApiResponse): CardWithAssignees =>
       0,
     ) ?? 0,
   },
+  unresolvedBlockerCount: card.blockedByDependencies?.filter(
+    (dependency) => !dependency.blockerCard.isCompleted,
+  ).length ?? 0,
   _count: card._count ?? {
     comments: 0,
     attachments: card.attachments?.length ?? 0,

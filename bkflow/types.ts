@@ -20,6 +20,7 @@ export type CardWithAssignees = Card & {
     total: number;
     completed: number;
   };
+  unresolvedBlockerCount?: number;
   _count?: {
     comments: number;
     attachments: number;

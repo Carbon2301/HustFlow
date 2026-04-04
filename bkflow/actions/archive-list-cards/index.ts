@@ -9,6 +9,10 @@ import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { requireBoardEditor } from "@/lib/permissions";
 import { triggerCardReordered } from "@/lib/boards/realtime";
+import {
+  getRelatedDependencyCardIds,
+  triggerRelatedDependencyCardsUpdated,
+} from "@/lib/cards/realtime";
 
 import { ArchiveListCards } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -24,6 +28,8 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
   const { id, boardId } = data;
   let list;
+  let affectedCardIds: string[] = [];
+  let relatedDependencyCardIds: string[] = [];
 
   try {
     const permission = await requireBoardEditor({ boardId, orgId, userId });
@@ -50,6 +56,17 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         throw new Error("LIST_NOT_FOUND");
       }
 
+      const cardsToArchive = await tx.card.findMany({
+        where: {
+          listId: existingList.id,
+          archivedAt: null,
+        },
+        select: {
+          id: true,
+        },
+      });
+      affectedCardIds = cardsToArchive.map((card) => card.id);
+
       await tx.card.updateMany({
         where: {
           listId: existingList.id,
@@ -63,6 +80,11 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
       return existingList;
     });
+    relatedDependencyCardIds = await getRelatedDependencyCardIds({
+      boardId,
+      orgId,
+      sourceCardIds: affectedCardIds,
+    });
 
     await createAuditLog({
       entityTitle: `detail:đã lưu trữ toàn bộ thẻ trong danh sách "${list.title}"`,
@@ -75,6 +97,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     await triggerCardReordered({
       boardId,
       listId: list.id,
+      actorUserId: userId,
+    });
+
+    await triggerRelatedDependencyCardsUpdated({
+      boardId,
+      sourceCardId: list.id,
+      relatedCardIds: relatedDependencyCardIds,
       actorUserId: userId,
     });
   } catch (error) {

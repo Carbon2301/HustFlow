@@ -5,7 +5,7 @@ import { createPortal } from "react-dom";
 import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { Draggable } from "@hello-pangea/dnd";
-import { AlignLeft, Archive, ExternalLink, Copy, MessageSquare, CheckSquare, Paperclip, Pencil } from "lucide-react";
+import { AlignLeft, Archive, ExternalLink, Copy, MessageSquare, CheckSquare, Paperclip, Pencil, LockKeyhole } from "lucide-react";
 
 import { useCardModal } from "@/hooks/use-card-modal";
 import { DueDateBadge } from "@/components/due-date-badge";
@@ -251,9 +251,11 @@ export const CardItem = memo(function CardItem({
 
   const attachmentCount = data._count?.attachments ?? 0;
   const hasAttachments = attachmentCount > 0;
+  const unresolvedBlockerCount = data.unresolvedBlockerCount ?? 0;
+  const isBlocked = unresolvedBlockerCount > 0;
 
   const hasFooter = Boolean(data.dueDate) || Boolean(data.startDate) || data.isCompleted || data.assignees.length > 0
-    || Boolean(data._count && data._count.comments > 0) || hasChecklistProgress || hasAttachments;
+    || Boolean(data._count && data._count.comments > 0) || hasChecklistProgress || hasAttachments || isBlocked;
 
   return (
     <>
@@ -345,6 +347,16 @@ export const CardItem = memo(function CardItem({
                           <CheckSquare className="h-3 w-3.5 text-emerald-600 shrink-0" />
                           Hoàn thành
                         </span>
+                      </Hint>
+                    )}
+                    {isBlocked && (
+                      <Hint description={`Bị chặn bởi ${unresolvedBlockerCount} thẻ khác`} side="bottom">
+                        <div className="flex items-center gap-x-1 text-xs py-0.5 px-1.5 rounded border border-rose-200 bg-rose-50 text-rose-700">
+                          <LockKeyhole className="h-3.5 w-3.5 text-rose-500 flex-shrink-0" />
+                          <span className="font-semibold leading-none">
+                            Bị chặn{unresolvedBlockerCount > 1 ? ` ${unresolvedBlockerCount}` : ""}
+                          </span>
+                        </div>
                       </Hint>
                     )}
                     {data._count && data._count.comments > 0 && (

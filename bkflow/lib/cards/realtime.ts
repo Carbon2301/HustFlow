@@ -9,6 +9,7 @@ import { realtimeChannels } from "@/lib/realtime/channels";
 import { REALTIME_EVENTS } from "@/lib/realtime/events";
 import { triggerRealtimeEvent } from "@/lib/realtime/server";
 import type { RealtimeQueryInvalidation } from "@/lib/realtime/types";
+import { db } from "@/lib/db";
 
 type CardRealtimeInput = {
   boardId: string;
@@ -142,6 +143,76 @@ export const triggerRelatedDependencyCardsUpdated = async ({
   } catch (error) {
     console.error("[CARD_DEPENDENCY_REALTIME_ERROR]", error);
   }
+};
+
+export const getRelatedDependencyCardIds = async ({
+  boardId,
+  orgId,
+  sourceCardIds,
+}: {
+  boardId: string;
+  orgId: string;
+  sourceCardIds: string[];
+}) => {
+  const uniqueSourceCardIds = Array.from(new Set(sourceCardIds)).filter(Boolean);
+
+  if (uniqueSourceCardIds.length === 0) {
+    return [];
+  }
+
+  const sourceCardIdSet = new Set(uniqueSourceCardIds);
+  const dependencies = await db.cardDependency.findMany({
+    where: {
+      OR: [
+        {
+          blockerCardId: {
+            in: uniqueSourceCardIds,
+          },
+        },
+        {
+          blockedCardId: {
+            in: uniqueSourceCardIds,
+          },
+        },
+      ],
+      blockerCard: {
+        list: {
+          board: {
+            id: boardId,
+            orgId,
+          },
+        },
+      },
+      blockedCard: {
+        list: {
+          board: {
+            id: boardId,
+            orgId,
+          },
+        },
+      },
+    },
+    select: {
+      blockerCardId: true,
+      blockedCardId: true,
+    },
+  });
+
+  const relatedCardIds = new Set<string>();
+
+  dependencies.forEach((dependency) => {
+    if (sourceCardIdSet.has(dependency.blockerCardId)) {
+      relatedCardIds.add(dependency.blockedCardId);
+    }
+
+    if (sourceCardIdSet.has(dependency.blockedCardId)) {
+      relatedCardIds.add(dependency.blockerCardId);
+    }
+  });
+
+  uniqueSourceCardIds.forEach((cardId) => relatedCardIds.delete(cardId));
+
+  return Array.from(relatedCardIds);
 };
 
 export const triggerCardMemberAssigned = async ({

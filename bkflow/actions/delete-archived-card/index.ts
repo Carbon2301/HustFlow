@@ -9,6 +9,7 @@ import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { requireBoardEditor } from "@/lib/permissions";
 import { triggerCardDeleted } from "@/lib/boards/realtime";
+import { triggerRelatedDependencyCardsUpdated } from "@/lib/cards/realtime";
 
 import { DeleteArchivedCard } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -24,6 +25,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
   const { id, boardId } = data;
   let card;
+  let affectedBlockedCardIds: string[] = [];
 
   try {
     const permission = await requireBoardEditor({ boardId, orgId, userId });
@@ -59,6 +61,24 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         throw new Error("CARD_NOT_FOUND");
       }
 
+      const affectedDependencies = await tx.cardDependency.findMany({
+        where: {
+          blockerCardId: existingCard.id,
+          blockerCard: {
+            list: {
+              board: {
+                id: boardId,
+                orgId,
+              },
+            },
+          },
+        },
+        select: {
+          blockedCardId: true,
+        },
+      });
+      affectedBlockedCardIds = affectedDependencies.map((dependency) => dependency.blockedCardId);
+
       return tx.card.delete({
         where: {
           id: existingCard.id,
@@ -86,6 +106,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       boardId,
       listId: card.listId,
       cardId: card.id,
+      actorUserId: userId,
+    });
+
+    await triggerRelatedDependencyCardsUpdated({
+      boardId,
+      sourceCardId: card.id,
+      relatedCardIds: affectedBlockedCardIds,
       actorUserId: userId,
     });
   } catch (error) {

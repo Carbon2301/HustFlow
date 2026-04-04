@@ -1,6 +1,6 @@
 "use client";
 
-import type { ChangeEvent, FormEvent } from "react";
+import type { FormEvent } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -259,8 +259,7 @@ export const useCardMetadataActions = ({
     });
   };
 
-  const onToggleComplete = (event: ChangeEvent<HTMLInputElement>) => {
-    const checked = event.target.checked;
+  const updateCompletion = (checked: boolean) => {
     executeUpdateCard({
       id: data.id,
       boardId,
@@ -292,7 +291,7 @@ export const useCardMetadataActions = ({
     updateDueDate,
     updateStartDate,
     onDateSubmit,
-    onToggleComplete,
+    updateCompletion,
     handleMemberToggle,
   };
 };

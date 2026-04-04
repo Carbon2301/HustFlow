@@ -9,6 +9,10 @@ import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { requireBoardEditor } from "@/lib/permissions";
 import { triggerCardCreated } from "@/lib/boards/realtime";
+import {
+  getRelatedDependencyCardIds,
+  triggerRelatedDependencyCardsUpdated,
+} from "@/lib/cards/realtime";
 
 import { RestoreCard } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -24,6 +28,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
   const { id, boardId } = data;
   let card;
+  let relatedDependencyCardIds: string[] = [];
 
   try {
     const permission = await requireBoardEditor({ boardId, orgId, userId });
@@ -82,6 +87,11 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         },
       });
     });
+    relatedDependencyCardIds = await getRelatedDependencyCardIds({
+      boardId,
+      orgId,
+      sourceCardIds: [card.id],
+    });
 
     await createAuditLog({
       entityTitle: `detail:đã khôi phục thẻ "${card.title}" vào danh sách "${card.list.title}"`,
@@ -96,6 +106,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       boardId,
       listId: card.listId,
       cardId: card.id,
+      actorUserId: userId,
+    });
+
+    await triggerRelatedDependencyCardsUpdated({
+      boardId,
+      sourceCardId: card.id,
+      relatedCardIds: relatedDependencyCardIds,
       actorUserId: userId,
     });
   } catch (error) {

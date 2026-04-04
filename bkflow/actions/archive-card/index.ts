@@ -8,6 +8,10 @@ import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { requireBoardEditor } from "@/lib/permissions";
 import { triggerCardDeleted } from "@/lib/boards/realtime";
+import {
+  getRelatedDependencyCardIds,
+  triggerRelatedDependencyCardsUpdated,
+} from "@/lib/cards/realtime";
 
 import { ArchiveCard } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -23,6 +27,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
   const { id, boardId } = data;
   let card;
+  let relatedDependencyCardIds: string[] = [];
 
   try {
     const permission = await requireBoardEditor({ boardId, orgId, userId });
@@ -74,6 +79,11 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         },
       });
     });
+    relatedDependencyCardIds = await getRelatedDependencyCardIds({
+      boardId,
+      orgId,
+      sourceCardIds: [card.id],
+    });
 
     await createAuditLog({
       entityTitle: `detail:đã lưu trữ thẻ "${card.title}" từ danh sách "${card.list.title}"`,
@@ -90,6 +100,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       cardId: card.id,
       actorUserId: userId,
       archived: true,
+    });
+
+    await triggerRelatedDependencyCardsUpdated({
+      boardId,
+      sourceCardId: card.id,
+      relatedCardIds: relatedDependencyCardIds,
+      actorUserId: userId,
     });
   } catch (error) {
     if (error instanceof Error && error.message === "CARD_NOT_FOUND") {

@@ -42,12 +42,10 @@ type DependencyListItem =
   | {
       dependency: CardDependencyWithBlockerCard;
       relatedCard: CardDependencyWithBlockerCard["blockerCard"];
-      status: "blocking-current";
     }
   | {
       dependency: CardDependencyWithBlockedCard;
       relatedCard: CardDependencyWithBlockedCard["blockedCard"];
-      status: "blocked-by-current";
     };
 
 interface CardDependenciesProps {
@@ -73,8 +71,7 @@ const getCardResultTitle = (item: Extract<BoardSearchResult, { type: "card" }>) 
 
 const DependencyStatus = ({
   relatedCard,
-  status,
-}: Pick<DependencyListItem, "relatedCard" | "status">) => {
+}: Pick<DependencyListItem, "relatedCard">) => {
   if (relatedCard.archivedAt) {
     return (
       <span className="inline-flex items-center gap-x-1 rounded-md border border-amber-200 bg-amber-50 px-1.5 py-0.5 text-[11px] font-semibold text-amber-700">
@@ -88,28 +85,18 @@ const DependencyStatus = ({
     return (
       <span className="inline-flex items-center gap-x-1 rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700">
         <CheckCircle2 className="h-3 w-3" />
-        Hoàn thành
-      </span>
-    );
-  }
-
-  if (status === "blocking-current") {
-    return (
-      <span className="inline-flex items-center gap-x-1 rounded-md border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[11px] font-semibold text-rose-700">
-        <AlertTriangle className="h-3 w-3" />
-        Đang chặn
+        Đã xong
       </span>
     );
   }
 
   return (
-    <span className="inline-flex items-center gap-x-1 rounded-md border border-neutral-200 bg-neutral-50 px-1.5 py-0.5 text-[11px] font-semibold text-neutral-600">
-      <GitBranch className="h-3 w-3" />
-      Đang bị chặn
+    <span className="inline-flex items-center gap-x-1 rounded-md border border-rose-200 bg-rose-50 px-1.5 py-0.5 text-[11px] font-semibold text-rose-700">
+      <AlertTriangle className="h-3 w-3" />
+      Chưa xong
     </span>
   );
 };
-
 const DependencyItem = ({
   item,
   canEdit,
@@ -136,7 +123,7 @@ const DependencyItem = ({
         </p>
       </button>
       <div className="flex shrink-0 items-center gap-x-2">
-        <DependencyStatus relatedCard={item.relatedCard} status={item.status} />
+        <DependencyStatus relatedCard={item.relatedCard} />
         {canEdit && (
           <Hint description="Gỡ liên kết phụ thuộc">
             <Button
@@ -403,12 +390,10 @@ export const CardDependencies = ({
   const blockedByItems = data.blockedByDependencies.map((dependency) => ({
     dependency,
     relatedCard: dependency.blockerCard,
-    status: "blocking-current" as const,
   }));
   const blockingItems = data.blockingDependencies.map((dependency) => ({
     dependency,
     relatedCard: dependency.blockedCard,
-    status: "blocked-by-current" as const,
   }));
   const hasDependencies = blockedByItems.length > 0 || blockingItems.length > 0;
   const linkedBlockerIds = useMemo(

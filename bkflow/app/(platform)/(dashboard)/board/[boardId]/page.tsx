@@ -86,6 +86,16 @@ const BoardIdPage = async ({
                 createdAt: "asc",
               },
             },
+            blockedByDependencies: {
+              where: {
+                blockerCard: {
+                  isCompleted: false,
+                },
+              },
+              select: {
+                id: true,
+              },
+            },
             _count: {
               select: {
                 comments: true,
@@ -159,6 +169,7 @@ const BoardIdPage = async ({
         total: 0,
         completed: 0,
       },
+      unresolvedBlockerCount: card.blockedByDependencies.length,
     })) as CardWithAssignees[],
   })) as ListWithCards[];
 
