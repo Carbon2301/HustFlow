@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { BarChart3, CalendarDays, Columns3, LayoutPanelLeft } from "lucide-react";
+import { BarChart3, CalendarDays, ChartGantt, Columns3, LayoutPanelLeft } from "lucide-react";
 
 import { cn } from "@/lib/utils";
 
@@ -13,11 +13,13 @@ interface BoardViewSwitcherProps {
 export const BoardViewSwitcher = ({ boardId }: BoardViewSwitcherProps) => {
   const pathname = usePathname();
   const calendarHref = `/board/${boardId}/calendar`;
+  const timelineHref = `/board/${boardId}/timeline`;
   const splitHref = `/board/${boardId}/split`;
   const analyticsHref = `/board/${boardId}/analytics`;
   const boardHref = `/board/${boardId}`;
   const isBoard = pathname === boardHref;
   const isCalendar = pathname === calendarHref;
+  const isTimeline = pathname === timelineHref;
   const isSplit = pathname === splitHref;
   const isAnalytics = pathname === analyticsHref;
 
@@ -33,6 +35,12 @@ export const BoardViewSwitcher = ({ boardId }: BoardViewSwitcherProps) => {
       label: "Lịch",
       icon: CalendarDays,
       active: isCalendar,
+    },
+    {
+      href: timelineHref,
+      label: "Tiến độ",
+      icon: ChartGantt,
+      active: isTimeline,
     },
     {
       href: splitHref,
