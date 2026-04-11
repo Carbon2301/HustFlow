@@ -1,6 +1,0 @@
-{
-    "prisma.pinToPrisma6": true,
-    "markdownlint.config": {
-        "default": false
-    }
-}

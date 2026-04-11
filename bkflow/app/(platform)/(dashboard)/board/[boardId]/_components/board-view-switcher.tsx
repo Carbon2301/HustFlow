@@ -26,7 +26,7 @@ export const BoardViewSwitcher = ({ boardId }: BoardViewSwitcherProps) => {
   const views = [
     {
       href: boardHref,
-      label: "Board",
+      label: "Bảng",
       icon: Columns3,
       active: isBoard,
     },

@@ -354,7 +354,7 @@ export const CardItem = memo(function CardItem({
                         <div className="flex items-center gap-x-1 text-xs py-0.5 px-1.5 rounded border border-rose-200 bg-rose-50 text-rose-700">
                           <LockKeyhole className="h-3.5 w-3.5 text-rose-500 flex-shrink-0" />
                           <span className="font-semibold leading-none">
-                            Bị chặn{unresolvedBlockerCount > 1 ? ` ${unresolvedBlockerCount}` : ""}
+                            {unresolvedBlockerCount}
                           </span>
                         </div>
                       </Hint>

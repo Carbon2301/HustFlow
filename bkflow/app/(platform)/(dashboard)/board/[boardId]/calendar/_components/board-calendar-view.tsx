@@ -430,6 +430,9 @@ export const BoardCalendarView = ({
       dayViewCreateSelection.currentMinute,
     )
     : null;
+  const scheduledItemsCount = items.length;
+  const completedItemsCount = items.filter((item) => item.isCompleted).length;
+  const overdueItemsCount = items.filter(isOverdue).length;
 
   const { execute: executeUpdateCard, isLoading: isUpdatingCardDate } = useAction(updateCard, {
     onSuccess: (data) => {
@@ -1938,8 +1941,8 @@ export const BoardCalendarView = ({
     />
     <div className="flex h-full min-h-0 flex-col gap-3 lg:flex-row">
     <section className="flex h-full min-h-0 flex-1 flex-col overflow-hidden rounded-lg border border-white/20 bg-white/95 shadow-xl backdrop-blur">
-      <div className="flex shrink-0 flex-col gap-3 border-b border-neutral-200 px-4 py-4 lg:flex-row lg:items-center lg:justify-between">
-        <div className="min-w-0">
+      <div className="flex shrink-0 flex-col gap-2 border-b border-neutral-200 px-4 py-3 lg:flex-row lg:items-center lg:justify-between">
+        <div className="flex min-w-0 flex-col gap-2">
           <div className="flex items-center gap-x-2">
             <div className="flex h-9 w-9 shrink-0 items-center justify-center rounded-lg bg-violet-50 text-violet-700">
               <CalendarDays className="h-5 w-5" />
@@ -1953,9 +1956,23 @@ export const BoardCalendarView = ({
               </p>
             </div>
           </div>
+          <div className="flex flex-wrap items-center gap-1.5 text-xs text-neutral-600">
+            <div className="inline-flex h-7 items-center gap-x-1.5 rounded-md border border-neutral-200 bg-neutral-50 px-2.5">
+              <span className="font-semibold text-neutral-900">{scheduledItemsCount}</span>
+              <span className="whitespace-nowrap">thẻ có lịch</span>
+            </div>
+            <div className="inline-flex h-7 items-center gap-x-1.5 rounded-md border border-emerald-100 bg-emerald-50 px-2.5 text-emerald-700">
+              <span className="font-semibold">{completedItemsCount}</span>
+              <span className="whitespace-nowrap">hoàn thành</span>
+            </div>
+            <div className="inline-flex h-7 items-center gap-x-1.5 rounded-md border border-rose-100 bg-rose-50 px-2.5 text-rose-700">
+              <span className="font-semibold">{overdueItemsCount}</span>
+              <span className="whitespace-nowrap">quá hạn</span>
+            </div>
+          </div>
         </div>
 
-        <div className="flex flex-col gap-2 lg:items-end">
+        <div className="flex flex-wrap items-center gap-2 lg:justify-end">
           <div className="flex flex-wrap items-center gap-2">
             <Button
               variant="outline"
@@ -2018,25 +2035,6 @@ export const BoardCalendarView = ({
                   <ChevronRight className="h-4 w-4" />
                 </button>
               </Hint>
-            </div>
-          </div>
-
-          <div className="grid w-full grid-cols-3 gap-2 text-xs text-neutral-600 md:w-[300px]">
-            <div className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2">
-              <p className="font-semibold text-neutral-900">{items.length}</p>
-              <p className="truncate">thẻ có lịch</p>
-            </div>
-            <div className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2">
-              <p className="font-semibold text-neutral-900">
-                {items.filter((item) => item.isCompleted).length}
-              </p>
-              <p className="truncate">hoàn thành</p>
-            </div>
-            <div className="rounded-md border border-neutral-200 bg-neutral-50 px-3 py-2">
-              <p className="font-semibold text-neutral-900">
-                {items.filter(isOverdue).length}
-              </p>
-              <p className="truncate">quá hạn</p>
             </div>
           </div>
         </div>
