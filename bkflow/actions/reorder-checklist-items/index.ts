@@ -17,7 +17,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   const { userId, orgId } = await auth();
 
   if (!userId || !orgId) {
-    return { error: "Khong co quyen truy cap." };
+    return { error: "Không có quyền truy cập." };
   }
 
   const { boardId, cardId, checklistId, items } = data;
@@ -26,7 +26,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     const uniqueIds = new Set(items.map((item) => item.id));
 
     if (uniqueIds.size !== items.length) {
-      return { error: "Danh sach sap xep khong hop le." };
+      return { error: "Danh sách sắp xếp không hợp lệ." };
     }
 
     const access = await validateChecklistItemsForReorder({
@@ -39,7 +39,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     });
 
     if (access.error || !access.checklist) {
-      return { error: access.error || "Khong tim thay danh sach cong viec." };
+      return { error: access.error || "Không tìm thấy danh sách công việc." };
     }
 
     const updatedItems = await db.$transaction(
@@ -82,7 +82,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     return { data: updatedItems };
   } catch (error) {
     console.error("[REORDER_CHECKLIST_ITEMS_ERROR]", error);
-    return { error: "Sap xep muc cong viec that bai." };
+    return { error: "Sắp xếp mục công việc thất bại." };
   }
 };
 

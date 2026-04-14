@@ -19,7 +19,7 @@ export async function generateMetadata({
 
   if (!userId) {
     return {
-      title: "Báº£ng",
+      title: "Bảng",
     };
   }
 
@@ -37,12 +37,12 @@ export async function generateMetadata({
 
   if (currentMembership.error) {
     return {
-      title: "Báº£ng",
+      title: "Bảng",
     };
   }
 
   return {
-    title: board?.title || "Báº£ng",
+    title: board?.title || "Bảng",
   };
 }
 
@@ -63,7 +63,7 @@ const BoardIdLayout = async ({
   const currentMembership = await requireBoardMemberForUser({ boardId, userId });
 
   if (currentMembership.error || !currentMembership.membership) {
-    const errorMessage = currentMembership.error || "Báº¡n khÃ´ng cÃ³ quyá»n truy cáº­p báº£ng nÃ y.";
+    const errorMessage = currentMembership.error || "Bạn không có quyền truy cập bảng này.";
     redirect(`/organization/${orgId ?? ""}?error=${encodeURIComponent(errorMessage)}`);
   }
 

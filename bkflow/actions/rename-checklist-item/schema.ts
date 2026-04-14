@@ -5,6 +5,6 @@ export const RenameChecklistItem = z.object({
   cardId: z.string(),
   id: z.string(),
   title: z.string().min(1, {
-    message: "Noi dung khong duoc de trong",
+    message: "Nội dung không được để trống",
   }),
 });

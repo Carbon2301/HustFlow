@@ -44,7 +44,7 @@ export const BoardViewSwitcher = ({ boardId }: BoardViewSwitcherProps) => {
     },
     {
       href: splitHref,
-      label: "Cả hai",
+      label: "Bảng & Lịch",
       icon: LayoutPanelLeft,
       active: isSplit,
     },

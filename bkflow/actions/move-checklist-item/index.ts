@@ -23,7 +23,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   const { userId, orgId } = await auth();
 
   if (!userId || !orgId) {
-    return { error: "Khong co quyen truy cap." };
+    return { error: "Không có quyền truy cập." };
   }
 
   const {
@@ -41,7 +41,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       !hasContiguousOrders(sourceItems) ||
       !hasContiguousOrders(destinationItems)
     ) {
-      return { error: "Thu tu muc cong viec khong hop le." };
+      return { error: "Thứ tự mục công việc không hợp lệ." };
     }
 
     const access = await validateChecklistItemMove({
@@ -57,7 +57,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     });
 
     if (access.error || !access.sourceChecklist || !access.destinationChecklist) {
-      return { error: access.error || "Khong the di chuyen muc cong viec." };
+      return { error: access.error || "Không thể di chuyển mục công việc." };
     }
 
     const updatedItems = await db.$transaction([
@@ -116,7 +116,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     return { data: updatedItems };
   } catch (error) {
     console.error("[MOVE_CHECKLIST_ITEM_ERROR]", error);
-    return { error: "Di chuyen muc cong viec that bai." };
+    return { error: "Di chuyển mục công việc thất bại." };
   }
 };
 

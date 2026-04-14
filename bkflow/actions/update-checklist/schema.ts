@@ -5,6 +5,6 @@ export const UpdateChecklist = z.object({
   cardId: z.string(),
   id: z.string(),
   title: z.string().min(1, {
-    message: "Tieu de khong duoc de trong",
+    message: "Tiêu đề không được để trống",
   }),
 });

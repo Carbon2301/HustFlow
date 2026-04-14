@@ -91,7 +91,7 @@ export const getChecklistAccess = async ({
   });
 
   if (!checklist) {
-    return { error: "Khong tim thay danh sach cong viec.", checklist: null };
+    return { error: "Không tìm thấy danh sách công việc.", checklist: null };
   }
 
   return { error: null, checklist };
@@ -152,7 +152,7 @@ export const getChecklistItemAccess = async ({
   });
 
   if (!item) {
-    return { error: "Khong tim thay muc cong viec.", item: null };
+    return { error: "Không tìm thấy mục công việc.", item: null };
   }
 
   return { error: null, item };
@@ -199,7 +199,7 @@ export const validateChecklistItemsForReorder = async ({
 
   if (existingItemCount !== items.length) {
     return {
-      error: "Khong the sap xep muc cong viec khong thuoc danh sach nay.",
+      error: "Không thể sắp xếp mục công việc không thuộc danh sách này.",
       checklist: null,
     };
   }
@@ -220,7 +220,7 @@ export const validateChecklistItemMove = async ({
 }: ChecklistItemMoveInput) => {
   if (sourceChecklistId === destinationChecklistId) {
     return {
-      error: "Hay su dung sap xep trong cung danh sach cho thao tac nay.",
+      error: "Hãy sử dụng sắp xếp trong cùng danh sách cho thao tác này.",
       sourceChecklist: null,
       destinationChecklist: null,
     };
@@ -285,7 +285,7 @@ export const validateChecklistItemMove = async ({
 
   if (!sourceChecklist || !destinationChecklist) {
     return {
-      error: "Khong tim thay danh sach cong viec hop le.",
+      error: "Không tìm thấy danh sách công việc hợp lệ.",
       sourceChecklist: null,
       destinationChecklist: null,
     };
@@ -296,7 +296,7 @@ export const validateChecklistItemMove = async ({
 
   if (!sourceCurrentIds.includes(itemId)) {
     return {
-      error: "Muc cong viec khong con thuoc danh sach nguon.",
+      error: "Mục công việc không còn thuộc danh sách nguồn.",
       sourceChecklist: null,
       destinationChecklist: null,
     };
@@ -308,7 +308,7 @@ export const validateChecklistItemMove = async ({
 
   if (new Set(combinedPayloadIds).size !== combinedPayloadIds.length) {
     return {
-      error: "Danh sach sap xep khong hop le.",
+      error: "Danh sách sắp xếp không hợp lệ.",
       sourceChecklist: null,
       destinationChecklist: null,
     };
@@ -316,7 +316,7 @@ export const validateChecklistItemMove = async ({
 
   if (sourcePayloadIds.includes(itemId) || !destinationPayloadIds.includes(itemId)) {
     return {
-      error: "Muc cong viec di chuyen khong nam dung danh sach dich.",
+      error: "Mục công việc di chuyển không nằm đúng danh sách đích.",
       sourceChecklist: null,
       destinationChecklist: null,
     };
@@ -330,7 +330,7 @@ export const validateChecklistItemMove = async ({
     !idsMatch(expectedDestinationIds, destinationPayloadIds)
   ) {
     return {
-      error: "Khong the di chuyen voi du lieu sap xep da cu.",
+      error: "Không thể di chuyển với dữ liệu sắp xếp đã cũ.",
       sourceChecklist: null,
       destinationChecklist: null,
     };
