@@ -11,7 +11,7 @@ import {
   TIMELINE_ACCESS_REVOKE_EVENTS,
   TIMELINE_BOARD_DELETE_EVENTS,
   TIMELINE_REFRESH_EVENTS,
-} from "./realtime";
+} from "../_lib/realtime";
 
 type RealtimeSubscriptionProps<TEvent extends RealtimeEventName> = {
   channelName: RealtimeChannelName;
