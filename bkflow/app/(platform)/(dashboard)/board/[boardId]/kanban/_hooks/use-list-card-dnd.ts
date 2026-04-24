@@ -13,8 +13,8 @@ import {
 import type { BoardFilterState } from "@/hooks/use-board-filters";
 import type { CardWithAssignees, ListWithCards } from "@/types";
 
-import { getDefaultCalendarDueDate, type CalendarDropTarget } from "./calendar-drop-bridge";
-import { getDestinationIndex, reorder } from "./dnd-utils";
+import { getDefaultCalendarDueDate, type CalendarDropTarget } from "../_lib/calendar-drop-bridge";
+import { getDestinationIndex, reorder } from "../_lib/dnd-utils";
 
 type CalendarBridgeApi = {
   beginCalendarDrag: (cardId: string) => void;

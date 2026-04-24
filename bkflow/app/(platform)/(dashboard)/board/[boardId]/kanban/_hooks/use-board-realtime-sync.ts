@@ -4,7 +4,7 @@ import { Dispatch, SetStateAction, useCallback, useRef } from "react";
 import { toast } from "sonner";
 import { QueryClient } from "@tanstack/react-query";
 
-import { CardWithAssignees, CardWithList, ListWithCards } from "@/types";
+import { CardWithAssignees, ListWithCards } from "@/types";
 import { debugBoardRealtime } from "@/lib/realtime/debug";
 import type {
   AttachmentReorderedPayload,
@@ -33,6 +33,11 @@ import type {
   ListReorderedPayload,
   ListUpdatedPayload,
 } from "@/lib/realtime/types";
+import {
+  normalizeCardForBoard,
+  toDate,
+  type BoardCardApiResponse,
+} from "../_lib/realtime-card-normalizers";
 
 type CardModalApi = {
   id?: string | null;
@@ -53,52 +58,6 @@ type UseBoardRealtimeSyncOptions = {
   queryClient: QueryClient;
   setOrderedData: Dispatch<SetStateAction<ListWithCards[]>>;
 };
-
-type BoardCardApiResponse = CardWithList & {
-  _count?: {
-    comments: number;
-    attachments: number;
-  };
-};
-
-const toDate = (value: Date | string | null | undefined) => {
-  if (!value) {
-    return null;
-  }
-
-  return value instanceof Date ? value : new Date(value);
-};
-
-const normalizeCardForBoard = (card: BoardCardApiResponse): CardWithAssignees => ({
-  ...card,
-  createdAt: toDate(card.createdAt) ?? new Date(),
-  updatedAt: toDate(card.updatedAt) ?? new Date(),
-  startDate: toDate(card.startDate),
-  dueDate: toDate(card.dueDate),
-  reminderSetAt: toDate(card.reminderSetAt),
-  archivedAt: toDate(card.archivedAt),
-  assignees: card.assignees ?? [],
-  labels: card.labels ?? [],
-  checklists: card.checklists?.map((checklist) => ({
-    items: checklist.items.map((item) => ({
-      isCompleted: item.isCompleted,
-    })),
-  })) ?? [],
-  checklistProgress: {
-    total: card.checklists?.reduce((acc, checklist) => acc + checklist.items.length, 0) ?? 0,
-    completed: card.checklists?.reduce(
-      (acc, checklist) => acc + checklist.items.filter((item) => item.isCompleted).length,
-      0,
-    ) ?? 0,
-  },
-  unresolvedBlockerCount: card.blockedByDependencies?.filter(
-    (dependency) => !dependency.blockerCard.isCompleted,
-  ).length ?? 0,
-  _count: card._count ?? {
-    comments: 0,
-    attachments: card.attachments?.length ?? 0,
-  },
-});
 
 const reorderListsByIds = (
   lists: ListWithCards[],

@@ -20,7 +20,7 @@ import { archiveList } from "@/actions/archive-list";
 import { archiveListCards } from "@/actions/archive-list-cards";
 import { FormSubmit } from "@/components/form/form-submit";
 import { Separator } from "@/components/ui/separator";
-import { useBoardState } from "./list-container/board-state-context";
+import { useBoardState } from "./board-state-context";
 
 interface ListOptionsProps {
   data: List;
@@ -88,7 +88,7 @@ export const ListOptions = ({
   });
 
   const { execute: executeCopy, isLoading: isLoadingCopy } = useAction(copyList, {
-    onSuccess: (data) => {
+    onSuccess: () => {
       closeRef.current?.click();
       router.refresh();
     },

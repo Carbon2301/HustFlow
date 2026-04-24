@@ -4,7 +4,7 @@ import { redirect } from "next/navigation";
 import { db } from "@/lib/db";
 import { requireBoardMemberForUser } from "@/lib/permissions";
 
-import { ListContainer } from "../_components/list-container";
+import { ListContainer } from "../kanban/_components/list-container";
 import { BoardCalendarView } from "../calendar/_components/board-calendar-view";
 import { SplitPane } from "./_components/split-pane";
 

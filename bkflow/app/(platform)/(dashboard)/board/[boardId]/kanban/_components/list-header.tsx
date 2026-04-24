@@ -10,7 +10,7 @@ import { updateList } from "@/actions/update-list";
 import { Hint } from "@/components/hint";
 import { ListWithCards } from "@/types";
 import { ListOptions } from "./list-options";
-import { useBoardState } from "./list-container/board-state-context";
+import { useBoardState } from "./board-state-context";
 
 interface ListHeaderProps {
   data: ListWithCards;

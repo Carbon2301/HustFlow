@@ -14,7 +14,7 @@ import { FormInput } from "@/components/form/form-input";
 import { FormSubmit } from "@/components/form/form-submit";
 
 import { ListWrapper } from "./list-wrapper";
-import { useBoardState } from "./list-container/board-state-context";
+import { useBoardState } from "./board-state-context";
 
 const createTemporaryId = () =>
   `temp-list-${globalThis.crypto?.randomUUID?.() ?? Date.now().toString()}`;

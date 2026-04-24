@@ -17,7 +17,7 @@ import { FormSubmit } from "@/components/form/form-submit";
 import { FormTextarea } from "@/components/form/form-textarea";
 import type { CardWithAssignees, ListWithCards } from "@/types";
 
-import { useBoardState } from "./list-container/board-state-context";
+import { useBoardState } from "./board-state-context";
 
 interface CardFormProps {
   listId: string;

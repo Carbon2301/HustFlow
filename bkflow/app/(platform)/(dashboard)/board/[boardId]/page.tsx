@@ -7,7 +7,7 @@ import { requireBoardMemberForUser } from "@/lib/permissions";
 import type { CardWithAssignees, ListWithCards } from "@/types";
 
 import { BoardCardModalFromUrl } from "./_components/board-card-modal-from-url";
-import { ListContainer } from "./_components/list-container";
+import { ListContainer } from "./kanban/_components/list-container";
 
 interface BoardIdPageProps {
   params: Promise<{

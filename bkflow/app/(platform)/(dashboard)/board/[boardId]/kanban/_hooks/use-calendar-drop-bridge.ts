@@ -9,7 +9,7 @@ import {
   CalendarDragPoint,
   CalendarDropTarget,
   getCalendarDropTargetFromPoint,
-} from "./calendar-drop-bridge";
+} from "../_lib/calendar-drop-bridge";
 
 type UseCalendarDropBridgeOptions = {
   enableCalendarDragHandle: boolean;

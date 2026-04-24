@@ -5,9 +5,8 @@ import { toast } from "sonner";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { DragDropContext, Droppable } from "@hello-pangea/dnd";
-import { BoardMember, BoardMemberRole } from "@prisma/client";
+import { BoardMemberRole } from "@prisma/client";
 
-import { ListWithCards } from "@/types";
 import { useAction } from "@/hooks/use-action";
 import { emptyBoardFilters, useBoardFilters } from "@/hooks/use-board-filters";
 import { updateListOrder } from "@/actions/update-list-order";
@@ -21,20 +20,12 @@ import { debugBoardRealtime } from "@/lib/realtime/debug";
 
 import { ListForm } from "./list-form";
 import { ListItem } from "./list-item";
-import { BoardStateProvider } from "./list-container/board-state-context";
-import { BoardRealtimeSubscriptions } from "./list-container/board-realtime-subscriptions";
-import { useBoardRealtimeSync } from "./list-container/use-board-realtime-sync";
-import { useCalendarDropBridge } from "./list-container/use-calendar-drop-bridge";
-import { useListCardDnd } from "./list-container/use-list-card-dnd";
-
-interface ListContainerProps {
-  data: ListWithCards[];
-  boardId: string;
-  boardMembers: BoardMember[];
-  currentUserId: string;
-  currentMemberRole: BoardMemberRole;
-  enableCalendarDragHandle?: boolean;
-};
+import { BoardRealtimeSubscriptions } from "./board-realtime-subscriptions";
+import { BoardStateProvider } from "./board-state-context";
+import { useBoardRealtimeSync } from "../_hooks/use-board-realtime-sync";
+import { useCalendarDropBridge } from "../_hooks/use-calendar-drop-bridge";
+import { useListCardDnd } from "../_hooks/use-list-card-dnd";
+import type { ListContainerProps } from "../_types";
 
 export const ListContainer = ({
   data,
