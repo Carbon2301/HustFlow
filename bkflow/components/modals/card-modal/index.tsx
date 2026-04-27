@@ -11,15 +11,15 @@ import { useCardModal } from "@/hooks/use-card-modal";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 
 import { Header } from "./header";
-import { Metadata } from "./metadata";
+import { MetadataSection as Metadata } from "./metadata/metadata-section";
 import { Description } from "./description";
 import { Activity } from "./activity";
-import { Comments } from "./comments";
+import { CommentsSection as Comments } from "./comments/comments-section";
 import { CardRealtimeSync } from "./card-realtime-sync";
-import { Checklists } from "./checklists";
-import { Attachments } from "./attachments";
-import { AiCardQualityAssistant } from "./ai-card-quality-assistant";
-import { CardDependencies } from "./card-dependencies";
+import { ChecklistsSection as Checklists } from "./checklists/checklists-section";
+import { AttachmentsSection as Attachments } from "./attachments/attachments-section";
+import { AiCardQualityAssistant } from "./ai/ai-card-quality-assistant";
+import { DependenciesSection as CardDependencies } from "./dependencies/dependencies-section";
 
 export const CardModal = () => {
   const id = useCardModal((state) => state.id);
@@ -96,8 +96,6 @@ export const CardModal = () => {
                         cardId={cardData.id}
                         boardId={cardData.list.boardId}
                         description={cardData.description}
-                        labels={cardData.labels || []}
-                        boardLabels={cardData.boardLabels || []}
                         checklists={cardData.checklists || []}
                       />
                     )}
