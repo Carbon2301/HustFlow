@@ -9,15 +9,14 @@ import { triggerChecklistItemMoved } from "@/lib/boards/realtime";
 import { validateChecklistItemMove } from "@/lib/checklist-access";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
+import { CHECKLIST_MESSAGES } from "@/lib/checklists/checklist-messages";
+import {
+  hasContiguousOrders,
+  sortItemIds,
+} from "@/lib/checklists/checklist-order-rules";
 
 import { MoveChecklistItem } from "./schema";
 import { InputType, ReturnType } from "./types";
-
-const hasContiguousOrders = (items: Array<{ order: number }>) =>
-  items.every((item, index) => item.order === index);
-
-const sortItemIds = (items: Array<{ id: string; order: number }>) =>
-  [...items].sort((a, b) => a.order - b.order).map((item) => item.id);
 
 const handler = async (data: InputType): Promise<ReturnType> => {
   const { userId, orgId } = await auth();
@@ -41,7 +40,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       !hasContiguousOrders(sourceItems) ||
       !hasContiguousOrders(destinationItems)
     ) {
-      return { error: "Thứ tự mục công việc không hợp lệ." };
+      return { error: CHECKLIST_MESSAGES.invalidItemOrder };
     }
 
     const access = await validateChecklistItemMove({
@@ -57,7 +56,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     });
 
     if (access.error || !access.sourceChecklist || !access.destinationChecklist) {
-      return { error: access.error || "Không thể di chuyển mục công việc." };
+      return { error: access.error || CHECKLIST_MESSAGES.moveItemGeneric };
     }
 
     const updatedItems = await db.$transaction([
@@ -116,7 +115,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     return { data: updatedItems };
   } catch (error) {
     console.error("[MOVE_CHECKLIST_ITEM_ERROR]", error);
-    return { error: "Di chuyển mục công việc thất bại." };
+    return { error: CHECKLIST_MESSAGES.moveItemFailed };
   }
 };
 

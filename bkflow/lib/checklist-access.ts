@@ -2,6 +2,7 @@ import { ChecklistItem } from "@prisma/client";
 
 import { db } from "@/lib/db";
 import { requireBoardEditor } from "@/lib/permissions";
+import { CHECKLIST_MESSAGES } from "@/lib/checklists/checklist-messages";
 
 type ChecklistAccessInput = {
   boardId: string;
@@ -91,7 +92,7 @@ export const getChecklistAccess = async ({
   });
 
   if (!checklist) {
-    return { error: "Không tìm thấy danh sách công việc.", checklist: null };
+    return { error: CHECKLIST_MESSAGES.checklistNotFound, checklist: null };
   }
 
   return { error: null, checklist };
@@ -152,7 +153,7 @@ export const getChecklistItemAccess = async ({
   });
 
   if (!item) {
-    return { error: "Không tìm thấy mục công việc.", item: null };
+    return { error: CHECKLIST_MESSAGES.checklistItemNotFound, item: null };
   }
 
   return { error: null, item };
@@ -199,7 +200,7 @@ export const validateChecklistItemsForReorder = async ({
 
   if (existingItemCount !== items.length) {
     return {
-      error: "Không thể sắp xếp mục công việc không thuộc danh sách này.",
+      error: CHECKLIST_MESSAGES.checklistReorderForeignItem,
       checklist: null,
     };
   }
@@ -220,7 +221,7 @@ export const validateChecklistItemMove = async ({
 }: ChecklistItemMoveInput) => {
   if (sourceChecklistId === destinationChecklistId) {
     return {
-      error: "Hãy sử dụng sắp xếp trong cùng danh sách cho thao tác này.",
+      error: CHECKLIST_MESSAGES.useSameChecklistReorder,
       sourceChecklist: null,
       destinationChecklist: null,
     };
@@ -285,7 +286,7 @@ export const validateChecklistItemMove = async ({
 
   if (!sourceChecklist || !destinationChecklist) {
     return {
-      error: "Không tìm thấy danh sách công việc hợp lệ.",
+      error: CHECKLIST_MESSAGES.validChecklistsNotFound,
       sourceChecklist: null,
       destinationChecklist: null,
     };
@@ -296,7 +297,7 @@ export const validateChecklistItemMove = async ({
 
   if (!sourceCurrentIds.includes(itemId)) {
     return {
-      error: "Mục công việc không còn thuộc danh sách nguồn.",
+      error: CHECKLIST_MESSAGES.itemNoLongerInSource,
       sourceChecklist: null,
       destinationChecklist: null,
     };
@@ -308,7 +309,7 @@ export const validateChecklistItemMove = async ({
 
   if (new Set(combinedPayloadIds).size !== combinedPayloadIds.length) {
     return {
-      error: "Danh sách sắp xếp không hợp lệ.",
+      error: CHECKLIST_MESSAGES.invalidOrderList,
       sourceChecklist: null,
       destinationChecklist: null,
     };
@@ -316,7 +317,7 @@ export const validateChecklistItemMove = async ({
 
   if (sourcePayloadIds.includes(itemId) || !destinationPayloadIds.includes(itemId)) {
     return {
-      error: "Mục công việc di chuyển không nằm đúng danh sách đích.",
+      error: CHECKLIST_MESSAGES.movedItemNotInDestination,
       sourceChecklist: null,
       destinationChecklist: null,
     };
@@ -330,7 +331,7 @@ export const validateChecklistItemMove = async ({
     !idsMatch(expectedDestinationIds, destinationPayloadIds)
   ) {
     return {
-      error: "Không thể di chuyển với dữ liệu sắp xếp đã cũ.",
+      error: CHECKLIST_MESSAGES.staleMoveOrder,
       sourceChecklist: null,
       destinationChecklist: null,
     };

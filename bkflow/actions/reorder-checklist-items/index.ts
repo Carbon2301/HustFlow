@@ -9,6 +9,7 @@ import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { validateChecklistItemsForReorder } from "@/lib/checklist-access";
 import { triggerChecklistItemReordered } from "@/lib/boards/realtime";
+import { CHECKLIST_MESSAGES } from "@/lib/checklists/checklist-messages";
 
 import { ReorderChecklistItems } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -26,7 +27,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     const uniqueIds = new Set(items.map((item) => item.id));
 
     if (uniqueIds.size !== items.length) {
-      return { error: "Danh sách sắp xếp không hợp lệ." };
+      return { error: CHECKLIST_MESSAGES.invalidOrderList };
     }
 
     const access = await validateChecklistItemsForReorder({
@@ -39,7 +40,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     });
 
     if (access.error || !access.checklist) {
-      return { error: access.error || "Không tìm thấy danh sách công việc." };
+      return { error: access.error || CHECKLIST_MESSAGES.checklistNotFound };
     }
 
     const updatedItems = await db.$transaction(
@@ -82,7 +83,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     return { data: updatedItems };
   } catch (error) {
     console.error("[REORDER_CHECKLIST_ITEMS_ERROR]", error);
-    return { error: "Sắp xếp mục công việc thất bại." };
+    return { error: CHECKLIST_MESSAGES.reorderItemFailed };
   }
 };
 
