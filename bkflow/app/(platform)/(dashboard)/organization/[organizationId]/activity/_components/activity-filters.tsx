@@ -142,6 +142,7 @@ const eventTypeOptions = [
   { value: "ATTACHMENT", label: "Đính kèm" },
   { value: "CHECKLIST", label: "Checklist" },
   { value: "DUE_DATE", label: "Due date" },
+  { value: "DEPENDENCY", label: "Phụ thuộc" },
   { value: "LABEL", label: "Label" },
 ];
 

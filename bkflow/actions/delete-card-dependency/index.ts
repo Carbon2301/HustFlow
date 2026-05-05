@@ -86,7 +86,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityType: ENTITY_TYPE.CARD,
       entityTitle: `detail:đã xóa liên kết phụ thuộc: thẻ ${formatAuditCardMarker(dependency.blockedCard)} không còn phụ thuộc vào thẻ ${formatAuditCardMarker(dependency.blockerCard)}`,
       action: ACTION.UPDATE,
-      eventType: AUDIT_EVENT_TYPE.UPDATE,
+      eventType: AUDIT_EVENT_TYPE.DEPENDENCY,
       boardId,
       cardId: dependency.blockedCard.id,
     });

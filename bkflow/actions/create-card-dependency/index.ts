@@ -170,7 +170,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityType: ENTITY_TYPE.CARD,
       entityTitle: `detail:đã thiết lập liên kết phụ thuộc: thẻ ${formatAuditCardMarker(blockedCard)} phụ thuộc vào thẻ ${formatAuditCardMarker(blockerCard)}`,
       action: ACTION.UPDATE,
-      eventType: AUDIT_EVENT_TYPE.UPDATE,
+      eventType: AUDIT_EVENT_TYPE.DEPENDENCY,
       boardId,
       cardId: blockedCard.id,
     });

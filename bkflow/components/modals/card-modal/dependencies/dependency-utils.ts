@@ -1,5 +1,4 @@
 import type {
-  BoardSearchResult,
   CardDependencyWithBlockedCard,
   CardDependencyWithBlockerCard,
 } from "@/types";
@@ -16,8 +15,6 @@ export type DependencyListItem =
       relatedCard: CardDependencyWithBlockedCard["blockedCard"];
     };
 
-export const MIN_SEARCH_LENGTH = 1;
-
 export const dependencyModeOptions = [
   {
     value: "blocked-by" as const,
@@ -28,10 +25,6 @@ export const dependencyModeOptions = [
     label: "Chặn thẻ",
   },
 ];
-
-export const getCardResultTitle = (
-  item: Extract<BoardSearchResult, { type: "card" }>,
-) => item.cardTitle || item.title;
 
 export const getLinkedCardIds = ({
   linkedBlockerIds,

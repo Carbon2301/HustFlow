@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useMemo, useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { Loader2, Plus, Search } from "lucide-react";
+import { CheckCircle2, Loader2, Plus, Search } from "lucide-react";
 
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -14,18 +14,58 @@ import {
 import { fetcher } from "@/lib/fetcher";
 import { cn } from "@/lib/utils";
 import type {
-  BoardSearchResponse,
-  BoardSearchResult,
+  BoardDependencyCandidateCard,
+  BoardDependencyCandidatesResponse,
   CardWithList,
 } from "@/types";
 
 import {
   dependencyModeOptions,
-  getCardResultTitle,
   getLinkedCardIds,
-  MIN_SEARCH_LENGTH,
   type DependencyMode,
 } from "./dependency-utils";
+
+type CandidateGroup = {
+  listId: string;
+  listTitle: string;
+  cards: BoardDependencyCandidateCard[];
+};
+
+const normalizeSearch = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase()
+    .trim();
+
+const CandidateRow = ({
+  card,
+  isCreating,
+  onSelect,
+}: {
+  card: BoardDependencyCandidateCard;
+  isCreating: boolean;
+  onSelect: (cardId: string) => void;
+}) => (
+  <button
+    type="button"
+    disabled={isCreating}
+    onClick={() => onSelect(card.id)}
+    className="group flex w-full min-w-0 items-center justify-between gap-x-3 rounded-lg border border-transparent px-2.5 py-2 text-left transition-colors hover:border-neutral-200 hover:bg-neutral-50 disabled:cursor-not-allowed disabled:opacity-50"
+  >
+    <span className="min-w-0 flex-1 truncate text-sm font-semibold text-neutral-800 group-hover:text-violet-700">
+      {card.title}
+    </span>
+    {card.isCompleted ? (
+      <span className="inline-flex shrink-0 items-center gap-x-1 rounded-md border border-emerald-200 bg-emerald-50 px-1.5 py-0.5 text-[11px] font-semibold text-emerald-700">
+        <CheckCircle2 className="h-3 w-3" />
+        Đã xong
+      </span>
+    ) : null}
+  </button>
+);
 
 export const DependencySearchPicker = ({
   data,
@@ -46,80 +86,92 @@ export const DependencySearchPicker = ({
   const [open, setOpen] = useState(false);
   const [mode, setMode] = useState<DependencyMode>("blocked-by");
   const [query, setQuery] = useState("");
-  const [debouncedQuery, setDebouncedQuery] = useState("");
   const trimmedQuery = query.trim();
-  const shouldSearch = open && debouncedQuery.trim().length >= MIN_SEARCH_LENGTH;
+  const normalizedQuery = normalizeSearch(query);
 
-  useEffect(() => {
-    const timeout = window.setTimeout(() => {
-      setDebouncedQuery(trimmedQuery);
-    }, 220);
-
-    return () => window.clearTimeout(timeout);
-  }, [trimmedQuery]);
-
-  useEffect(() => {
-    if (open) {
-      return;
-    }
-
-    const timeout = window.setTimeout(() => {
-      setQuery("");
-      setDebouncedQuery("");
-    }, 0);
-
-    return () => window.clearTimeout(timeout);
-  }, [open]);
-
-  const searchQuery = useQuery<BoardSearchResponse>({
-    queryKey: ["board-search", data.list.boardId, debouncedQuery],
+  const candidatesQuery = useQuery<BoardDependencyCandidatesResponse>({
+    queryKey: ["board-dependency-candidates", data.list.boardId],
     queryFn: () =>
-      fetcher(
-        `/api/boards/${data.list.boardId}/search?q=${encodeURIComponent(debouncedQuery)}`,
-      ),
-    enabled: shouldSearch,
+      fetcher(`/api/boards/${data.list.boardId}/dependency-candidates`),
+    enabled: open,
   });
 
   const excludedIds = useMemo(
     () => getLinkedCardIds({ linkedBlockerIds, linkedBlockeeIds }),
     [linkedBlockerIds, linkedBlockeeIds],
   );
-  const cardResults = useMemo(
-    () =>
-      (searchQuery.data?.items ?? [])
-        .filter((item): item is Extract<BoardSearchResult, { type: "card" }> =>
-          item.type === "card" &&
-          !item.isArchived &&
-          item.cardId !== data.id &&
-          !excludedIds.has(item.cardId),
-        ),
-    [data.id, excludedIds, searchQuery.data?.items],
-  );
 
-  const statusLabel = useMemo(() => {
-    if (trimmedQuery.length < MIN_SEARCH_LENGTH) {
-      return "Nhập tên thẻ để tìm.";
+  const { totalOtherCards, totalSelectableCards, visibleGroups } = useMemo(() => {
+    const nextGroups: CandidateGroup[] = [];
+    let nextTotalOtherCards = 0;
+    let nextTotalSelectableCards = 0;
+
+    (candidatesQuery.data?.lists ?? []).forEach((list) => {
+      const selectableCards = list.cards.filter((card) => {
+        if (card.id === data.id) {
+          return false;
+        }
+
+        nextTotalOtherCards += 1;
+
+        if (excludedIds.has(card.id)) {
+          return false;
+        }
+
+        nextTotalSelectableCards += 1;
+
+        if (!normalizedQuery) {
+          return true;
+        }
+
+        return normalizeSearch(card.title).includes(normalizedQuery);
+      });
+
+      if (selectableCards.length > 0) {
+        nextGroups.push({
+          listId: list.listId,
+          listTitle: list.listTitle,
+          cards: selectableCards,
+        });
+      }
+    });
+
+    return {
+      totalOtherCards: nextTotalOtherCards,
+      totalSelectableCards: nextTotalSelectableCards,
+      visibleGroups: nextGroups,
+    };
+  }, [candidatesQuery.data?.lists, data.id, excludedIds, normalizedQuery]);
+
+  const emptyLabel = useMemo(() => {
+    if (candidatesQuery.isLoading) {
+      return "Đang tải danh sách thẻ...";
     }
 
-    if (searchQuery.isLoading || debouncedQuery !== trimmedQuery) {
-      return "Đang tìm...";
+    if (candidatesQuery.isError) {
+      return "Không tải được danh sách thẻ.";
     }
 
-    if (searchQuery.isError) {
-      return "Không tải được kết quả.";
+    if (totalOtherCards === 0) {
+      return "Bảng chưa có thẻ khác để liên kết.";
     }
 
-    if (cardResults.length === 0) {
-      return "Không có thẻ phù hợp.";
+    if (totalSelectableCards === 0) {
+      return "Tất cả thẻ phù hợp đã được liên kết.";
+    }
+
+    if (trimmedQuery && visibleGroups.length === 0) {
+      return "Không có thẻ phù hợp với từ khóa.";
     }
 
     return null;
   }, [
-    cardResults.length,
-    debouncedQuery,
-    searchQuery.isError,
-    searchQuery.isLoading,
+    candidatesQuery.isError,
+    candidatesQuery.isLoading,
+    totalOtherCards,
+    totalSelectableCards,
     trimmedQuery,
+    visibleGroups,
   ]);
 
   const onSelectCard = (cardId: string) => {
@@ -128,10 +180,19 @@ export const DependencySearchPicker = ({
       blockedCardId: mode === "blocked-by" ? data.id : cardId,
     });
     setOpen(false);
+    setQuery("");
+  };
+
+  const onOpenChange = (nextOpen: boolean) => {
+    setOpen(nextOpen);
+
+    if (!nextOpen) {
+      setQuery("");
+    }
   };
 
   return (
-    <Popover open={open} onOpenChange={setOpen}>
+    <Popover open={open} onOpenChange={onOpenChange}>
       <PopoverTrigger asChild>
         <Button
           type="button"
@@ -147,8 +208,9 @@ export const DependencySearchPicker = ({
         align="end"
         side="bottom"
         sideOffset={8}
+        onWheel={(event) => event.stopPropagation()}
         onOpenAutoFocus={(event) => event.preventDefault()}
-        className="w-86 max-w-[calc(100vw-2rem)] rounded-xl border border-neutral-200 bg-white p-3 shadow-xl"
+        className="w-96 max-w-[calc(100vw-2rem)] rounded-xl border border-neutral-200 bg-white p-3 shadow-xl"
       >
         <div className="grid grid-cols-2 gap-1 rounded-lg bg-neutral-100 p-1">
           {dependencyModeOptions.map((option) => (
@@ -173,38 +235,46 @@ export const DependencySearchPicker = ({
           <Input
             value={query}
             onChange={(event) => setQuery(event.target.value)}
-            placeholder="Tìm thẻ trong bảng..."
+            placeholder="Lọc thẻ trong bảng..."
             disabled={isCreating}
             className="h-9 border-neutral-200 bg-neutral-50 pl-9 text-sm focus-visible:border-violet-400 focus-visible:ring-1 focus-visible:ring-violet-100"
           />
         </div>
 
-        <div className="mt-3 max-h-64 overflow-y-auto styled-scrollbar">
-          {statusLabel ? (
-            <div className="flex min-h-20 items-center justify-center rounded-lg border border-dashed border-neutral-200 bg-neutral-50 px-3 py-4 text-center text-sm text-neutral-500">
-              {(searchQuery.isLoading || debouncedQuery !== trimmedQuery) &&
-              trimmedQuery.length >= MIN_SEARCH_LENGTH ? (
+        <div
+          className="mt-3 max-h-72 overflow-y-auto overscroll-contain styled-scrollbar"
+          onWheel={(event) => event.stopPropagation()}
+        >
+          {emptyLabel ? (
+            <div className="flex min-h-24 items-center justify-center rounded-lg border border-dashed border-neutral-200 bg-neutral-50 px-3 py-4 text-center text-sm text-neutral-500">
+              {candidatesQuery.isLoading ? (
                 <Loader2 className="mr-2 h-4 w-4 animate-spin text-neutral-400" />
               ) : null}
-              {statusLabel}
+              {emptyLabel}
             </div>
           ) : (
-            <div className="space-y-1">
-              {cardResults.map((item) => (
-                <button
-                  key={item.id}
-                  type="button"
-                  disabled={isCreating}
-                  onClick={() => onSelectCard(item.cardId)}
-                  className="flex w-full min-w-0 flex-col rounded-lg px-2.5 py-2 text-left transition-colors hover:bg-neutral-50 disabled:opacity-50"
-                >
-                  <span className="truncate text-sm font-semibold text-neutral-800">
-                    {getCardResultTitle(item)}
-                  </span>
-                  <span className="mt-0.5 truncate text-xs text-neutral-500">
-                    {item.listTitle}
-                  </span>
-                </button>
+            <div className="space-y-3">
+              {visibleGroups.map((group) => (
+                <section key={group.listId} className="space-y-1">
+                  <div className="flex items-center justify-between gap-x-3 px-1">
+                    <p className="truncate text-xs font-bold uppercase tracking-wide text-neutral-500">
+                      {group.listTitle}
+                    </p>
+                    <span className="shrink-0 text-[11px] font-semibold text-neutral-400">
+                      {group.cards.length}
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    {group.cards.map((card) => (
+                      <CandidateRow
+                        key={card.id}
+                        card={card}
+                        isCreating={isCreating}
+                        onSelect={onSelectCard}
+                      />
+                    ))}
+                  </div>
+                </section>
               ))}
             </div>
           )}

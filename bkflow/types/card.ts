@@ -72,6 +72,24 @@ export type CardWithList = Card & {
   };
 };
 
+export type BoardDependencyCandidateCard = {
+  id: string;
+  title: string;
+  isCompleted: boolean;
+  startDate: string | null;
+  dueDate: string | null;
+};
+
+export type BoardDependencyCandidateList = {
+  listId: string;
+  listTitle: string;
+  cards: BoardDependencyCandidateCard[];
+};
+
+export type BoardDependencyCandidatesResponse = {
+  lists: BoardDependencyCandidateList[];
+};
+
 export type CardCommentWithReplies = Prisma.CardCommentGetPayload<{
   include: {
     reactions: true;

@@ -42,6 +42,7 @@ export const updateCardService = async ({
     dueDate,
     isCompleted,
     reminder,
+    dueDateTimezoneOffset,
     ...values
   } = data;
   let card: Card;
@@ -162,6 +163,7 @@ export const updateCardService = async ({
         startDate,
         dueDate,
         isCompleted,
+        dueDateTimezoneOffset,
       },
       card,
       currentCard,
