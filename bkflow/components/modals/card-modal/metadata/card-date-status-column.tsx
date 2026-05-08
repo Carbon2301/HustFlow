@@ -3,8 +3,6 @@
 import { ChevronDown } from "lucide-react";
 
 import type { CardWithList } from "@/types";
-import { Hint } from "@/components/hint";
-import { cn } from "@/lib/utils";
 
 import { CardDatePopover } from "./card-date-popover";
 
@@ -55,25 +53,17 @@ export const CardDateStatusColumn = ({
   onClearDueDate,
   canEdit = true,
 }: CardDateStatusColumnProps) => {
+  if (!hasDateRange) {
+    return null;
+  }
+
   return (
     <div className="flex flex-col gap-y-1.5">
       <span className="text-xs font-semibold text-neutral-600 pl-0.5">
-        {hasDateRange ? "Ngày" : "Hoàn thành"}
+        Ngày
       </span>
       <div className="flex items-center gap-x-2">
-        <Hint description={data.isCompleted ? "Đánh dấu chưa hoàn thành" : "Đánh dấu hoàn thành"} side="bottom">
-          <input
-            type="checkbox"
-            checked={data.isCompleted}
-            onChange={(event) => canEdit && onToggleComplete(event)}
-            disabled={isLoadingUpdate || !canEdit}
-            className="h-4.5 w-4.5 rounded-sm border-neutral-300 accent-violet-600 cursor-pointer shadow-xs"
-            aria-label={data.isCompleted ? "Đánh dấu chưa hoàn thành" : "Đánh dấu hoàn thành"}
-          />
-        </Hint>
-
-        {hasDateRange ? (
-          canEdit ? (
+        {canEdit ? (
           <CardDatePopover
             open={isDateOpen}
             onOpenChange={onDateOpenChange}
@@ -115,24 +105,14 @@ export const CardDateStatusColumn = ({
               </button>
             )}
           />
-          ) : (
-            <button
-              type="button"
-              disabled
-              className="inline-flex h-8 max-w-full items-center gap-x-1.5 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs font-medium text-neutral-700 shadow-xs"
-            >
-              <span className="truncate">{dateSummary}</span>
-            </button>
-          )
         ) : (
-          <span className={cn(
-            "text-[10px] font-bold px-1.5 py-0.5 rounded uppercase tracking-wider shadow-xs",
-            data.isCompleted
-              ? "bg-emerald-50 text-emerald-700 border border-emerald-200"
-              : "bg-neutral-50 text-neutral-500 border border-neutral-200"
-          )}>
-            {data.isCompleted ? "Hoàn thành" : "Chưa hoàn thành"}
-          </span>
+          <button
+            type="button"
+            disabled
+            className="inline-flex h-8 max-w-full items-center gap-x-1.5 rounded-lg border border-neutral-200 bg-neutral-50/50 px-3 text-xs font-medium text-neutral-700 shadow-xs"
+          >
+            <span className="truncate">{dateSummary}</span>
+          </button>
         )}
       </div>
     </div>

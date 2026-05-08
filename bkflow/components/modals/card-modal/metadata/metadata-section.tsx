@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useMemo, type ChangeEvent } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 
 import { CardWithList } from "@/types";
@@ -10,7 +10,6 @@ import { formatDateTimeLocalInput } from "@/lib/date-utils";
 import { useBoardCalendarInvalidation } from "@/hooks/use-board-calendar-invalidation";
 
 import { CardAssigneeSummary } from "./card-assignee-summary";
-import { BlockedCompletionDialog } from "./blocked-completion-dialog";
 import { CardDateStatusColumn } from "./card-date-status-column";
 import { CardLabelSummary } from "./card-label-summary";
 import { MetadataActionRow } from "./metadata-action-row";
@@ -40,7 +39,6 @@ export const MetadataSection = ({
 
   const [isDateOpen, setIsDateOpen] = useState(false);
   const [isMemberOpen, setIsMemberOpen] = useState(false);
-  const [blockedCompletionOpen, setBlockedCompletionOpen] = useState(false);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -49,20 +47,6 @@ export const MetadataSection = ({
     setReminderValue(data.reminder || "none");
   }, [data.startDate, data.dueDate, data.reminder]);
 
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setBlockedCompletionOpen(false);
-  }, [data.id]);
-
-  useEffect(() => {
-    if (!data.isCompleted) {
-      return;
-    }
-
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setBlockedCompletionOpen(false);
-  }, [data.isCompleted]);
-
   const {
     isLoadingUpdate,
     isLoadingAssign,
@@ -70,7 +54,6 @@ export const MetadataSection = ({
     updateDueDate,
     updateStartDate,
     onDateSubmit,
-    updateCompletion,
     handleMemberToggle,
   } = useCardMetadataActions({
     data,
@@ -106,32 +89,8 @@ export const MetadataSection = ({
 
   const showActionButtonRow = canEdit;
 
-  const onToggleComplete = (event: ChangeEvent<HTMLInputElement>) => {
-    const checked = event.target.checked;
-
-    if (checked && !data.isCompleted && unresolvedBlockers.length > 0) {
-      setBlockedCompletionOpen(true);
-      return;
-    }
-
-    updateCompletion(checked);
-  };
-
-  const onConfirmBlockedCompletion = () => {
-    updateCompletion(true);
-  };
-
   return (
     <div className="space-y-5">
-      {canEdit && (
-        <BlockedCompletionDialog
-          open={blockedCompletionOpen}
-          onOpenChange={setBlockedCompletionOpen}
-          blockers={unresolvedBlockers}
-          isLoading={isLoadingUpdate}
-          onConfirm={onConfirmBlockedCompletion}
-        />
-      )}
 
       {/* 1. Action Button Row */}
       {showActionButtonRow && (
@@ -204,7 +163,7 @@ export const MetadataSection = ({
           dateSummary={dateSummary}
           status={status}
           isLoadingUpdate={isLoadingUpdate}
-          onToggleComplete={onToggleComplete}
+          onToggleComplete={() => {}}
           isDateOpen={isDateOpen}
           onDateOpenChange={setIsDateOpen}
           startDateValue={startDateValue}
