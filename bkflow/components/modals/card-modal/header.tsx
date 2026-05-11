@@ -36,11 +36,23 @@ export const Header = ({
   const [blockedCompletionOpen, setBlockedCompletionOpen] = useState(false);
   const [animateComplete, setAnimateComplete] = useState(false);
 
+  const completionRequestRef = useRef<{
+    previous: boolean;
+  } | null>(null);
+  const queuedCompletionRef = useRef<boolean | null>(null);
+  const titleRequestRef = useRef<{
+    previous: string;
+    optimistic: string;
+  } | null>(null);
+
   useEffect(() => {
     if (data.isCompleted) {
-      setAnimateComplete(true);
-      const timer = setTimeout(() => setAnimateComplete(false), 600);
-      return () => clearTimeout(timer);
+      const startTimer = setTimeout(() => setAnimateComplete(true), 0);
+      const endTimer = setTimeout(() => setAnimateComplete(false), 600);
+      return () => {
+        clearTimeout(startTimer);
+        clearTimeout(endTimer);
+      };
     }
   }, [data.isCompleted]);
 
@@ -69,14 +81,36 @@ export const Header = ({
           });
         });
       }
+
+      const queuedCompletion = queuedCompletionRef.current;
+      completionRequestRef.current = null;
+      queuedCompletionRef.current = null;
+
+      if (
+        queuedCompletion !== null &&
+        queuedCompletion !== updatedCard.isCompleted
+      ) {
+        updateCompletion(queuedCompletion);
+      }
     },
     onError: (error) => {
+      const request = completionRequestRef.current;
+      if (request) {
+        patchCardQueryData(queryClient, data.id, {
+          isCompleted: request.previous,
+        });
+        patchBoardCardPreview(boardId, data.id, {
+          isCompleted: request.previous,
+        });
+        completionRequestRef.current = null;
+      }
+      queuedCompletionRef.current = null;
       toast.error(error);
     },
   });
 
   const onToggleComplete = () => {
-    if (!canEdit || isLoadingUpdate) {
+    if (!canEdit) {
       return;
     }
 
@@ -91,6 +125,24 @@ export const Header = ({
   };
 
   const updateCompletion = (checked: boolean) => {
+    const activeRequest = completionRequestRef.current;
+
+    patchCardQueryData(queryClient, data.id, {
+      isCompleted: checked,
+    });
+    patchBoardCardPreview(boardId, data.id, {
+      isCompleted: checked,
+    });
+
+    if (activeRequest) {
+      queuedCompletionRef.current = checked;
+      return;
+    }
+
+    completionRequestRef.current = {
+      previous: data.isCompleted,
+    };
+
     executeUpdateCard({
       id: data.id,
       boardId,
@@ -103,23 +155,40 @@ export const Header = ({
     setBlockedCompletionOpen(false);
   };
 
-  const { execute } = useAction(updateCard, {
-    onSuccess: (data) => {
-      patchCardQueryData(queryClient, data.id, {
-        title: data.title,
+  const { execute, isLoading: isLoadingTitle } = useAction(updateCard, {
+    onSuccess: (updatedCard) => {
+      const request = titleRequestRef.current;
+      if (!request || updatedCard.title !== request.optimistic) {
+        return;
+      }
+
+      patchCardQueryData(queryClient, updatedCard.id, {
+        title: updatedCard.title,
       });
-      patchBoardCardPreview(boardId, data.id, {
-        title: data.title,
+      patchBoardCardPreview(boardId, updatedCard.id, {
+        title: updatedCard.title,
       });
 
       queryClient.invalidateQueries({
-        queryKey: ["card-logs", data.id]
+        queryKey: ["card-logs", updatedCard.id]
       });
 
       invalidateBoardCalendar();
-      setTitle(data.title);
+      setTitle(updatedCard.title);
+      titleRequestRef.current = null;
     },
     onError: (error) => {
+      const request = titleRequestRef.current;
+      if (request) {
+        patchCardQueryData(queryClient, data.id, {
+          title: request.previous,
+        });
+        patchBoardCardPreview(boardId, data.id, {
+          title: request.previous,
+        });
+        setTitle(request.previous);
+        titleRequestRef.current = null;
+      }
       toast.error(error);
     }
   });
@@ -127,6 +196,12 @@ export const Header = ({
   const titleRef = useRef<HTMLTextAreaElement>(null);
 
   const [title, setTitle] = useState(data.title);
+
+  useEffect(() => {
+    if (!titleRequestRef.current) {
+      setTitle(data.title);
+    }
+  }, [data.title]);
 
   const resizeTitle = () => {
     const element = titleRef.current;
@@ -144,7 +219,7 @@ export const Header = ({
   }, [title]);
 
   const onBlur = () => {
-    if (!canEdit) {
+    if (!canEdit || isLoadingTitle || titleRequestRef.current) {
       return;
     }
 
@@ -160,28 +235,36 @@ export const Header = ({
     }
 
     if (!trimmedTitle) {
-      if (titleRef.current) {
-        titleRef.current.value = data.title;
-      }
       setTitle(data.title);
       requestAnimationFrame(resizeTitle);
       return;
     }
 
     if (trimmedTitle === data.title) {
-      if (titleRef.current) {
-        titleRef.current.value = data.title;
-      }
+      setTitle(data.title);
       requestAnimationFrame(resizeTitle);
       return;
     }
+
+    titleRequestRef.current = {
+      previous: data.title,
+      optimistic: trimmedTitle,
+    };
+
+    patchCardQueryData(queryClient, data.id, {
+      title: trimmedTitle,
+    });
+    patchBoardCardPreview(boardId, data.id, {
+      title: trimmedTitle,
+    });
+    setTitle(trimmedTitle);
 
     execute({
       title: trimmedTitle,
       boardId,
       id: data.id,
     });
-  }
+  };
 
   const onKeyDown = (event: React.KeyboardEvent<HTMLTextAreaElement>) => {
     if (event.key === "Enter" && !event.shiftKey) {
@@ -225,7 +308,7 @@ export const Header = ({
       <Hint description={data.isCompleted ? "Đánh dấu chưa hoàn thành" : "Đánh dấu hoàn thành"} side="bottom">
         <button
           onClick={onToggleComplete}
-          disabled={!canEdit || isLoadingUpdate}
+          disabled={!canEdit}
           className={cn(
             "w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5 transition-all duration-200 border-2 shadow-xs",
             data.isCompleted 
@@ -253,10 +336,11 @@ export const Header = ({
             ref={titleRef}
             onBlur={onBlur}
             onInput={resizeTitle}
+            onChange={(event) => setTitle(event.target.value)}
             onKeyDown={onKeyDown}
             id="title"
             name="title"
-            defaultValue={title}
+            value={title}
             readOnly={!canEdit}
             rows={1}
             className="relative -left-2 mb-0.5 min-h-10 w-[calc(100%+0.5rem)] resize-none overflow-hidden whitespace-pre-wrap break-words rounded-lg border border-transparent bg-transparent px-2 py-1.5 text-2xl font-bold leading-tight text-neutral-800 outline-none transition focus-visible:border-neutral-300 focus-visible:bg-white focus-visible:ring-1 focus-visible:ring-violet-200 read-only:cursor-default read-only:focus-visible:border-transparent read-only:focus-visible:bg-transparent read-only:focus-visible:ring-0 md:text-2xl"

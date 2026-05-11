@@ -67,14 +67,6 @@ export const ListForm = () => {
       rollbackRef.current = null;
       temporaryListIdRef.current = null;
     },
-    onComplete: () => {
-      if (rollbackRef.current) {
-        boardState.resetToSnapshot(rollbackRef.current);
-      }
-
-      rollbackRef.current = null;
-      temporaryListIdRef.current = null;
-    },
   });
 
   const onKeyDown = (e: KeyboardEvent) => {

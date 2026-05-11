@@ -37,8 +37,6 @@ export const CardMemberPopover = ({
   onSearchQueryChange,
   boardMembers,
   assignees,
-  isLoadingAssign,
-  isLoadingUnassign,
   onToggleMember,
 }: CardMemberPopoverProps) => {
   return (
@@ -80,13 +78,10 @@ export const CardMemberPopover = ({
             ) : (
               boardMembers.map((member) => {
                 const isAssigned = assignees?.some((a) => a.boardMemberId === member.id) ?? false;
-                const isMutating = isLoadingAssign || isLoadingUnassign;
-
                 return (
                   <button
                     key={member.id}
                     type="button"
-                    disabled={isMutating}
                     onClick={() => onToggleMember(member.id, isAssigned)}
                     className="w-full flex items-center gap-x-2.5 px-2 py-1.5 hover:bg-neutral-50 rounded-lg transition text-left cursor-pointer group disabled:opacity-50"
                   >

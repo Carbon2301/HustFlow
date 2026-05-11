@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useMemo } from "react";
+import { useState, useMemo, useRef } from "react";
 import { useRouter } from "next/navigation";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
@@ -72,6 +72,11 @@ export const LabelPopover = ({
   const [screen, setScreen] = useState<"select" | "create" | "edit">("select");
   const [searchQuery, setSearchQuery] = useState("");
   const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
+  const labelRollbackRef = useRef<Map<string, {
+    previousLabels: (CardLabel & { label: Label })[];
+    version: number;
+  }>>(new Map());
+  const labelRequestVersionsRef = useRef<Map<string, number>>(new Map());
 
   // Form states
   const [titleValue, setTitleValue] = useState("");
@@ -102,44 +107,45 @@ export const LabelPopover = ({
   };
 
   // Actions
-  const { execute: executeToggle, isLoading: isLoadingToggle } = useAction(toggleCardLabel, {
-    onSuccess: (data) => {
-      const isAttached = data.toggled;
-      let nextLabels;
-      if (!isAttached) {
-        nextLabels = labels.filter((l) => l.labelId !== data.labelId);
-      } else {
-        const labelToAttach = boardLabels.find((l) => l.id === data.labelId);
-        if (labelToAttach) {
-          nextLabels = [
-            ...labels,
-            {
-              id: `temp-cl-${new Date().getTime()}`,
-              cardId,
-              labelId: data.labelId,
-              createdAt: new Date(),
-              updatedAt: new Date(),
-              label: labelToAttach,
-            },
-          ];
-        } else {
-          nextLabels = labels;
-        }
+  const getNextLabelRequestVersion = (labelId: string) => {
+    const nextVersion = (labelRequestVersionsRef.current.get(labelId) ?? 0) + 1;
+    labelRequestVersionsRef.current.set(labelId, nextVersion);
+    return nextVersion;
+  };
+
+  const executeToggle = async (labelId: string, version: number) => {
+    const result = await toggleCardLabel({
+      cardId,
+      labelId,
+      boardId,
+    });
+
+    if (result.error) {
+      const rollback = labelRollbackRef.current.get(labelId);
+
+      if (rollback && rollback.version === version) {
+        patchCardQueryData(queryClient, cardId, {
+          labels: rollback.previousLabels,
+        });
+        patchBoardCardPreview(boardId, cardId, {
+          labels: rollback.previousLabels,
+        });
+        labelRollbackRef.current.delete(labelId);
       }
 
-      patchCardQueryData(queryClient, cardId, {
-        labels: nextLabels,
-      });
-      patchBoardCardPreview(boardId, cardId, {
-        labels: nextLabels,
-      });
+      toast.error(result.error);
+      return;
+    }
 
-      invalidateCardQueries();
-    },
-    onError: (error) => {
-      toast.error(error);
-    },
-  });
+    if (result.data) {
+      const rollback = labelRollbackRef.current.get(result.data.labelId);
+
+      if (rollback && rollback.version === version) {
+        labelRollbackRef.current.delete(result.data.labelId);
+        invalidateCardQueries();
+      }
+    }
+  };
 
   const { execute: executeCreate, isLoading: isLoadingCreate } = useAction(createLabel, {
     onSuccess: (data) => {
@@ -174,7 +180,7 @@ export const LabelPopover = ({
   });
 
   const { execute: executeUpdate, isLoading: isLoadingUpdate } = useAction(updateLabel, {
-    onSuccess: (data) => {
+    onSuccess: () => {
       invalidateCardQueries();
       router.refresh();
       setScreen("select");
@@ -204,11 +210,41 @@ export const LabelPopover = ({
 
   // Action Triggers
   const handleToggleLabel = (labelId: string) => {
-    executeToggle({
-      cardId,
-      labelId,
-      boardId,
+    const currentLabels =
+      queryClient.getQueryData<{ labels?: (CardLabel & { label: Label })[] }>(["card", cardId])?.labels ??
+      labels;
+    const isAttached = currentLabels.some((item) => item.labelId === labelId);
+    const labelToAttach = boardLabels.find((label) => label.id === labelId);
+    const nextLabels = isAttached
+      ? currentLabels.filter((item) => item.labelId !== labelId)
+      : labelToAttach
+        ? [
+          ...currentLabels,
+          {
+            id: `temp-cl-${cardId}-${labelId}`,
+            cardId,
+            labelId,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+            label: labelToAttach,
+          },
+        ]
+        : currentLabels;
+
+    const version = getNextLabelRequestVersion(labelId);
+
+    labelRollbackRef.current.set(labelId, {
+      previousLabels: currentLabels,
+      version,
     });
+    patchCardQueryData(queryClient, cardId, {
+      labels: nextLabels,
+    });
+    patchBoardCardPreview(boardId, cardId, {
+      labels: nextLabels,
+    });
+
+    void executeToggle(labelId, version);
   };
 
   const handleCreateLabel = (e: React.FormEvent) => {
@@ -267,7 +303,7 @@ export const LabelPopover = ({
     return new Set(labels.map((l) => l.labelId));
   }, [labels]);
 
-  const isLoading = isLoadingToggle || isLoadingCreate || isLoadingUpdate || isLoadingDelete;
+  const isLoading = isLoadingCreate || isLoadingUpdate || isLoadingDelete;
 
   return (
     <Popover open={isOpen} onOpenChange={onOpenChange} modal={true}>

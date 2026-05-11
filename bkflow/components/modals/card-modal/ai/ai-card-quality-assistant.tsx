@@ -105,7 +105,6 @@ export const AiCardQualityAssistant = ({
         description: updatedCard.description,
       });
       invalidateCard();
-      toast.success("Đã cập nhật mô tả");
       resetPreview();
     },
     onError: (error) => toast.error(error),

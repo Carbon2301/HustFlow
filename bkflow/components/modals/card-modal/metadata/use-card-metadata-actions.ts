@@ -1,6 +1,6 @@
 "use client";
 
-import type { FormEvent } from "react";
+import { FormEvent, useRef, useState } from "react";
 import type { QueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
@@ -34,8 +34,25 @@ export const useCardMetadataActions = ({
   reminderValue,
   setIsDateOpen,
 }: UseCardMetadataActionsProps) => {
+  const dateRequestRef = useRef<{
+    previousStartDate: CardWithList["startDate"];
+    previousDueDate: CardWithList["dueDate"];
+    previousReminder: CardWithList["reminder"];
+    previousIsCompleted: CardWithList["isCompleted"];
+  } | null>(null);
+  const memberRequestsRef = useRef(new Map<string, {
+    previousAssignees: CardWithList["assignees"];
+    sentAssigned: boolean;
+    queuedAssigned: boolean | null;
+    version: number;
+  }>());
+  const memberRequestVersionsRef = useRef(new Map<string, number>());
+  const [assignPendingCount, setAssignPendingCount] = useState(0);
+  const [unassignPendingCount, setUnassignPendingCount] = useState(0);
+
   const { execute: executeUpdateCard, isLoading: isLoadingUpdate } = useAction(updateCard, {
     onSuccess: (updatedCard) => {
+      dateRequestRef.current = null;
       patchCardQueryData(queryClient, updatedCard.id, {
         startDate: updatedCard.startDate,
         dueDate: updatedCard.dueDate,
@@ -70,54 +87,198 @@ export const useCardMetadataActions = ({
       setIsDateOpen(false);
     },
     onError: (error) => {
+      const request = dateRequestRef.current;
+      if (request) {
+        patchCardQueryData(queryClient, data.id, {
+          startDate: request.previousStartDate,
+          dueDate: request.previousDueDate,
+          reminder: request.previousReminder,
+          isCompleted: request.previousIsCompleted,
+        });
+        patchBoardCardPreview(boardId, data.id, {
+          startDate: request.previousStartDate,
+          dueDate: request.previousDueDate,
+          reminder: request.previousReminder,
+          isCompleted: request.previousIsCompleted,
+        });
+        dateRequestRef.current = null;
+      }
       toast.error(error);
     },
   });
 
-  const { execute: executeAssign, isLoading: isLoadingAssign } = useAction(assignCardMember, {
-    onSuccess: (assigned) => {
-      invalidateBoardCalendar();
-      const assignees = [
-        ...data.assignees.filter((item) => item.id !== assigned.id),
-        assigned,
-      ];
+  const getCurrentAssignees = () =>
+    queryClient.getQueryData<CardWithList>(["card", data.id])?.assignees ?? data.assignees;
 
-      patchCardQueryData(queryClient, data.id, {
-        assignees,
-      });
-      patchBoardCardPreview(boardId, data.id, {
-        assignees,
-      });
-      queryClient.invalidateQueries({
-        queryKey: ["card-logs", data.id],
-      });
-      toast.success(`Đã giao thẻ cho ${assigned.boardMember.userName}`);
-    },
-    onError: (error) => {
-      toast.error(error);
-    },
-  });
+  const patchAssignees = (assignees: CardWithList["assignees"]) => {
+    patchCardQueryData(queryClient, data.id, {
+      assignees,
+    });
+    patchBoardCardPreview(boardId, data.id, {
+      assignees,
+    });
+  };
 
-  const { execute: executeUnassign, isLoading: isLoadingUnassign } = useAction(unassignCardMember, {
-    onSuccess: (unassigned) => {
-      invalidateBoardCalendar();
-      const assignees = data.assignees.filter((item) => item.id !== unassigned.id);
+  const getOptimisticAssignee = (memberId: string): CardWithList["assignees"][number] | null => {
+    const boardMember = data.boardMembers.find((member) => member.id === memberId);
 
-      patchCardQueryData(queryClient, data.id, {
-        assignees,
+    if (!boardMember) {
+      return null;
+    }
+
+    const now = new Date();
+
+    return {
+      id: `temp-assignee-${data.id}-${memberId}`,
+      cardId: data.id,
+      boardMemberId: memberId,
+      createdAt: now,
+      updatedAt: now,
+      boardMember,
+    };
+  };
+
+  const getNextMemberRequestVersion = (memberId: string) => {
+    const nextVersion = (memberRequestVersionsRef.current.get(memberId) ?? 0) + 1;
+    memberRequestVersionsRef.current.set(memberId, nextVersion);
+    return nextVersion;
+  };
+
+  const finishMemberSuccess = (
+    memberId: string,
+    sentAssigned: boolean,
+    nextAssignees: CardWithList["assignees"],
+    successMessage: string,
+    version: number,
+  ) => {
+    const request = memberRequestsRef.current.get(memberId);
+
+    if (!request || request.version !== version || request.sentAssigned !== sentAssigned) {
+      return;
+    }
+
+    invalidateBoardCalendar();
+    queryClient.invalidateQueries({
+      queryKey: ["card-logs", data.id],
+    });
+    toast.success(successMessage);
+
+    const queuedAssigned = request.queuedAssigned;
+    memberRequestsRef.current.delete(memberId);
+
+    if (queuedAssigned !== null && queuedAssigned !== sentAssigned) {
+      sendMemberMutation(memberId, queuedAssigned, nextAssignees);
+      return;
+    }
+
+    patchAssignees(nextAssignees);
+  };
+
+  const finishMemberError = (
+    memberId: string,
+    sentAssigned: boolean,
+    version: number,
+    error: string,
+  ) => {
+    const request = memberRequestsRef.current.get(memberId);
+
+    if (request && request.version === version && request.sentAssigned === sentAssigned) {
+      patchAssignees(request.previousAssignees);
+      memberRequestsRef.current.delete(memberId);
+    }
+
+    toast.error(error);
+  };
+
+  const executeAssignMember = async (memberId: string, version: number) => {
+    setAssignPendingCount((count) => count + 1);
+
+    try {
+      const result = await assignCardMember({
+        boardId,
+        cardId: data.id,
+        boardMemberId: memberId,
       });
-      patchBoardCardPreview(boardId, data.id, {
-        assignees,
+
+      if (result.error) {
+        finishMemberError(memberId, true, version, result.error);
+        return;
+      }
+
+      if (result.data) {
+        const assigned = result.data;
+        const assignees = [
+          ...getCurrentAssignees().filter((item) => item.boardMemberId !== assigned.boardMemberId),
+          assigned,
+        ];
+
+        finishMemberSuccess(
+          assigned.boardMemberId,
+          true,
+          assignees,
+          `Đã giao thẻ cho ${assigned.boardMember.userName}`,
+          version,
+        );
+      }
+    } finally {
+      setAssignPendingCount((count) => Math.max(0, count - 1));
+    }
+  };
+
+  const executeUnassignMember = async (memberId: string, version: number) => {
+    setUnassignPendingCount((count) => count + 1);
+
+    try {
+      const result = await unassignCardMember({
+        boardId,
+        cardId: data.id,
+        boardMemberId: memberId,
       });
-      queryClient.invalidateQueries({
-        queryKey: ["card-logs", data.id],
-      });
-      toast.success(`Đã bỏ giao thẻ cho ${unassigned.boardMember.userName}`);
-    },
-    onError: (error) => {
-      toast.error(error);
-    },
-  });
+
+      if (result.error) {
+        finishMemberError(memberId, false, version, result.error);
+        return;
+      }
+
+      if (result.data) {
+        const unassigned = result.data;
+        const assignees = getCurrentAssignees()
+          .filter((item) => item.boardMemberId !== unassigned.boardMemberId);
+
+        finishMemberSuccess(
+          unassigned.boardMemberId,
+          false,
+          assignees,
+          `Đã bỏ giao thẻ cho ${unassigned.boardMember.userName}`,
+          version,
+        );
+      }
+    } finally {
+      setUnassignPendingCount((count) => Math.max(0, count - 1));
+    }
+  };
+
+  const sendMemberMutation = (
+    memberId: string,
+    desiredAssigned: boolean,
+    previousAssignees: CardWithList["assignees"],
+  ) => {
+    const version = getNextMemberRequestVersion(memberId);
+
+    memberRequestsRef.current.set(memberId, {
+      previousAssignees,
+      sentAssigned: desiredAssigned,
+      queuedAssigned: null,
+      version,
+    });
+
+    if (desiredAssigned) {
+      void executeAssignMember(memberId, version);
+      return;
+    }
+
+    void executeUnassignMember(memberId, version);
+  };
 
   const updateDateRange = ({
     startDate,
@@ -130,6 +291,10 @@ export const useCardMetadataActions = ({
     isCompleted?: boolean;
     reminder?: string | null;
   }) => {
+    if (isLoadingUpdate || dateRequestRef.current) {
+      return;
+    }
+
     if (
       startDate === undefined &&
       dueDate === undefined &&
@@ -145,6 +310,22 @@ export const useCardMetadataActions = ({
     const nextReminder = dueDate === undefined
       ? reminder
       : (dueDate ? (reminder ?? reminderValue) : null);
+
+    dateRequestRef.current = {
+      previousStartDate: data.startDate,
+      previousDueDate: data.dueDate,
+      previousReminder: data.reminder,
+      previousIsCompleted: data.isCompleted,
+    };
+
+    const patchObj: Partial<CardWithList> = {};
+    if (startDate !== undefined) patchObj.startDate = startDate;
+    if (dueDate !== undefined) patchObj.dueDate = dueDate;
+    if (nextIsCompleted !== undefined) patchObj.isCompleted = nextIsCompleted;
+    if (nextReminder !== undefined) patchObj.reminder = nextReminder === "none" ? null : nextReminder;
+
+    patchCardQueryData(queryClient, data.id, patchObj);
+    patchBoardCardPreview(boardId, data.id, patchObj);
 
     executeUpdateCard({
       id: data.id,
@@ -268,25 +449,29 @@ export const useCardMetadataActions = ({
   };
 
   const handleMemberToggle = (memberId: string, isAssigned: boolean) => {
-    if (isAssigned) {
-      executeUnassign({
-        boardId,
-        cardId: data.id,
-        boardMemberId: memberId,
-      });
+    const desiredAssigned = !isAssigned;
+    const activeRequest = memberRequestsRef.current.get(memberId);
+    const currentAssignees = getCurrentAssignees();
+    const nextAssignees = desiredAssigned
+      ? [
+        ...currentAssignees.filter((item) => item.boardMemberId !== memberId),
+        getOptimisticAssignee(memberId),
+      ].filter((item): item is CardWithList["assignees"][number] => Boolean(item))
+      : currentAssignees.filter((item) => item.boardMemberId !== memberId);
+
+    patchAssignees(nextAssignees);
+
+    if (activeRequest) {
+      activeRequest.queuedAssigned = desiredAssigned;
     } else {
-      executeAssign({
-        boardId,
-        cardId: data.id,
-        boardMemberId: memberId,
-      });
+      sendMemberMutation(memberId, desiredAssigned, currentAssignees);
     }
   };
 
   return {
     isLoadingUpdate,
-    isLoadingAssign,
-    isLoadingUnassign,
+    isLoadingAssign: assignPendingCount > 0,
+    isLoadingUnassign: unassignPendingCount > 0,
     updateDateRange,
     updateDueDate,
     updateStartDate,

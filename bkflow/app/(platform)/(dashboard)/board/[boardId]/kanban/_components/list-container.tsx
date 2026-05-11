@@ -74,7 +74,6 @@ export const ListContainer = ({
       invalidateBoardCalendar();
       queryClient.invalidateQueries({ queryKey: ["card", data.id] });
       queryClient.invalidateQueries({ queryKey: ["card-logs", data.id] });
-      router.refresh();
     },
     onError: (error) => {
       toast.error(error);

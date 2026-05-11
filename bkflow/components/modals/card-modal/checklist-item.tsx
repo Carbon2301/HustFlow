@@ -33,7 +33,6 @@ export const ChecklistItem = ({
   item,
   boardMembers,
   isMutating,
-  isTogglePending,
   maxDueDate,
   dragHandleProps,
   isDragging = false,
@@ -113,7 +112,7 @@ export const ChecklistItem = ({
         <input
           type="checkbox"
           checked={item.isCompleted}
-          disabled={isTogglePending || !canEdit}
+          disabled={!canEdit}
           onChange={(event) => canEdit && onToggle(item.id, event.target.checked)}
           className="mt-1 h-4.5 w-4.5 rounded-md border-neutral-300 accent-violet-600 shadow-xs disabled:opacity-50"
           aria-label={item.isCompleted ? "Bỏ hoàn thành" : "Hoàn thành"}

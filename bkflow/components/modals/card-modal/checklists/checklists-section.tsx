@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { BoardMember } from "@prisma/client";
 import {
@@ -65,18 +65,36 @@ export const ChecklistsSection = ({
   const [pendingToggleItemIds, setPendingToggleItemIds] = useState<Set<string>>(new Set());
   const [pendingItemIds, setPendingItemIds] = useState<Set<string>>(new Set());
   const [pendingChecklistIds, setPendingChecklistIds] = useState<Set<string>>(new Set());
+  const toggleRequestsRef = useRef(new Map<string, {
+    previous: boolean;
+    queued: boolean | null;
+    version: number;
+  }>());
+  const toggleRequestVersionsRef = useRef(new Map<string, number>());
+  const temporaryItemIdRef = useRef<string | null>(null);
+  const mutationRollbackRef = useRef<ChecklistWithItems[] | null>(null);
 
   useEffect(() => {
     setLocalChecklists(checklists);
   }, [checklists]);
 
   useEffect(() => {
+    const total = localChecklists.reduce((count, checklist) => count + checklist.items.length, 0);
+    const completed = localChecklists.reduce(
+      (count, checklist) => count + checklist.items.filter((item) => item.isCompleted).length,
+      0,
+    );
+
     patchBoardCardPreview(boardId, cardId, {
       checklists: localChecklists.map((checklist) => ({
         items: checklist.items.map((item) => ({
           isCompleted: item.isCompleted,
         })),
       })),
+      checklistProgress: {
+        total,
+        completed,
+      },
     });
   }, [boardId, cardId, localChecklists]);
 
@@ -147,32 +165,127 @@ export const ChecklistsSection = ({
   });
 
   const { execute: executeCreateItem, isLoading: isCreatingItem } = useAction(createChecklistItem, {
-    onSuccess: () => {
+    onSuccess: (item) => {
+      const temporaryItemId = temporaryItemIdRef.current;
+
+      if (temporaryItemId) {
+        setLocalChecklists((current) =>
+          current.map((checklist) =>
+            checklist.id === item.checklistId
+              ? {
+                ...checklist,
+                items: checklist.items.map((currentItem) =>
+                  currentItem.id === temporaryItemId ? { ...item, assignee: null } : currentItem
+                ),
+              }
+              : checklist
+          ),
+        );
+      }
+
       toast.success("Đã thêm mục mới");
       setNewItemTitle("");
+      temporaryItemIdRef.current = null;
       invalidateCard(true);
     },
-    onError: (error) => toast.error(error),
+    onError: (error) => {
+      const temporaryItemId = temporaryItemIdRef.current;
+
+      if (temporaryItemId) {
+        setLocalChecklists((current) =>
+          current.map((checklist) => ({
+            ...checklist,
+            items: checklist.items.filter((item) => item.id !== temporaryItemId),
+          })),
+        );
+      }
+
+      temporaryItemIdRef.current = null;
+      toast.error(error);
+    },
   });
 
   const { execute: executeUpdateChecklist } = useAction(updateChecklist, {
-    onSuccess: () => invalidateCard(true),
-    onError: (error) => toast.error(error),
+    onSuccess: () => {
+      mutationRollbackRef.current = null;
+      invalidateCard(true);
+    },
+    onError: (error) => {
+      rollbackLocalChecklists();
+      toast.error(error);
+    },
   });
 
   const { execute: executeRenameItem } = useAction(renameChecklistItem, {
-    onSuccess: () => invalidateCard(true),
-    onError: (error) => toast.error(error),
+    onSuccess: () => {
+      mutationRollbackRef.current = null;
+      invalidateCard(true);
+    },
+    onError: (error) => {
+      rollbackLocalChecklists();
+      toast.error(error);
+    },
   });
 
-  const { execute: executeToggleItem } = useAction(toggleChecklistItem, {
-    onSuccess: () => invalidateCard(true),
-    onError: (error) => toast.error(error),
-  });
+  const getNextToggleRequestVersion = (itemId: string) => {
+    const nextVersion = (toggleRequestVersionsRef.current.get(itemId) ?? 0) + 1;
+    toggleRequestVersionsRef.current.set(itemId, nextVersion);
+    return nextVersion;
+  };
+
+  const executeToggleItem = async (itemId: string, isCompleted: boolean, version: number) => {
+    const result = await toggleChecklistItem({
+      boardId,
+      cardId,
+      id: itemId,
+      isCompleted,
+    });
+
+    if (result.error) {
+      const request = toggleRequestsRef.current.get(itemId);
+
+      if (request && request.version === version) {
+        updateLocalItem(itemId, (item) => ({ ...item, isCompleted: request.previous }));
+        toggleRequestsRef.current.delete(itemId);
+        setTogglePending(itemId, false);
+      }
+
+      toast.error(result.error);
+      return;
+    }
+
+    if (result.data) {
+      const item = result.data;
+      const request = toggleRequestsRef.current.get(item.id);
+
+      if (!request || request.version !== version) {
+        return;
+      }
+
+      const queued = request.queued;
+      toggleRequestsRef.current.delete(item.id);
+      invalidateCard(true);
+
+      if (queued !== null && queued !== item.isCompleted) {
+        sendToggleItem(item.id, queued, item.isCompleted);
+        return;
+      }
+
+      updateLocalItem(item.id, (currentItem) => ({
+        ...currentItem,
+        isCompleted: item.isCompleted,
+      }));
+      setTogglePending(item.id, false);
+    }
+  };
 
   const { execute: executeSetDueDate } = useAction(setChecklistItemDueDate, {
-    onSuccess: () => invalidateCard(true),
+    onSuccess: () => {
+      mutationRollbackRef.current = null;
+      invalidateCard(true);
+    },
     onError: (error) => {
+      rollbackLocalChecklists();
       toast.error(error);
       invalidateCard(false);
     },
@@ -180,6 +293,7 @@ export const ChecklistsSection = ({
 
   const { execute: executeAssignItem } = useAction(assignChecklistItem, {
     onSuccess: (data) => {
+      mutationRollbackRef.current = null;
       if (data.cardMemberAdded) {
         toast.success("Đã giao thành viên vào checklist và tự động thêm vào thẻ.");
       } else if (data.item.assigneeId) {
@@ -189,19 +303,30 @@ export const ChecklistsSection = ({
       }
       invalidateCard(true);
     },
-    onError: (error) => toast.error(error),
+    onError: (error) => {
+      rollbackLocalChecklists();
+      toast.error(error);
+    },
   });
 
   const { execute: executeDeleteItem } = useAction(deleteChecklistItem, {
     onSuccess: () => {
+      mutationRollbackRef.current = null;
       toast.success("Đã xoá mục công việc");
       invalidateCard(false);
     },
-    onError: (error) => toast.error(error),
+    onError: (error) => {
+      rollbackLocalChecklists();
+      toast.error(error);
+    },
   });
 
   const { execute: executeReorderItems } = useAction(reorderChecklistItems, {
+    onSuccess: () => {
+      mutationRollbackRef.current = null;
+    },
     onError: (error) => {
+      rollbackLocalChecklists();
       toast.error(error);
       // Revert optimistic state on failure by re-syncing with server
       invalidateCard(false);
@@ -209,7 +334,11 @@ export const ChecklistsSection = ({
   });
 
   const { execute: executeMoveItem } = useAction(moveChecklistItem, {
+    onSuccess: () => {
+      mutationRollbackRef.current = null;
+    },
     onError: (error) => {
+      rollbackLocalChecklists();
       toast.error(error);
       invalidateCard(false);
     },
@@ -237,10 +366,18 @@ export const ChecklistsSection = ({
       minute: "2-digit",
     })}).`;
   };
+
+  const rollbackLocalChecklists = () => {
+    if (mutationRollbackRef.current) {
+      setLocalChecklists(mutationRollbackRef.current);
+      mutationRollbackRef.current = null;
+    }
+  };
   void getChecklistDueDateRangeError;
 
   const handleRenameChecklist = async (checklistId: string, title: string) => {
     setChecklistPending(checklistId, true);
+    mutationRollbackRef.current = localChecklists;
     setLocalChecklists((current) =>
       current.map((checklist) =>
         checklist.id === checklistId ? { ...checklist, title } : checklist
@@ -262,6 +399,40 @@ export const ChecklistsSection = ({
       return;
     }
 
+    const checklist = localChecklists.find((item) => item.id === checklistId);
+    const now = new Date();
+    const temporaryItemId = `temp-checklist-item-${globalThis.crypto?.randomUUID?.() ?? Date.now().toString()}`;
+    const order = checklist
+      ? checklist.items.reduce((maxOrder, item) => Math.max(maxOrder, item.order), -1) + 1
+      : 0;
+
+    temporaryItemIdRef.current = temporaryItemId;
+    setLocalChecklists((current) =>
+      current.map((item) =>
+        item.id === checklistId
+          ? {
+            ...item,
+            items: [
+              ...item.items,
+              {
+                id: temporaryItemId,
+                title,
+                order,
+                checklistId,
+                isCompleted: false,
+                dueDate: null,
+                assigneeId: null,
+                createdAt: now,
+                updatedAt: now,
+                assignee: null,
+              },
+            ],
+          }
+          : item
+      ),
+    );
+    setNewItemTitle("");
+
     executeCreateItem({
       boardId,
       cardId,
@@ -272,6 +443,7 @@ export const ChecklistsSection = ({
 
   const handleRenameItem = async (itemId: string, title: string) => {
     setItemPending(itemId, true);
+    mutationRollbackRef.current = localChecklists;
     updateLocalItem(itemId, (item) => ({ ...item, title }));
 
     try {
@@ -281,19 +453,36 @@ export const ChecklistsSection = ({
     }
   };
 
+  const sendToggleItem = (itemId: string, isCompleted: boolean, previous: boolean) => {
+    const version = getNextToggleRequestVersion(itemId);
+
+    toggleRequestsRef.current.set(itemId, {
+      previous,
+      queued: null,
+      version,
+    });
+    setTogglePending(itemId, true);
+    void executeToggleItem(itemId, isCompleted, version);
+  };
+
   const handleToggleItem = async (itemId: string, isCompleted: boolean) => {
-    if (pendingToggleItemIds.has(itemId)) {
+    const activeRequest = toggleRequestsRef.current.get(itemId);
+    const currentItem = localChecklists
+      .flatMap((checklist) => checklist.items)
+      .find((item) => item.id === itemId);
+
+    if (!currentItem) {
       return;
     }
 
-    setTogglePending(itemId, true);
     updateLocalItem(itemId, (item) => ({ ...item, isCompleted }));
 
-    try {
-      await executeToggleItem({ boardId, cardId, id: itemId, isCompleted });
-    } finally {
-      setTogglePending(itemId, false);
+    if (activeRequest) {
+      activeRequest.queued = isCompleted;
+      return;
     }
+
+    sendToggleItem(itemId, isCompleted, currentItem.isCompleted);
   };
 
   const handleSetDueDate = async (itemId: string, dueDate: Date | null) => {
@@ -307,6 +496,7 @@ export const ChecklistsSection = ({
     }
 
     setItemPending(itemId, true);
+    mutationRollbackRef.current = localChecklists;
     updateLocalItem(itemId, (item) => ({ ...item, dueDate }));
 
     try {
@@ -320,6 +510,7 @@ export const ChecklistsSection = ({
     const assignee = assigneeId ? boardMembersById.get(assigneeId) ?? null : null;
 
     setItemPending(itemId, true);
+    mutationRollbackRef.current = localChecklists;
     updateLocalItem(itemId, (item) => ({ ...item, assigneeId, assignee }));
 
     try {
@@ -330,6 +521,7 @@ export const ChecklistsSection = ({
   };
 
   const handleDeleteItem = (itemId: string) => {
+    mutationRollbackRef.current = localChecklists;
     setLocalChecklists((current) =>
       current.map((checklist) => ({
         ...checklist,
@@ -393,6 +585,7 @@ export const ChecklistsSection = ({
       )
         .map((item, index) => ({ ...item, order: index }));
 
+      mutationRollbackRef.current = localChecklists;
       setLocalChecklists((current) =>
         current.map((item) =>
           item.id === sourceChecklistId ? { ...item, items: reorderedItems } : item
@@ -427,6 +620,7 @@ export const ChecklistsSection = ({
       order: index,
     }));
 
+    mutationRollbackRef.current = localChecklists;
     setLocalChecklists((current) =>
       current.map((item) =>
         item.id === sourceChecklistId

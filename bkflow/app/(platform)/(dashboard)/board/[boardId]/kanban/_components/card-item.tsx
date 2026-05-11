@@ -6,6 +6,7 @@ import { useParams } from "next/navigation";
 import { toast } from "sonner";
 import { Draggable } from "@hello-pangea/dnd";
 import { AlignLeft } from "lucide-react";
+import { useQueryClient } from "@tanstack/react-query";
 
 import { useCardModal } from "@/hooks/use-card-modal";
 import { Hint } from "@/components/hint";
@@ -36,6 +37,7 @@ export const CardItem = memo(function CardItem({
   const params = useParams();
   const boardId = params.boardId as string;
   const boardState = useBoardState();
+  const queryClient = useQueryClient();
   
   const [showMenu, setShowMenu] = useState(false);
   const [copyDialogOpen, setCopyDialogOpen] = useState(false);
@@ -47,6 +49,7 @@ export const CardItem = memo(function CardItem({
   const [isEditing, setIsEditing] = useState(false);
   const formRef = useRef<HTMLFormElement>(null);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const titleRollbackRef = useRef<string | null>(null);
 
   useEffect(() => {
     if (!showMenu) return;
@@ -78,9 +81,17 @@ export const CardItem = memo(function CardItem({
   const { execute: executeUpdateCard, isLoading: isLoadingUpdate } = useAction(updateCard, {
     onSuccess: (updatedCard) => {
       boardState.patchCard(updatedCard.id, { title: updatedCard.title });
+      titleRollbackRef.current = null;
       disableEditing();
     },
     onError: (error) => {
+      if (titleRollbackRef.current !== null) {
+        boardState.patchCard(data.id, { title: titleRollbackRef.current });
+        queryClient.setQueryData(["card", data.id], (current: CardWithAssignees | undefined) =>
+          current ? { ...current, title: titleRollbackRef.current } : current,
+        );
+        titleRollbackRef.current = null;
+      }
       toast.error(error);
       if (textareaRef.current) {
         textareaRef.current.value = data.title;
@@ -142,6 +153,13 @@ export const CardItem = memo(function CardItem({
       return;
     }
 
+    titleRollbackRef.current = data.title;
+    boardState.patchCard(data.id, { title: trimmedTitle });
+    queryClient.setQueryData(["card", data.id], (current: CardWithAssignees | undefined) =>
+      current ? { ...current, title: trimmedTitle } : current,
+    );
+    disableEditing();
+
     executeUpdateCard({
       id: data.id,
       title: trimmedTitle,
@@ -186,13 +204,6 @@ export const CardItem = memo(function CardItem({
       }
 
       toast.error(error);
-      archiveRollbackRef.current = null;
-    },
-    onComplete: () => {
-      if (archiveRollbackRef.current) {
-        boardState.resetToSnapshot(archiveRollbackRef.current);
-      }
-
       archiveRollbackRef.current = null;
     },
   });

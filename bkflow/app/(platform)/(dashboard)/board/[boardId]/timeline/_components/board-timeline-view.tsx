@@ -64,15 +64,18 @@ export const BoardTimelineView = ({
   const { execute: executeUpdateCard } = useAction(updateCard, {
     onSuccess: (data) => {
       setDateOverrides((current) => {
-        const next = { ...current };
-        delete next[data.id];
-        return next;
+        return {
+          ...current,
+          [data.id]: {
+            startDate: data.startDate ? data.startDate.toISOString() : null,
+            dueDate: data.dueDate ? data.dueDate.toISOString() : null,
+          },
+        };
       });
       setUpdatingCardId(null);
       pendingUpdateCardIdRef.current = null;
       queryClient.invalidateQueries({ queryKey: ["card", data.id] });
       queryClient.invalidateQueries({ queryKey: ["card-logs", data.id] });
-      router.refresh();
     },
     onError: (error) => {
       const cardId = pendingUpdateCardIdRef.current;

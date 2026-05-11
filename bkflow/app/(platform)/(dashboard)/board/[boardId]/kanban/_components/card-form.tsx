@@ -115,14 +115,6 @@ export const CardForm = forwardRef<HTMLTextAreaElement, CardFormProps>(({
       rollbackRef.current = null;
       temporaryCardRef.current = null;
     },
-    onComplete: () => {
-      if (rollbackRef.current) {
-        boardState.resetToSnapshot(rollbackRef.current);
-      }
-
-      rollbackRef.current = null;
-      temporaryCardRef.current = null;
-    },
   });
 
   const onKeyDown = (e: KeyboardEvent) => {

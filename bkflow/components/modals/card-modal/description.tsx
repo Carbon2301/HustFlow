@@ -32,6 +32,10 @@ export const Description = ({
   const formRef = useRef<HTMLFormElement>(null!);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
+  const descriptionRequestRef = useRef<{
+    previous: string | null;
+  } | null>(null);
+
   const enableEditing = () => {
     if (!canEdit) {
       return;
@@ -56,8 +60,9 @@ export const Description = ({
   useEventListener("keydown", onKeyDown);
   useOnClickOutside(formRef, disableEditing);
 
-  const { execute, fieldErrors } = useAction(updateCard, {
+  const { execute, fieldErrors, isLoading } = useAction(updateCard, {
     onSuccess: (updatedCard) => {
+      descriptionRequestRef.current = null;
       patchCardQueryData(queryClient, updatedCard.id, {
         description: updatedCard.description,
       });
@@ -67,27 +72,52 @@ export const Description = ({
       queryClient.invalidateQueries({
         queryKey: ["card-logs", updatedCard.id]
       });
-      toast.success("Đã cập nhật mô tả");
-      disableEditing();
     },
     onError: (error) => {
+      const request = descriptionRequestRef.current;
+      if (request) {
+        patchCardQueryData(queryClient, data.id, {
+          description: request.previous,
+        });
+        patchBoardCardPreview(data.list.boardId, data.id, {
+          description: request.previous,
+        });
+        descriptionRequestRef.current = null;
+      }
       toast.error(error);
     },
   });
 
   const onSubmit = (formData: FormData) => {
-    if (!canEdit) {
+    if (!canEdit || isLoading || descriptionRequestRef.current) {
       return;
     }
 
     const description = formData.get("description") as string;
     const boardId = data.list.boardId;
 
+    if (description === data.description) {
+      disableEditing();
+      return;
+    }
+
+    descriptionRequestRef.current = {
+      previous: data.description,
+    };
+
+    patchCardQueryData(queryClient, data.id, {
+      description,
+    });
+    patchBoardCardPreview(boardId, data.id, {
+      description,
+    });
+    disableEditing();
+
     execute({
       id: data.id,
       description,
       boardId,
-    })
+    });
   }
 
   return (
