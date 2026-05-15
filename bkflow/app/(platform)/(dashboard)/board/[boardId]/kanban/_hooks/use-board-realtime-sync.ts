@@ -372,6 +372,7 @@ export const useBoardRealtimeSync = ({
                   ...card,
                   title: realtimeCard.title,
                   description: realtimeCard.description,
+                  descriptionUpdatedAt: toDate(realtimeCard.descriptionUpdatedAt) ?? card.descriptionUpdatedAt,
                   startDate: toDate(realtimeCard.startDate),
                   dueDate: toDate(realtimeCard.dueDate),
                   isCompleted: realtimeCard.isCompleted,

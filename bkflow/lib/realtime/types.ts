@@ -166,6 +166,7 @@ export type CardUpdatedPayload = {
     id: string;
     title: string;
     description: string | null;
+    descriptionUpdatedAt: string;
     startDate: string | null;
     dueDate: string | null;
     isCompleted: boolean;

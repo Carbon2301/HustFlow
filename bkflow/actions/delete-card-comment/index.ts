@@ -1,7 +1,7 @@
 "use server";
 
 import { auth, currentUser } from "@clerk/nextjs/server";
-import { ACTION, AUDIT_EVENT_TYPE, ENTITY_TYPE } from "@prisma/client";
+import { ACTION, AUDIT_EVENT_TYPE, BoardMemberRole, ENTITY_TYPE } from "@prisma/client";
 
 import { createAuditLog } from "@/lib/create-audit-log";
 import { createSafeAction } from "@/lib/create-safe-action";
@@ -54,6 +54,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
     if (!existingComment) {
       return { error: "Không tìm thấy bình luận." };
+    }
+
+    if (
+      existingComment.userId !== userId &&
+      permission.membership?.role !== BoardMemberRole.ADMIN
+    ) {
+      return { error: "Bạn không có quyền xóa bình luận của người khác." };
     }
 
     // Xóa các thông báo chưa đọc liên quan đến bình luận này

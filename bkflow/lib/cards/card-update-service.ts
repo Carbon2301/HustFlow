@@ -30,6 +30,10 @@ type UpdateCardServiceInput = {
   orgId: string;
 };
 
+export const DESCRIPTION_CONFLICT_ERROR_CODE = "DESCRIPTION_CONFLICT";
+export const DESCRIPTION_CONFLICT_ERROR_MESSAGE =
+  "Dữ liệu đã được cập nhật bởi một thành viên khác. Vui lòng lưu và reload lại.";
+
 export const updateCardService = async ({
   data,
   userId,
@@ -43,6 +47,7 @@ export const updateCardService = async ({
     isCompleted,
     reminder,
     dueDateTimezoneOffset,
+    descriptionBaseUpdatedAt,
     ...values
   } = data;
   let card: Card;
@@ -127,25 +132,78 @@ export const updateCardService = async ({
       return { data: currentCard };
     }
 
+    const descriptionChanged = changedFields.includes("description");
+    let descriptionBaseDate: Date | null = null;
+
+    if (descriptionChanged) {
+      descriptionBaseDate = descriptionBaseUpdatedAt
+        ? new Date(descriptionBaseUpdatedAt)
+        : null;
+
+      if (
+        !descriptionBaseDate ||
+        currentCard.descriptionUpdatedAt.getTime() > descriptionBaseDate.getTime()
+      ) {
+        return {
+          error: DESCRIPTION_CONFLICT_ERROR_MESSAGE,
+          errorCode: DESCRIPTION_CONFLICT_ERROR_CODE,
+        };
+      }
+    }
+
     const updateData = buildCardUpdateData({
       input: changeInput,
       reminderConfigChanged,
+      descriptionChanged,
     });
 
-    card = await db.card.update({
-      where: {
-        id,
+    const cardWhere = {
+      id,
+      archivedAt: null,
+      list: {
         archivedAt: null,
-        list: {
-          archivedAt: null,
-          board: {
-            id: boardId,
-            orgId,
-          },
+        board: {
+          id: boardId,
+          orgId,
         },
       },
-      data: updateData,
-    });
+    };
+
+    if (descriptionChanged) {
+      const updateResult = await db.card.updateMany({
+        where: {
+          ...cardWhere,
+          descriptionUpdatedAt: {
+            lte: descriptionBaseDate!,
+          },
+        },
+        data: updateData,
+      });
+
+      if (updateResult.count === 0) {
+        return {
+          error: DESCRIPTION_CONFLICT_ERROR_MESSAGE,
+          errorCode: DESCRIPTION_CONFLICT_ERROR_CODE,
+        };
+      }
+
+      const updatedCard = await db.card.findFirst({
+        where: cardWhere,
+      });
+
+      if (!updatedCard) {
+        return {
+          error: "Không tìm thấy thẻ.",
+        };
+      }
+
+      card = updatedCard;
+    } else {
+      card = await db.card.update({
+        where: cardWhere,
+        data: updateData,
+      });
+    }
 
     if (
       shouldDeleteReminderNotifications({

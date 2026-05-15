@@ -1,6 +1,6 @@
 "use client";
 
-import type { BoardMember } from "@prisma/client";
+import { BoardMemberRole, type BoardMember } from "@prisma/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import {
@@ -27,6 +27,7 @@ export const CommentItem = ({
   comment,
   isReply = false,
   currentUserId,
+  currentMemberRole,
   boardMembers,
   reactionCounts,
   editingCommentId,
@@ -45,6 +46,7 @@ export const CommentItem = ({
   comment: CommentItemData;
   isReply?: boolean;
   currentUserId?: string;
+  currentMemberRole?: BoardMemberRole;
   boardMembers: BoardMember[];
   reactionCounts: Map<string, number>;
   editingCommentId: string | null;
@@ -61,6 +63,7 @@ export const CommentItem = ({
   onToggleReaction: (commentId: string, emoji: ReactionEmoji) => void;
 }) => {
   const isOwner = currentUserId === comment.userId;
+  const canDelete = isOwner || currentMemberRole === BoardMemberRole.ADMIN;
   const isEdited = new Date(comment.updatedAt).getTime() !== new Date(comment.createdAt).getTime();
   const isEditing = editingCommentId === comment.id;
   const isReplying = replyingCommentId === comment.id;
@@ -144,45 +147,49 @@ export const CommentItem = ({
             </>
           )}
 
-          <span>•</span>
-          <Popover>
-            <PopoverTrigger asChild>
-              <button
-                type="button"
-                disabled={isDeleting}
-                className="underline-offset-2 hover:underline disabled:opacity-50"
-              >
-                Xóa
-              </button>
-            </PopoverTrigger>
-            <PopoverContent align="start" className="w-60 p-3 bg-white border border-neutral-200 shadow-xl rounded-xl z-[70]" side="top" sideOffset={6}>
-              <div className="space-y-3">
-                <p className="text-xs font-semibold text-neutral-800 leading-normal">
-                  Bạn có chắc chắn muốn xóa bình luận này không? Hành động này không thể hoàn tác.
-                </p>
-                <div className="flex items-center gap-x-2">
-                  <PopoverClose asChild>
-                    <Button
-                      size="sm"
-                      onClick={() => onDeleteComment(comment.id)}
-                      className="h-7 px-2.5 text-[11px] font-semibold bg-rose-600 hover:bg-rose-700 text-white rounded-lg cursor-pointer"
-                    >
-                      Xác nhận xóa
-                    </Button>
-                  </PopoverClose>
-                  <PopoverClose asChild>
-                    <Button
-                      variant="ghost"
-                      size="sm"
-                      className="h-7 px-2.5 text-[11px] text-neutral-500 hover:bg-neutral-100 rounded-lg cursor-pointer"
-                    >
-                      Hủy
-                    </Button>
-                  </PopoverClose>
-                </div>
-              </div>
-            </PopoverContent>
-          </Popover>
+          {canDelete && (
+            <>
+              <span>•</span>
+              <Popover>
+                <PopoverTrigger asChild>
+                  <button
+                    type="button"
+                    disabled={isDeleting}
+                    className="underline-offset-2 hover:underline disabled:opacity-50"
+                  >
+                    Xóa
+                  </button>
+                </PopoverTrigger>
+                <PopoverContent align="start" className="w-60 p-3 bg-white border border-neutral-200 shadow-xl rounded-xl z-[70]" side="top" sideOffset={6}>
+                  <div className="space-y-3">
+                    <p className="text-xs font-semibold text-neutral-800 leading-normal">
+                      Bạn có chắc chắn muốn xóa bình luận này không? Hành động này không thể hoàn tác.
+                    </p>
+                    <div className="flex items-center gap-x-2">
+                      <PopoverClose asChild>
+                        <Button
+                          size="sm"
+                          onClick={() => onDeleteComment(comment.id)}
+                          className="h-7 px-2.5 text-[11px] font-semibold bg-rose-600 hover:bg-rose-700 text-white rounded-lg cursor-pointer"
+                        >
+                          Xác nhận xóa
+                        </Button>
+                      </PopoverClose>
+                      <PopoverClose asChild>
+                        <Button
+                          variant="ghost"
+                          size="sm"
+                          className="h-7 px-2.5 text-[11px] text-neutral-500 hover:bg-neutral-100 rounded-lg cursor-pointer"
+                        >
+                          Hủy
+                        </Button>
+                      </PopoverClose>
+                    </div>
+                  </div>
+                </PopoverContent>
+              </Popover>
+            </>
+          )}
         </div>
 
         {isReplying && (

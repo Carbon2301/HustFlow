@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { MessageSquare } from "lucide-react";
-import type { BoardMember } from "@prisma/client";
+import type { BoardMember, BoardMemberRole } from "@prisma/client";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CardCommentWithReplies } from "@/types";
@@ -18,6 +18,7 @@ interface CommentsProps {
   boardId?: string;
   items: CardCommentWithReplies[];
   boardMembers?: BoardMember[];
+  currentMemberRole?: BoardMemberRole;
 }
 
 export const CommentsSection = ({
@@ -25,6 +26,7 @@ export const CommentsSection = ({
   boardId,
   items,
   boardMembers = [],
+  currentMemberRole,
 }: CommentsProps) => {
   const { user } = useUser();
   const [editingCommentId, setEditingCommentId] = useState<string | null>(null);
@@ -78,6 +80,7 @@ export const CommentsSection = ({
                 <CommentItem
                   comment={comment}
                   currentUserId={user?.id}
+                  currentMemberRole={currentMemberRole}
                   boardMembers={boardMembers}
                   reactionCounts={reactionCountsByCommentId.get(comment.id) ?? new Map()}
                   editingCommentId={editingCommentId}
@@ -99,6 +102,7 @@ export const CommentsSection = ({
                     comment={reply}
                     isReply
                     currentUserId={user?.id}
+                    currentMemberRole={currentMemberRole}
                     boardMembers={boardMembers}
                     reactionCounts={reactionCountsByCommentId.get(reply.id) ?? new Map()}
                     editingCommentId={editingCommentId}

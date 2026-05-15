@@ -19,6 +19,7 @@ export const normalizeCardForBoard = (card: BoardCardApiResponse): CardWithAssig
   ...card,
   createdAt: toDate(card.createdAt) ?? new Date(),
   updatedAt: toDate(card.updatedAt) ?? new Date(),
+  descriptionUpdatedAt: toDate(card.descriptionUpdatedAt) ?? new Date(),
   startDate: toDate(card.startDate),
   dueDate: toDate(card.dueDate),
   reminderSetAt: toDate(card.reminderSetAt),

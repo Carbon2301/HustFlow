@@ -6,7 +6,7 @@ type Action<TInput, TOutput> = (data: TInput) => Promise<ActionState<TInput, TOu
 
 interface UseActionOptions<TOutput> {
   onSuccess?: (data: TOutput) => void;
-  onError?: (error: string) => void;
+  onError?: (error: string, errorCode?: string) => void;
   onComplete?: () => void;
 };
 
@@ -36,7 +36,7 @@ export const useAction = <TInput, TOutput> (
 
         if (result.error) {
           setError(result.error);
-          options.onError?.(result.error);
+          options.onError?.(result.error, result.errorCode);
         }
 
         if (result.data) {

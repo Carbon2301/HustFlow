@@ -60,6 +60,7 @@ const BoardIdPage = async ({
             title: true,
             order: true,
             description: true,
+            descriptionUpdatedAt: true,
             startDate: true,
             dueDate: true,
             isCompleted: true,

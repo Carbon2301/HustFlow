@@ -222,7 +222,7 @@ export const BoardMemberAvatarPopover = ({
                   ))}
                 </div>
                 {isLastAdmin && (
-                  <p className="-mt-2 px-4 pb-3 text-xs text-neutral-400">
+                  <p className="mt-2 px-4 pb-3 text-xs text-neutral-400">
                     Bảng phải có ít nhất một quản trị viên.
                   </p>
                 )}

@@ -46,6 +46,7 @@ const createEmptyCardShape = ({
   title,
   order,
   description: null,
+  descriptionUpdatedAt: now,
   startDate: null,
   dueDate: null,
   isCompleted: false,

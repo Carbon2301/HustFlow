@@ -11,6 +11,12 @@ import { generateAiCardQuality } from "@/actions/generate-ai-card-quality";
 import { generateAiChecklist } from "@/actions/generate-ai-checklist";
 import { updateCard } from "@/actions/update-card";
 import { Button } from "@/components/ui/button";
+import {
+  Popover,
+  PopoverAnchor,
+  PopoverContent,
+  PopoverDescription,
+} from "@/components/ui/popover";
 import { Textarea } from "@/components/ui/textarea";
 import { useAction } from "@/hooks/use-action";
 import { cn } from "@/lib/utils";
@@ -31,8 +37,24 @@ interface AiCardQualityAssistantProps {
   boardId: string;
   cardId: string;
   description: string | null;
+  getDescriptionBaseUpdatedAt: () => string | null;
+  onDescriptionBaseUpdatedAtChange: (value: string) => void;
   checklists: ChecklistOption[];
 }
+
+const DESCRIPTION_CONFLICT_ERROR_CODE = "DESCRIPTION_CONFLICT";
+const DESCRIPTION_CONFLICT_MESSAGE =
+  "Dữ liệu đã được cập nhật bởi một thành viên khác. Vui lòng reload thẻ để xem bản mới nhất.";
+
+const toTimestampString = (value: Date | string | null | undefined) => {
+  if (!value) {
+    return null;
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+
+  return Number.isNaN(date.getTime()) ? null : date.toISOString();
+};
 
 const taskLabels: Record<QualityTask, string> = {
   create_description: "Tạo mô tả từ tiêu đề",
@@ -46,12 +68,16 @@ export const AiCardQualityAssistant = ({
   boardId,
   cardId,
   description,
+  getDescriptionBaseUpdatedAt,
+  onDescriptionBaseUpdatedAtChange,
   checklists,
 }: AiCardQualityAssistantProps) => {
   const queryClient = useQueryClient();
   const [activeTask, setActiveTask] = useState<AiTask | null>(null);
   const [previewDescription, setPreviewDescription] = useState("");
   const [checklistSuggestions, setChecklistSuggestions] = useState<string[]>([]);
+  const [isConflictOpen, setIsConflictOpen] = useState(false);
+  const [generationBaseUpdatedAt, setGenerationBaseUpdatedAt] = useState<string | null>(null);
   const [selectedChecklistItems, setSelectedChecklistItems] = useState<Set<string>>(new Set());
   const [selectedChecklistId, setSelectedChecklistId] = useState(
     checklists[0]?.id ?? NEW_CHECKLIST_VALUE,
@@ -98,16 +124,32 @@ export const AiCardQualityAssistant = ({
 
   const { execute: executeUpdateCard, isLoading: isUpdatingDescription } = useAction(updateCard, {
     onSuccess: (updatedCard) => {
+      const nextDescriptionUpdatedAt = toTimestampString(
+        updatedCard.descriptionUpdatedAt,
+      );
+
       patchCardQueryData(queryClient, updatedCard.id, {
         description: updatedCard.description,
+        descriptionUpdatedAt: updatedCard.descriptionUpdatedAt,
       });
       patchBoardCardPreview(boardId, updatedCard.id, {
         description: updatedCard.description,
+        descriptionUpdatedAt: updatedCard.descriptionUpdatedAt,
       });
+      if (nextDescriptionUpdatedAt) {
+        onDescriptionBaseUpdatedAtChange(nextDescriptionUpdatedAt);
+      }
       invalidateCard();
       resetPreview();
     },
-    onError: (error) => toast.error(error),
+    onError: (error, errorCode) => {
+      if (errorCode === DESCRIPTION_CONFLICT_ERROR_CODE) {
+        setIsConflictOpen(true);
+        return;
+      }
+
+      toast.error(error);
+    },
   });
 
 
@@ -141,6 +183,10 @@ export const AiCardQualityAssistant = ({
     setActiveTask(task);
     setChecklistSuggestions([]);
     setSelectedChecklistItems(new Set());
+
+    const currentBase = getDescriptionBaseUpdatedAt();
+    setGenerationBaseUpdatedAt(currentBase);
+
     executeGenerate({
       boardId,
       cardId,
@@ -161,11 +207,35 @@ export const AiCardQualityAssistant = ({
       return;
     }
 
+    const baseUpdatedAt = generationBaseUpdatedAt || getDescriptionBaseUpdatedAt();
+
+    if (!baseUpdatedAt) {
+      toast.error("Không thể xác định mốc cập nhật mô tả.");
+      return;
+    }
+
     executeUpdateCard({
       id: cardId,
       boardId,
       description: previewDescription,
+      descriptionBaseUpdatedAt: baseUpdatedAt,
     });
+  };
+
+  const reloadCard = async () => {
+    setIsConflictOpen(false);
+    await queryClient.invalidateQueries({ queryKey: ["card", cardId] });
+
+    const latestCard = queryClient.getQueryData<{
+      descriptionUpdatedAt?: Date | string;
+    }>(["card", cardId]);
+    const nextDescriptionUpdatedAt = toTimestampString(
+      latestCard?.descriptionUpdatedAt,
+    );
+
+    if (nextDescriptionUpdatedAt) {
+      onDescriptionBaseUpdatedAtChange(nextDescriptionUpdatedAt);
+    }
   };
 
 
@@ -295,14 +365,31 @@ export const AiCardQualityAssistant = ({
                 <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
                 Tạo lại
               </Button>
-              <Button
-                type="button"
-                onClick={handleApplyDescription}
-                disabled={isBusy || !previewDescription.trim()}
-                className="h-8 rounded-lg bg-sky-600 px-3 text-xs font-semibold text-white hover:bg-sky-700"
-              >
-                {isUpdatingDescription ? "Đang áp dụng..." : "Áp dụng mô tả"}
-              </Button>
+              <Popover open={isConflictOpen} onOpenChange={setIsConflictOpen}>
+                <PopoverAnchor asChild>
+                  <Button
+                    type="button"
+                    onClick={handleApplyDescription}
+                    disabled={isBusy || !previewDescription.trim()}
+                    className="h-8 rounded-lg bg-sky-600 px-3 text-xs font-semibold text-white hover:bg-sky-700"
+                  >
+                    {isUpdatingDescription ? "Đang áp dụng..." : "Áp dụng mô tả"}
+                  </Button>
+                </PopoverAnchor>
+                <PopoverContent align="end" side="bottom" className="w-80">
+                  <PopoverDescription>{DESCRIPTION_CONFLICT_MESSAGE}</PopoverDescription>
+                  <Button
+                    type="button"
+                    size="sm"
+                    variant="outline"
+                    onClick={reloadCard}
+                    className="h-8 self-start rounded-lg text-xs font-semibold"
+                  >
+                    <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
+                    Reload thẻ
+                  </Button>
+                </PopoverContent>
+              </Popover>
             </div>
           </div>
         )}

@@ -40,6 +40,7 @@ export const triggerCardUpdated = async ({
     | "id"
     | "title"
     | "description"
+    | "descriptionUpdatedAt"
     | "startDate"
     | "dueDate"
     | "isCompleted"
@@ -65,6 +66,7 @@ export const triggerCardUpdated = async ({
               id: card.id,
               title: card.title,
               description: card.description,
+              descriptionUpdatedAt: card.descriptionUpdatedAt.toISOString(),
               startDate: card.startDate?.toISOString() ?? null,
               dueDate: card.dueDate?.toISOString() ?? null,
               isCompleted: card.isCompleted,

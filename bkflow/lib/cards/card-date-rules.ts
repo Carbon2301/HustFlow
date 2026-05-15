@@ -140,9 +140,11 @@ export const getChangedCardFields = ({
 export const buildCardUpdateData = ({
   input,
   reminderConfigChanged,
+  descriptionChanged,
 }: {
   input: CardDateInput;
   reminderConfigChanged: boolean;
+  descriptionChanged: boolean;
 }): Prisma.CardUpdateInput => {
   const { startDate, dueDate, isCompleted, reminder, ...values } = input;
 
@@ -152,6 +154,7 @@ export const buildCardUpdateData = ({
     ...(dueDate !== undefined ? { dueDate } : {}),
     ...(isCompleted !== undefined ? { isCompleted } : {}),
     ...(reminder !== undefined ? { reminder } : {}),
+    ...(descriptionChanged ? { descriptionUpdatedAt: new Date() } : {}),
     ...(reminderConfigChanged ? { reminderSetAt: new Date() } : {}),
     ...(dueDate === null ? { reminderSetAt: null } : {}),
   };
