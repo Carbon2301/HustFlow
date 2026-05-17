@@ -79,31 +79,35 @@ export const ListForm = () => {
   useOnClickOutside(formRef, disableEditing);
 
   const onSubmit = (formData: FormData) => {
-    const title = formData.get("title") as string;
+    const title = (formData.get("title") as string) || "";
     const boardId = formData.get("boardId") as string;
-    const snapshot = boardState.getSnapshot();
-    const now = new Date();
-    const temporaryListId = createTemporaryId();
-    const order = snapshot.reduce((maxOrder, list) => Math.max(maxOrder, list.order), -1) + 1;
+    const trimmedTitle = title.trim();
 
-    rollbackRef.current = snapshot;
-    temporaryListIdRef.current = temporaryListId;
-    boardState.appendList({
-      id: temporaryListId,
-      title,
-      boardId,
-      order,
-      archivedAt: null,
-      createdAt: now,
-      updatedAt: now,
-      cards: [],
-    });
+    if (trimmedTitle) {
+      const snapshot = boardState.getSnapshot();
+      const now = new Date();
+      const temporaryListId = createTemporaryId();
+      const order = snapshot.reduce((maxOrder, list) => Math.max(maxOrder, list.order), -1) + 1;
+
+      rollbackRef.current = snapshot;
+      temporaryListIdRef.current = temporaryListId;
+      boardState.appendList({
+        id: temporaryListId,
+        title: trimmedTitle,
+        boardId,
+        order,
+        archivedAt: null,
+        createdAt: now,
+        updatedAt: now,
+        cards: [],
+      });
+    }
 
     execute({
-      title,
+      title: trimmedTitle,
       boardId
     });
-  }
+  };
 
   if (isEditing) {
     return (

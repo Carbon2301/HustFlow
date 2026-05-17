@@ -1,23 +1,44 @@
 "use client";
 
 import { toast } from "sonner";
-import { AlignLeft, RefreshCw } from "lucide-react";
-import { useState, useRef, useEffect } from "react";
+import {
+  AlignLeft,
+  Bold,
+  ChevronDown,
+  Eye,
+  Italic,
+  Link2,
+  List,
+  Pencil,
+  RefreshCw,
+  Type,
+  Underline,
+} from "lucide-react";
+import {
+  type KeyboardEvent as ReactKeyboardEvent,
+  type ReactNode,
+  useEffect,
+  useRef,
+  useState,
+} from "react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useEventListener, useOnClickOutside } from "usehooks-ts";
+import { useOnClickOutside } from "usehooks-ts";
 
 import { useAction } from "@/hooks/use-action";
 import { updateCard } from "@/actions/update-card";
 import { CardWithList } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
-import { FormTextarea } from "@/components/form/form-textarea";
-import { FormSubmit } from "@/components/form/form-submit";
+import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
+import { FormErrors } from "@/components/form/form-errors";
+import { Hint } from "@/components/hint";
+import { cn } from "@/lib/utils";
 import {
   Popover,
   PopoverAnchor,
   PopoverContent,
   PopoverDescription,
+  PopoverTrigger,
 } from "@/components/ui/popover";
 
 import { patchBoardCardPreview, patchCardQueryData } from "./card-cache-utils";
@@ -28,6 +49,11 @@ interface DescriptionProps {
   getDescriptionBaseUpdatedAt: () => string | null;
   onDescriptionBaseUpdatedAtChange: (value: string) => void;
 }
+
+type MarkdownToolbarAction = "bold" | "italic" | "underline" | "bullet" | "link";
+type HeadingLevel = 1 | 2 | 3 | 4 | 5 | 6;
+type HeadingOption = HeadingLevel | "normal";
+type PreviewMode = "edit" | "preview";
 
 const DESCRIPTION_CONFLICT_ERROR_CODE = "DESCRIPTION_CONFLICT";
 const DESCRIPTION_CONFLICT_MESSAGE =
@@ -43,6 +69,291 @@ const toTimestampString = (value: Date | string | null | undefined) => {
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 };
 
+const normalizeDescription = (value: string | null | undefined) => value ?? "";
+
+const isBulletLine = (line: string) => /^[-*]\s+/.test(line.trim());
+
+const isHeadingLine = (line: string) => /^#{1,6}\s+/.test(line.trim());
+
+const isSafeMarkdownUrl = (url: string) => /^https?:\/\/[^\s)]+$/i.test(url);
+
+const HEADING_OPTIONS: Array<{
+  value: HeadingOption;
+  label: string;
+  previewClassName: string;
+}> = [
+  { value: "normal", label: "Văn bản bình thường", previewClassName: "text-sm font-normal" },
+  { value: 1, label: "Heading 1", previewClassName: "text-2xl font-semibold" },
+  { value: 2, label: "Heading 2", previewClassName: "text-xl font-semibold" },
+  { value: 3, label: "Heading 3", previewClassName: "text-lg font-semibold" },
+  { value: 4, label: "Heading 4", previewClassName: "text-base font-semibold" },
+  { value: 5, label: "Heading 5", previewClassName: "text-sm font-semibold" },
+  { value: 6, label: "Heading 6", previewClassName: "text-xs font-semibold text-neutral-500" },
+];
+
+const getSelectedLineRange = (value: string, selectionStart: number, selectionEnd: number) => {
+  const normalizedEnd =
+    selectionEnd > selectionStart && value[selectionEnd - 1] === "\n"
+      ? selectionEnd - 1
+      : selectionEnd;
+  const lineStart = value.lastIndexOf("\n", selectionStart - 1) + 1;
+  const lineEndIndex = value.indexOf("\n", normalizedEnd);
+  const lineEnd = lineEndIndex === -1 ? value.length : lineEndIndex;
+
+  return { lineStart, lineEnd };
+};
+
+const getLineStarts = (value: string, lineStart: number, lineEnd: number) => {
+  const starts = [lineStart];
+
+  for (let index = lineStart; index < lineEnd; index += 1) {
+    if (value[index] === "\n" && index + 1 <= lineEnd) {
+      starts.push(index + 1);
+    }
+  }
+
+  return starts;
+};
+
+const transformSelectedLines = ({
+  value,
+  selectionStart,
+  selectionEnd,
+  transformLine,
+  getSelectionAdjustment,
+}: {
+  value: string;
+  selectionStart: number;
+  selectionEnd: number;
+  transformLine: (line: string) => string;
+  getSelectionAdjustment: (lineStarts: number[]) => {
+    startDelta: number;
+    endDelta: number;
+  };
+}) => {
+  const { lineStart, lineEnd } = getSelectedLineRange(value, selectionStart, selectionEnd);
+  const lineStarts = getLineStarts(value, lineStart, lineEnd);
+  const selectedLines = value.slice(lineStart, lineEnd).split("\n");
+  const nextSelectedLines = selectedLines.map(transformLine);
+  const nextValue = `${value.slice(0, lineStart)}${nextSelectedLines.join("\n")}${value.slice(lineEnd)}`;
+  const { startDelta, endDelta } = getSelectionAdjustment(lineStarts);
+
+  return {
+    nextValue,
+    nextSelectionStart: Math.max(lineStart, selectionStart + startDelta),
+    nextSelectionEnd: Math.max(lineStart, selectionEnd + endDelta),
+  };
+};
+
+const getOutdentSize = (line: string) => {
+  if (line.startsWith("  ")) {
+    return 2;
+  }
+
+  return line.startsWith(" ") ? 1 : 0;
+};
+
+const stripHeadingPrefix = (line: string) => line.replace(/^(\s*)#{1,6}\s+/, "$1");
+
+const renderInlineMarkdown = (text: string, keyPrefix: string): ReactNode[] => {
+  const nodes: ReactNode[] = [];
+  let index = 0;
+  let tokenIndex = 0;
+
+  const pushText = (value: string) => {
+    if (value) {
+      nodes.push(value);
+    }
+  };
+
+  while (index < text.length) {
+    const linkMatch = text
+      .slice(index)
+      .match(/^\[([^\]]+)\]\((https?:\/\/[^\s)]+)\)/i);
+
+    if (linkMatch && isSafeMarkdownUrl(linkMatch[2])) {
+      nodes.push(
+        <a
+          key={`${keyPrefix}-link-${tokenIndex}`}
+          href={linkMatch[2]}
+          target="_blank"
+          rel="noreferrer noopener nofollow"
+          className="font-medium text-violet-700 underline decoration-violet-300 underline-offset-2 hover:text-violet-900"
+          onClick={(event) => event.stopPropagation()}
+        >
+          {linkMatch[1]}
+        </a>,
+      );
+      index += linkMatch[0].length;
+      tokenIndex += 1;
+      continue;
+    }
+
+    if (text.startsWith("**", index)) {
+      const boldEnd = text.indexOf("**", index + 2);
+
+      if (boldEnd !== -1 && boldEnd > index + 2) {
+        const content = text.slice(index + 2, boldEnd);
+
+        nodes.push(
+          <strong
+            key={`${keyPrefix}-bold-${tokenIndex}`}
+            className="font-semibold text-neutral-900"
+          >
+            {renderInlineMarkdown(content, `${keyPrefix}-bold-${tokenIndex}`)}
+          </strong>,
+        );
+        index = boldEnd + 2;
+        tokenIndex += 1;
+        continue;
+      }
+    }
+
+    if (text.startsWith("++", index)) {
+      const underlineEnd = text.indexOf("++", index + 2);
+
+      if (underlineEnd !== -1 && underlineEnd > index + 2) {
+        const content = text.slice(index + 2, underlineEnd);
+
+        nodes.push(
+          <u
+            key={`${keyPrefix}-underline-${tokenIndex}`}
+            className="underline underline-offset-2 decoration-neutral-400"
+          >
+            {renderInlineMarkdown(content, `${keyPrefix}-underline-${tokenIndex}`)}
+          </u>,
+        );
+        index = underlineEnd + 2;
+        tokenIndex += 1;
+        continue;
+      }
+    }
+
+    if (text[index] === "*" && text[index + 1] !== "*") {
+      const italicEnd = text.indexOf("*", index + 1);
+
+      if (italicEnd !== -1 && italicEnd > index + 1) {
+        const content = text.slice(index + 1, italicEnd);
+
+        nodes.push(
+          <em key={`${keyPrefix}-italic-${tokenIndex}`} className="italic">
+            {renderInlineMarkdown(content, `${keyPrefix}-italic-${tokenIndex}`)}
+          </em>,
+        );
+        index = italicEnd + 1;
+        tokenIndex += 1;
+        continue;
+      }
+    }
+
+    pushText(text[index]);
+    index += 1;
+  }
+
+  return nodes;
+};
+
+const MarkdownPreview = ({
+  value,
+  emptyText,
+  className,
+}: {
+  value: string | null | undefined;
+  emptyText: string;
+  className?: string;
+}) => {
+  const lines = normalizeDescription(value).split(/\r?\n/);
+  const hasContent = lines.some((line) => line.trim());
+  const blocks: ReactNode[] = [];
+
+  if (!hasContent) {
+    return <div className={cn("text-neutral-400", className)}>{emptyText}</div>;
+  }
+
+  for (let index = 0; index < lines.length; index += 1) {
+    const line = lines[index];
+    const trimmedLine = line.trim();
+
+    if (!trimmedLine) {
+      blocks.push(<div key={`space-${index}`} className="h-2" />);
+      continue;
+    }
+
+    const headingMatch = trimmedLine.match(/^(#{1,6})\s+(.+)$/);
+
+    if (headingMatch) {
+      const level = headingMatch[1].length;
+      const content = renderInlineMarkdown(headingMatch[2], `heading-${index}`);
+      const headingClass = cn(
+        "whitespace-pre-wrap text-neutral-900",
+        level === 1 && "text-2xl font-semibold leading-tight",
+        level === 2 && "text-xl font-semibold leading-snug",
+        level === 3 && "text-lg font-semibold leading-snug",
+        level === 4 && "text-base font-semibold",
+        level === 5 && "text-sm font-semibold",
+        level === 6 && "text-xs font-semibold uppercase text-neutral-500",
+      );
+
+      blocks.push(
+        <div key={`heading-${index}`} className={headingClass}>
+          {content}
+        </div>,
+      );
+      continue;
+    }
+
+    if (isBulletLine(trimmedLine)) {
+      const bulletItems: string[] = [];
+      let bulletIndex = index;
+
+      while (bulletIndex < lines.length && isBulletLine(lines[bulletIndex])) {
+        bulletItems.push(lines[bulletIndex].replace(/^(\s*)[-*]\s+/, "$1"));
+        bulletIndex += 1;
+      }
+
+      blocks.push(
+        <ul key={`list-${index}`} className="list-disc space-y-1 pl-5">
+          {bulletItems.map((item, itemIndex) => (
+            <li key={`list-${index}-${itemIndex}`} className="whitespace-pre-wrap pl-0.5">
+              {renderInlineMarkdown(item, `list-${index}-${itemIndex}`)}
+            </li>
+          ))}
+        </ul>,
+      );
+
+      index = bulletIndex - 1;
+      continue;
+    }
+
+    const paragraphLines = [line];
+    let paragraphIndex = index + 1;
+
+    while (
+      paragraphIndex < lines.length &&
+      lines[paragraphIndex].trim() &&
+      !isHeadingLine(lines[paragraphIndex]) &&
+      !isBulletLine(lines[paragraphIndex])
+    ) {
+      paragraphLines.push(lines[paragraphIndex]);
+      paragraphIndex += 1;
+    }
+
+    blocks.push(
+      <p key={`paragraph-${index}`} className="whitespace-pre-wrap">
+        {renderInlineMarkdown(paragraphLines.join("\n"), `paragraph-${index}`)}
+      </p>,
+    );
+
+    index = paragraphIndex - 1;
+  }
+
+  return (
+    <div className={cn("space-y-2 break-words text-neutral-700", className)}>
+      {blocks}
+    </div>
+  );
+};
+
 export const Description = ({
   data,
   canEdit = true,
@@ -53,6 +364,10 @@ export const Description = ({
 
   const [isEditing, setIsEditing] = useState(false);
   const [isConflictOpen, setIsConflictOpen] = useState(false);
+  const [draftDescription, setDraftDescription] = useState(() =>
+    normalizeDescription(data.description),
+  );
+  const [previewMode, setPreviewMode] = useState<PreviewMode>("edit");
 
   const formRef = useRef<HTMLFormElement>(null!);
   const textareaRef = useRef<HTMLTextAreaElement>(null);
@@ -60,11 +375,20 @@ export const Description = ({
   useEffect(() => {
     if (!isEditing) {
       const nextTimestamp = toTimestampString(data.descriptionUpdatedAt);
+
+      setDraftDescription(normalizeDescription(data.description));
+
       if (nextTimestamp && nextTimestamp !== getDescriptionBaseUpdatedAt()) {
         onDescriptionBaseUpdatedAtChange(nextTimestamp);
       }
     }
-  }, [data.descriptionUpdatedAt, isEditing, getDescriptionBaseUpdatedAt, onDescriptionBaseUpdatedAtChange]);
+  }, [
+    data.description,
+    data.descriptionUpdatedAt,
+    isEditing,
+    getDescriptionBaseUpdatedAt,
+    onDescriptionBaseUpdatedAtChange,
+  ]);
 
   const descriptionRequestRef = useRef<{
     previous: string | null;
@@ -76,6 +400,8 @@ export const Description = ({
     }
 
     setIsConflictOpen(false);
+    setDraftDescription(normalizeDescription(data.description));
+    setPreviewMode("edit");
     setIsEditing(true);
     setTimeout(() => {
       textareaRef.current?.focus();
@@ -84,20 +410,245 @@ export const Description = ({
 
   const disableEditing = () => {
     setIsEditing(false);
+    setDraftDescription(normalizeDescription(data.description));
+    setPreviewMode("edit");
   };
 
-  const onKeyDown = (e: KeyboardEvent) => {
-    if (e.key === "Escape") {
+  const onFormKeyDown = (event: ReactKeyboardEvent<HTMLFormElement>) => {
+    if (event.key === "Escape") {
+      event.preventDefault();
       disableEditing();
     }
   };
 
-  useEventListener("keydown", onKeyDown);
+  const updateTextareaSelection = (
+    nextValue: string,
+    nextSelectionStart: number,
+    nextSelectionEnd = nextSelectionStart,
+  ) => {
+    setDraftDescription(nextValue);
+    setTimeout(() => {
+      textareaRef.current?.focus();
+      textareaRef.current?.setSelectionRange(nextSelectionStart, nextSelectionEnd);
+    }, 0);
+  };
+
+  const indentSelectedLines = () => {
+    if (!textareaRef.current) {
+      return;
+    }
+
+    const selectionStart = textareaRef.current.selectionStart;
+    const selectionEnd = textareaRef.current.selectionEnd;
+
+    if (selectionStart === selectionEnd) {
+      updateTextareaSelection(
+        `${draftDescription.slice(0, selectionStart)}  ${draftDescription.slice(selectionEnd)}`,
+        selectionStart + 2,
+      );
+      return;
+    }
+
+    const result = transformSelectedLines({
+      value: draftDescription,
+      selectionStart,
+      selectionEnd,
+      transformLine: (line) => `  ${line}`,
+      getSelectionAdjustment: (lineStarts) => ({
+        startDelta: 2,
+        endDelta: lineStarts.length * 2,
+      }),
+    });
+
+    updateTextareaSelection(
+      result.nextValue,
+      result.nextSelectionStart,
+      result.nextSelectionEnd,
+    );
+  };
+
+  const outdentSelectedLines = () => {
+    if (!textareaRef.current) {
+      return;
+    }
+
+    const selectionStart = textareaRef.current.selectionStart;
+    const selectionEnd = textareaRef.current.selectionEnd;
+    const { lineStart, lineEnd } = getSelectedLineRange(
+      draftDescription,
+      selectionStart,
+      selectionEnd,
+    );
+    const selectedLines = draftDescription.slice(lineStart, lineEnd).split("\n");
+    const lineStarts = getLineStarts(draftDescription, lineStart, lineEnd);
+    const removals = selectedLines.map(getOutdentSize);
+    const nextSelectedLines = selectedLines.map((line, index) =>
+      line.slice(removals[index]),
+    );
+    const nextValue = `${draftDescription.slice(0, lineStart)}${nextSelectedLines.join("\n")}${draftDescription.slice(lineEnd)}`;
+    const startDelta = -removals
+      .filter((_, index) => lineStarts[index] < selectionStart)
+      .reduce<number>((total, removal) => total + removal, 0);
+    const endDelta = -removals
+      .filter((_, index) => lineStarts[index] < selectionEnd)
+      .reduce<number>((total, removal) => total + removal, 0);
+    const nextSelectionStart = Math.max(lineStart, selectionStart + startDelta);
+    const nextSelectionEnd =
+      selectionStart === selectionEnd
+        ? nextSelectionStart
+        : Math.max(lineStart, selectionEnd + endDelta);
+
+    updateTextareaSelection(
+      nextValue,
+      nextSelectionStart,
+      nextSelectionEnd,
+    );
+  };
+
+  const applyLinePrefix = (prefix: string) => {
+    if (!textareaRef.current) {
+      return;
+    }
+
+    const selectionStart = textareaRef.current.selectionStart;
+    const selectionEnd = textareaRef.current.selectionEnd;
+    const result = transformSelectedLines({
+      value: draftDescription,
+      selectionStart,
+      selectionEnd,
+      transformLine: (line) => `${prefix}${line}`,
+      getSelectionAdjustment: (lineStarts) => ({
+        startDelta: prefix.length,
+        endDelta: lineStarts.length * prefix.length,
+      }),
+    });
+
+    updateTextareaSelection(
+      result.nextValue,
+      result.nextSelectionStart,
+      result.nextSelectionEnd,
+    );
+  };
+
+  const applyHeading = (heading: HeadingOption) => {
+    if (!textareaRef.current) {
+      return;
+    }
+
+    const selectionStart = textareaRef.current.selectionStart;
+    const selectionEnd = textareaRef.current.selectionEnd;
+    const { lineStart, lineEnd } = getSelectedLineRange(
+      draftDescription,
+      selectionStart,
+      selectionEnd,
+    );
+    const selectedLines = draftDescription.slice(lineStart, lineEnd).split("\n");
+    const lineStarts = getLineStarts(draftDescription, lineStart, lineEnd);
+    const nextSelectedLines = selectedLines.map((line) => {
+      const withoutHeading = stripHeadingPrefix(line);
+
+      if (heading === "normal") {
+        return withoutHeading;
+      }
+
+      const leadingWhitespace = withoutHeading.match(/^\s*/)?.[0] ?? "";
+      const content = withoutHeading.slice(leadingWhitespace.length);
+
+      return `${leadingWhitespace}${"#".repeat(heading)} ${content}`;
+    });
+    const diffs = nextSelectedLines.map(
+      (line, index) => line.length - selectedLines[index].length,
+    );
+    const nextValue = `${draftDescription.slice(0, lineStart)}${nextSelectedLines.join("\n")}${draftDescription.slice(lineEnd)}`;
+    const startDelta = diffs
+      .filter((_, index) => lineStarts[index] <= selectionStart)
+      .reduce((total, diff) => total + diff, 0);
+    const endDelta = diffs
+      .filter((_, index) => lineStarts[index] < selectionEnd)
+      .reduce((total, diff) => total + diff, 0);
+    const nextSelectionStart = Math.max(lineStart, selectionStart + startDelta);
+    const nextSelectionEnd =
+      selectionStart === selectionEnd
+        ? nextSelectionStart
+        : Math.max(lineStart, selectionEnd + endDelta);
+
+    updateTextareaSelection(
+      nextValue,
+      nextSelectionStart,
+      nextSelectionEnd,
+    );
+  };
+
+  const insertMarkdown = (action: MarkdownToolbarAction) => {
+    if (!textareaRef.current || isLoading) {
+      return;
+    }
+
+    const textarea = textareaRef.current;
+    const selectionStart = textarea.selectionStart;
+    const selectionEnd = textarea.selectionEnd;
+    const selectedText = draftDescription.slice(selectionStart, selectionEnd);
+    let nextValue = draftDescription;
+    let nextSelectionStart = selectionStart;
+    let nextSelectionEnd = selectionEnd;
+
+    const replaceSelection = (replacement: string, cursorOffset = replacement.length) => {
+      nextValue = `${draftDescription.slice(0, selectionStart)}${replacement}${draftDescription.slice(selectionEnd)}`;
+      nextSelectionStart = selectionStart + cursorOffset;
+      nextSelectionEnd = nextSelectionStart;
+    };
+
+    if (action === "bold") {
+      const fallback = selectedText || "text";
+      replaceSelection(`**${fallback}**`, 2 + fallback.length);
+
+      if (selectedText) {
+        nextSelectionStart = selectionStart + 2;
+        nextSelectionEnd = selectionEnd + 2;
+      }
+    } else if (action === "italic") {
+      const fallback = selectedText || "text";
+      replaceSelection(`*${fallback}*`, 1 + fallback.length);
+
+      if (selectedText) {
+        nextSelectionStart = selectionStart + 1;
+        nextSelectionEnd = selectionEnd + 1;
+      }
+    } else if (action === "underline") {
+      const fallback = selectedText || "text";
+      replaceSelection(`++${fallback}++`, 2 + fallback.length);
+
+      if (selectedText) {
+        nextSelectionStart = selectionStart + 2;
+        nextSelectionEnd = selectionEnd + 2;
+      }
+    } else if (action === "link") {
+      const fallback = selectedText || "link";
+      replaceSelection(`[${fallback}](https://example.com)`, 1 + fallback.length);
+
+      if (selectedText) {
+        nextSelectionStart = selectionStart + 1;
+        nextSelectionEnd = selectionEnd + 1;
+      }
+    } else if (action === "bullet") {
+      applyLinePrefix("- ");
+      return;
+    }
+
+    updateTextareaSelection(nextValue, nextSelectionStart, nextSelectionEnd);
+  };
+
   useOnClickOutside(formRef, (event) => {
     const target = event.target as HTMLElement;
+
     if (target.closest(".description-conflict-popover")) {
       return;
     }
+
+    if (target.closest(".description-toolbar-popover")) {
+      return;
+    }
+
     disableEditing();
   });
 
@@ -128,6 +679,7 @@ export const Description = ({
     },
     onError: (error, errorCode) => {
       const request = descriptionRequestRef.current;
+
       if (request) {
         patchCardQueryData(queryClient, data.id, {
           description: request.previous,
@@ -151,17 +703,6 @@ export const Description = ({
     setIsConflictOpen(false);
     disableEditing();
     await queryClient.invalidateQueries({ queryKey: ["card", data.id] });
-
-    const latestCard = queryClient.getQueryData<{
-      descriptionUpdatedAt?: Date | string;
-    }>(["card", data.id]);
-    const nextDescriptionUpdatedAt = toTimestampString(
-      latestCard?.descriptionUpdatedAt,
-    );
-
-    if (nextDescriptionUpdatedAt) {
-      onDescriptionBaseUpdatedAtChange(nextDescriptionUpdatedAt);
-    }
   };
 
   const onSubmit = (formData: FormData) => {
@@ -174,7 +715,7 @@ export const Description = ({
     const baseUpdatedAt =
       getDescriptionBaseUpdatedAt() ?? toTimestampString(data.descriptionUpdatedAt);
 
-    if (description === data.description) {
+    if (description === normalizeDescription(data.description)) {
       disableEditing();
       return;
     }
@@ -203,6 +744,20 @@ export const Description = ({
     });
   };
 
+  const hasDescription = !!data.description?.trim();
+  const isDraftChanged = draftDescription !== normalizeDescription(data.description);
+  const toolbarItems: Array<{
+    action: MarkdownToolbarAction;
+    label: string;
+    icon: ReactNode;
+  }> = [
+    { action: "bold", label: "In đậm", icon: <Bold className="h-3.5 w-3.5" /> },
+    { action: "italic", label: "In nghiêng", icon: <Italic className="h-3.5 w-3.5" /> },
+    { action: "underline", label: "Gạch chân", icon: <Underline className="h-3.5 w-3.5" /> },
+    { action: "bullet", label: "Danh sách", icon: <List className="h-3.5 w-3.5" /> },
+    { action: "link", label: "Liên kết", icon: <Link2 className="h-3.5 w-3.5" /> },
+  ];
+
   return (
     <div className="flex items-start gap-x-4 w-full">
       <div className="w-10 h-10 rounded-xl bg-neutral-100 flex items-center justify-center flex-shrink-0 mt-0.5">
@@ -216,26 +771,143 @@ export const Description = ({
             </p>
             {isEditing ? (
               <form
-                onSubmit={(e) => {
-                  e.preventDefault();
-                  onSubmit(new FormData(e.currentTarget));
+                onSubmit={(event) => {
+                  event.preventDefault();
+                  onSubmit(new FormData(event.currentTarget));
                 }}
+                onKeyDown={onFormKeyDown}
                 ref={formRef}
-                className="space-y-2.5"
+                className="space-y-3"
               >
-                <FormTextarea
-                  id="description"
-                  className="w-full text-base md:text-base leading-relaxed resize-none rounded-xl border-neutral-200 focus:border-violet-400 focus:ring-1 focus:ring-violet-200 shadow-sm min-h-[110px] px-3.5 py-2.5"
-                  placeholder="Thêm mô tả chi tiết hơn..."
-                  defaultValue={data.description || undefined}
-                  errors={fieldErrors}
-                  ref={textareaRef}
-                  disabled={isLoading}
-                />
+                <div className="flex flex-wrap items-center justify-between gap-2 rounded-xl border border-neutral-200 bg-neutral-50 p-1.5">
+                  <div className="flex items-center gap-1">
+                    <Popover>
+                      <PopoverTrigger asChild>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="ghost"
+                          disabled={isLoading}
+                          className="h-7 rounded-lg px-2 text-neutral-600 hover:bg-white hover:text-neutral-900"
+                        >
+                          <Type className="h-3.5 w-3.5" />
+                          <ChevronDown className="h-3 w-3" />
+                          <span className="sr-only">Kiểu văn bản</span>
+                        </Button>
+                      </PopoverTrigger>
+                      <PopoverContent
+                        align="start"
+                        side="bottom"
+                        sideOffset={6}
+                        className="description-toolbar-popover w-56 gap-0 p-1.5"
+                      >
+                        {HEADING_OPTIONS.map((option) => (
+                          <button
+                            key={option.value}
+                            type="button"
+                            disabled={isLoading}
+                            onClick={() => applyHeading(option.value)}
+                            className={cn(
+                              "flex w-full items-center rounded-md px-3 py-2 text-left text-neutral-700 transition hover:bg-violet-50 hover:text-violet-700 disabled:opacity-50",
+                              option.previewClassName,
+                            )}
+                          >
+                            {option.label}
+                          </button>
+                        ))}
+                      </PopoverContent>
+                    </Popover>
+                    <div className="mx-1 h-6 w-px bg-neutral-200" />
+                    {toolbarItems.map((item) => (
+                      <Hint key={item.action} description={item.label} side="top">
+                        <Button
+                          type="button"
+                          size="icon-sm"
+                          variant="ghost"
+                          disabled={isLoading}
+                          onClick={() => insertMarkdown(item.action)}
+                          className="h-7 w-7 rounded-lg text-neutral-600 hover:bg-white hover:text-neutral-900"
+                        >
+                          {item.icon}
+                          <span className="sr-only">{item.label}</span>
+                        </Button>
+                      </Hint>
+                    ))}
+                  </div>
+                  <div className="flex items-center rounded-lg border border-neutral-200 bg-white p-0.5">
+                    {(["edit", "preview"] as PreviewMode[]).map((mode) => (
+                      <button
+                        key={mode}
+                        type="button"
+                        onClick={() => setPreviewMode(mode)}
+                        disabled={isLoading}
+                        className={cn(
+                          "inline-flex h-7 items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition disabled:opacity-50",
+                          previewMode === mode
+                            ? "bg-violet-600 text-white shadow-xs"
+                            : "text-neutral-500 hover:bg-neutral-100 hover:text-neutral-900",
+                        )}
+                      >
+                        {mode === "edit" ? (
+                          <Pencil className="h-3.5 w-3.5" />
+                        ) : (
+                          <Eye className="h-3.5 w-3.5" />
+                        )}
+                        {mode === "edit" ? "Viết" : "Xem trước"}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+                <div className="w-full">
+                  {previewMode === "edit" ? (
+                    <div className="space-y-2">
+                      <Textarea
+                        id="description"
+                        name="description"
+                        ref={textareaRef}
+                        value={draftDescription}
+                        onChange={(event) => setDraftDescription(event.target.value)}
+                        onKeyDown={(event: ReactKeyboardEvent<HTMLTextAreaElement>) => {
+                          if (event.key === "Tab") {
+                            event.preventDefault();
+                            if (event.shiftKey) {
+                              outdentSelectedLines();
+                            } else {
+                              indentSelectedLines();
+                            }
+                            return;
+                          }
+
+                          if ((event.metaKey || event.ctrlKey) && event.key === "Enter") {
+                            event.preventDefault();
+                            formRef.current?.requestSubmit();
+                          }
+                        }}
+                        disabled={isLoading}
+                        placeholder="Thêm mô tả chi tiết hơn..."
+                        aria-describedby="description-error"
+                        className="min-h-[260px] w-full resize-y rounded-xl border-neutral-200 bg-white px-4 py-3.5 text-base leading-relaxed shadow-sm focus-visible:border-violet-400 focus-visible:ring-1 focus-visible:ring-violet-200"
+                      />
+                      <FormErrors id="description" errors={fieldErrors} />
+                    </div>
+                  ) : (
+                    <div className="min-h-[260px] rounded-xl border border-neutral-200 bg-white px-4 py-3.5 text-base leading-relaxed shadow-sm">
+                      <MarkdownPreview
+                        value={draftDescription}
+                        emptyText="Xem trước mô tả sẽ hiển thị ở đây."
+                      />
+                    </div>
+                  )}
+                </div>
                 <div className="flex items-center gap-x-2">
-                  <FormSubmit disabled={isLoading} className="h-9 text-sm bg-violet-600 hover:bg-violet-700 text-white rounded-lg px-5">
+                  <Button
+                    type="submit"
+                    disabled={isLoading || !isDraftChanged}
+                    size="sm"
+                    className="h-9 rounded-lg bg-violet-600 px-5 text-sm text-white hover:bg-violet-700"
+                  >
                     Lưu
-                  </FormSubmit>
+                  </Button>
                   <Button
                     type="button"
                     onClick={disableEditing}
@@ -252,18 +924,37 @@ export const Description = ({
               <div
                 onClick={enableEditing}
                 role={canEdit ? "button" : undefined}
-                className={`
-                  min-h-[96px] text-base md:text-base leading-relaxed rounded-xl px-4 py-3 ${canEdit ? "cursor-pointer" : "cursor-default"}
-                  transition-colors duration-150
-                  ${
-                    data.description
-                      ? `text-neutral-700 bg-neutral-50 border border-neutral-200 ${canEdit ? "hover:bg-neutral-100" : ""}`
-                      : `text-neutral-400 bg-neutral-50 border border-dashed border-neutral-200 ${canEdit ? "hover:bg-neutral-100 hover:border-neutral-300" : ""}`
+                tabIndex={canEdit ? 0 : undefined}
+                onKeyDown={(event) => {
+                  if (!canEdit) {
+                    return;
                   }
-                `}
+
+                  if (event.key === "Enter" || event.key === " ") {
+                    event.preventDefault();
+                    enableEditing();
+                  }
+                }}
+                className={cn(
+                  "min-h-[96px] rounded-xl px-4 py-3 text-base leading-relaxed transition-colors duration-150 md:text-base",
+                  canEdit
+                    ? "cursor-pointer focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-200"
+                    : "cursor-default",
+                  hasDescription
+                    ? cn(
+                      "border border-neutral-200 bg-neutral-50 text-neutral-700",
+                      canEdit && "hover:bg-neutral-100",
+                    )
+                    : cn(
+                      "border border-dashed border-neutral-200 bg-neutral-50 text-neutral-400",
+                      canEdit && "hover:border-neutral-300 hover:bg-neutral-100",
+                    ),
+                )}
               >
-                {data.description ||
-                  (canEdit ? "Nhập để thêm mô tả..." : "Chưa có mô tả.")}
+                <MarkdownPreview
+                  value={data.description}
+                  emptyText={canEdit ? "Nhập để thêm mô tả..." : "Chưa có mô tả."}
+                />
               </div>
             )}
           </div>

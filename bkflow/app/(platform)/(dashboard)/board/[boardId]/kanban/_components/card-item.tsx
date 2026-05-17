@@ -285,14 +285,14 @@ export const CardItem = memo(function CardItem({
               ) : (
                 <span className={cn(
                   "block text-[15px] font-semibold leading-snug text-neutral-800 break-words",
-                  data.description && "pr-5"
+                  data.description?.trim() && "pr-5"
                 )}>
                   {data.title}
                 </span>
               )}
               <CardBadges card={data} />
             </div>
-            {data.description && (
+            {data.description?.trim() && (
               <div className="absolute right-3 top-3 text-neutral-300 transition-colors group-hover:text-neutral-400">
                 <Hint description="Thẻ đã có mô tả" side="bottom">
                   <AlignLeft className="h-3.5 w-3.5" />

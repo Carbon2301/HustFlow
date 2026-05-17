@@ -135,27 +135,31 @@ export const CardForm = forwardRef<HTMLTextAreaElement, CardFormProps>(({
   };
 
   const onSubmit = (formData: FormData) => {
-    const title = formData.get("title") as string;
+    const title = (formData.get("title") as string) || "";
+    const trimmedTitle = title.trim();
     const listId = formData.get("listId") as string;
     const boardId = params.boardId as string;
-    const snapshot = boardState.getSnapshot();
-    const targetList = snapshot.find((list) => list.id === listId);
-    const order = targetList
-      ? targetList.cards.reduce((maxOrder, card) => Math.max(maxOrder, card.order), -1) + 1
-      : 0;
-    const temporaryCard = createEmptyCardShape({
-      id: createTemporaryId(),
-      title,
-      listId,
-      order,
-      now: new Date(),
-    });
 
-    rollbackRef.current = snapshot;
-    temporaryCardRef.current = temporaryCard;
-    boardState.appendCard(listId, temporaryCard);
+    if (trimmedTitle) {
+      const snapshot = boardState.getSnapshot();
+      const targetList = snapshot.find((list) => list.id === listId);
+      const order = targetList
+        ? targetList.cards.reduce((maxOrder, card) => Math.max(maxOrder, card.order), -1) + 1
+        : 0;
+      const temporaryCard = createEmptyCardShape({
+        id: createTemporaryId(),
+        title: trimmedTitle,
+        listId,
+        order,
+        now: new Date(),
+      });
 
-    execute({ title, listId, boardId });
+      rollbackRef.current = snapshot;
+      temporaryCardRef.current = temporaryCard;
+      boardState.appendCard(listId, temporaryCard);
+    }
+
+    execute({ title: trimmedTitle, listId, boardId });
   };
 
   if (isEditing) {
