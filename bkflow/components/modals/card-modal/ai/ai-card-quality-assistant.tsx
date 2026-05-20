@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import type { Checklist } from "@prisma/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { CheckSquare, RefreshCw, Sparkles, X } from "lucide-react";
+import { CheckSquare, Eye, Pencil, RefreshCw, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { createAiChecklistItems } from "@/actions/create-ai-checklist-items";
@@ -21,10 +21,12 @@ import { Textarea } from "@/components/ui/textarea";
 import { useAction } from "@/hooks/use-action";
 import { cn } from "@/lib/utils";
 
+import { MarkdownPreview } from "../markdown-preview";
 import { patchBoardCardPreview, patchCardQueryData } from "../card-cache-utils";
 
 type QualityTask = "create_description" | "rewrite_description";
 type AiTask = QualityTask | "suggest_checklist";
+type PreviewMode = "edit" | "preview";
 
 type ChecklistOption = Checklist & {
   items: {
@@ -75,6 +77,7 @@ export const AiCardQualityAssistant = ({
   const queryClient = useQueryClient();
   const [activeTask, setActiveTask] = useState<AiTask | null>(null);
   const [previewDescription, setPreviewDescription] = useState("");
+  const [previewMode, setPreviewMode] = useState<PreviewMode>("edit");
   const [checklistSuggestions, setChecklistSuggestions] = useState<string[]>([]);
   const [isConflictOpen, setIsConflictOpen] = useState(false);
   const [generationBaseUpdatedAt, setGenerationBaseUpdatedAt] = useState<string | null>(null);
@@ -105,6 +108,7 @@ export const AiCardQualityAssistant = ({
   const resetPreview = () => {
     setActiveTask(null);
     setPreviewDescription("");
+    setPreviewMode("edit");
     setChecklistSuggestions([]);
     setSelectedChecklistItems(new Set());
   };
@@ -115,7 +119,7 @@ export const AiCardQualityAssistant = ({
 
       if (data.description) {
         setPreviewDescription(data.description);
-        toast.success("AI đã tạo bản nháp mô tả.");
+        setPreviewMode("edit");
         return;
       }
     },
@@ -160,7 +164,6 @@ export const AiCardQualityAssistant = ({
       setPreviewDescription("");
       setChecklistSuggestions(data.items);
       setSelectedChecklistItems(new Set(data.items));
-      toast.success("AI đã gợi ý danh sách việc cần làm cho thẻ này.");
     },
     onError: (error) => toast.error(error),
   });
@@ -181,6 +184,7 @@ export const AiCardQualityAssistant = ({
 
   const handleGenerate = (task: QualityTask) => {
     setActiveTask(task);
+    setPreviewMode("edit");
     setChecklistSuggestions([]);
     setSelectedChecklistItems(new Set());
 
@@ -348,12 +352,49 @@ export const AiCardQualityAssistant = ({
 
         {isDescriptionTask && previewDescription && (
           <div className="mt-3 space-y-3 rounded-lg border border-white/70 bg-white p-3 shadow-xs">
-            <Textarea
-              value={previewDescription}
-              onChange={(event) => setPreviewDescription(event.target.value)}
-              disabled={isBusy}
-              className="min-h-[190px] resize-y rounded-lg border-neutral-200 text-sm leading-relaxed focus:border-sky-400 focus:ring-1 focus:ring-sky-200"
-            />
+            <div className="flex flex-wrap items-center justify-between gap-2">
+              <p className="text-xs font-semibold text-neutral-500">
+                {previewMode === "edit" ? "Bản nháp" : "Xem trước"}
+              </p>
+              <div className="flex items-center rounded-lg border border-neutral-200 bg-neutral-50 p-0.5">
+                {(["edit", "preview"] as PreviewMode[]).map((mode) => (
+                  <button
+                    key={mode}
+                    type="button"
+                    onClick={() => setPreviewMode(mode)}
+                    disabled={isBusy}
+                    className={cn(
+                      "inline-flex h-7 items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition disabled:opacity-50",
+                      previewMode === mode
+                        ? "bg-sky-600 text-white shadow-xs"
+                        : "text-neutral-500 hover:bg-white hover:text-neutral-900",
+                    )}
+                  >
+                    {mode === "edit" ? (
+                      <Pencil className="h-3.5 w-3.5" />
+                    ) : (
+                      <Eye className="h-3.5 w-3.5" />
+                    )}
+                    {mode === "edit" ? "Viết" : "Xem trước"}
+                  </button>
+                ))}
+              </div>
+            </div>
+            {previewMode === "edit" ? (
+              <Textarea
+                value={previewDescription}
+                onChange={(event) => setPreviewDescription(event.target.value)}
+                disabled={isBusy}
+                className="min-h-[320px] resize-y rounded-lg border-neutral-200 text-sm leading-relaxed focus:border-sky-400 focus:ring-1 focus:ring-sky-200"
+              />
+            ) : (
+              <div className="min-h-[320px] rounded-lg border border-neutral-200 bg-neutral-50/60 px-3 py-2.5 text-sm leading-relaxed">
+                <MarkdownPreview
+                  value={previewDescription}
+                  emptyText="Bản xem trước mô tả sẽ hiển thị ở đây."
+                />
+              </div>
+            )}
             <div className="flex flex-wrap items-center justify-end gap-2 border-t border-neutral-100 pt-3">
               <Button
                 type="button"

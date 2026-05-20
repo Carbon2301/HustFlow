@@ -16,6 +16,29 @@ import { InputType, ReturnType } from "./types";
 const trimToLength = (value: string | null | undefined, maxLength: number) =>
   (value ?? "").replace(/\s+/g, " ").trim().slice(0, maxLength);
 
+const normalizeVietnameseForCompare = (value: string) =>
+  value
+    .normalize("NFD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/đ/g, "d")
+    .replace(/Đ/g, "D")
+    .toLowerCase();
+
+const hasRequiredMarkdownHeadings = (value: string) => {
+  const normalizedValue = normalizeVietnameseForCompare(value);
+
+  return (
+    normalizedValue.includes("## muc tieu") &&
+    normalizedValue.includes("## pham vi") &&
+    normalizedValue.includes("## dieu kien hoan thanh")
+  );
+};
+
+const normalizeDescriptionHeadings = (value: string) =>
+  value
+    .replace(/^##\s*Acceptance criteria\s*:?\s*$/gim, "## Điều kiện hoàn thành")
+    .replace(/^##\s*Tiêu chí nghiệm thu\s*:?\s*$/gim, "## Điều kiện hoàn thành");
+
 const normalizeDescriptionForCompare = (value: string | null | undefined) =>
   (value ?? "")
     .toLowerCase()
@@ -26,29 +49,42 @@ const normalizeDescriptionForCompare = (value: string | null | undefined) =>
 const DescriptionResponse = z.object({
   description: z.string()
     .transform((value) => value.trim())
+    .transform(normalizeDescriptionHeadings)
     .pipe(
       z.string()
         .min(AI_CARD_QUALITY_LIMITS.descriptionOutputMinLength)
-        .max(AI_CARD_QUALITY_LIMITS.descriptionOutputMaxLength),
+        .max(AI_CARD_QUALITY_LIMITS.descriptionOutputMaxLength)
+        .refine((value) => !value.includes("```"), {
+          message: "Mô tả không được chứa markdown code fence.",
+        })
+        .refine(hasRequiredMarkdownHeadings, {
+          message: "Mô tả phải có đầy đủ các tiêu đề bắt buộc (Mục tiêu, Phạm vi, Điều kiện hoàn thành).",
+        }),
     ),
 });
 
-
-
 const descriptionSystemPrompt = [
   "Bạn là trợ lý quản lý dự án cho HustFlow.",
-  "Chỉ trả JSON hợp lệ, không markdown bao ngoài, không giải thích.",
+  "Chỉ trả JSON hợp lệ, không giải thích ngoài JSON, không bọc bằng markdown code fence.",
   'Định dạng bắt buộc: {"description":"..."}',
-  "Viết tiếng Việt rõ ràng.",
-  "Description phải có 3 phần: Mục tiêu:, Phạm vi:, Acceptance criteria:.",
-  "Không bịa dữ liệu ngoài context. Nếu thiếu context, chỉ suy luận tối thiểu từ title.",
+  "Giá trị description phải là Markdown thuần, tiếng Việt rõ ràng, gọn và dễ scan trong Card Modal.",
+  "Bắt buộc dùng đúng 3 heading cấp 2 theo thứ tự:",
+  "## Mục tiêu",
+  "## Phạm vi",
+  "## Điều kiện hoàn thành",
+  "Dưới ## Mục tiêu: viết 1-2 bullet ngắn, bắt đầu bằng '- '.",
+  "Dưới ## Phạm vi: viết 2-4 bullet cụ thể, bắt đầu bằng '- '.",
+  "Dưới ## Điều kiện hoàn thành: viết 3-6 checklist item dạng '- [ ] ...'.",
+  "Không trả về một đoạn văn dài. Không dùng heading khác thay cho 3 heading bắt buộc.",
+  "Không bịa dữ liệu ngoài context. Nếu thiếu context, chỉ suy luận tối thiểu từ title/list/board/label.",
 ].join("\n");
 
 const rewriteSystemPrompt = [
   descriptionSystemPrompt,
-  "Giữ ý chính của description cũ, chỉ làm rõ cấu trúc và tiêu chí nghiệm thu.",
-  "Bắt buộc viết lại bằng cách diễn đạt khác, rõ hơn và có tổ chức hơn; không được trả lại nguyên văn.",
-  "Nếu description cũ đã đúng format, hãy cải thiện độ cụ thể của Phạm vi và Acceptance criteria.",
+  "Giữ ý chính, dữ kiện và ràng buộc của description cũ.",
+  "Chuẩn hóa lại thành Markdown theo đúng format 3 heading bắt buộc.",
+  "Nếu description cũ đã có Markdown, giữ thông tin hữu ích nhưng cải thiện cấu trúc, độ rõ và checklist nghiệm thu.",
+  "Bắt buộc diễn đạt lại rõ hơn; không được trả lại nguyên văn.",
   "Không biến card thành một task khác.",
 ].join("\n");
 
@@ -139,8 +175,6 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     const activeLabelIds = new Set(card.labels.map(({ label }) => label.id));
     const availableLabels = card.list.board.labels.filter((label) => !activeLabelIds.has(label.id));
 
-
-
     const payload = {
       task,
       boardTitle: trimToLength(card.list.board.title, AI_CARD_QUALITY_LIMITS.nameMaxLength),
@@ -166,12 +200,10 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       system: getSystemPrompt(task),
       user: JSON.stringify(extraPrompt ? { ...payload, rewriteInstruction: extraPrompt } : payload),
       temperature: task === "rewrite_description" ? 0.5 : 0.35,
-      maxTokens: 900,
+      maxTokens: 1200,
     });
 
     const raw = await generate();
-
-
 
     let parsed = parseAiJson(
       raw,
