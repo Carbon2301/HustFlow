@@ -6,10 +6,10 @@ import { useQueryClient } from "@tanstack/react-query";
 import { CheckSquare, Eye, Pencil, RefreshCw, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { createAiChecklistItems } from "@/actions/create-ai-checklist-items";
-import { generateAiCardQuality } from "@/actions/generate-ai-card-quality";
-import { generateAiChecklist } from "@/actions/generate-ai-checklist";
-import { updateCard } from "@/actions/update-card";
+import { createAiChecklistItems } from "@/actions/ai/create-ai-checklist-items";
+import { generateAiCardQuality } from "@/actions/ai/generate-ai-card-quality";
+import { generateAiChecklist } from "@/actions/ai/generate-ai-checklist";
+import { updateCard } from "@/actions/cards/update-card";
 import { Button } from "@/components/ui/button";
 import {
   Popover,

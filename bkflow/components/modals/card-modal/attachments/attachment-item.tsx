@@ -7,7 +7,7 @@ import { vi } from "date-fns/locale";
 import { ExternalLink } from "lucide-react";
 import { createPortal } from "react-dom";
 
-import type { InputType as UpdateCardAttachmentInput } from "@/actions/update-card-attachment/types";
+import type { InputType as UpdateCardAttachmentInput } from "@/actions/cards/update-card-attachment/types";
 import { Button } from "@/components/ui/button";
 import type { FieldErrors } from "@/lib/create-safe-action";
 

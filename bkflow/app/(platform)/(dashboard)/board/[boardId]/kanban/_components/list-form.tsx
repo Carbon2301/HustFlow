@@ -9,7 +9,7 @@ import { useEventListener, useOnClickOutside } from "usehooks-ts";
 import type { ListWithCards } from "@/types";
 import { useAction } from "@/hooks/use-action";
 import { Button } from "@/components/ui/button";
-import { createList } from "@/actions/create-list";
+import { createList } from "@/actions/lists/create-list";
 import { FormInput } from "@/components/form/form-input";
 import { FormSubmit } from "@/components/form/form-submit";
 

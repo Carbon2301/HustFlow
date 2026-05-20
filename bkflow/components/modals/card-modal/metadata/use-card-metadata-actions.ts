@@ -6,9 +6,9 @@ import { toast } from "sonner";
 
 import type { CardWithList } from "@/types";
 import { useAction } from "@/hooks/use-action";
-import { updateCard } from "@/actions/update-card";
-import { assignCardMember } from "@/actions/assign-card-member";
-import { unassignCardMember } from "@/actions/unassign-card-member";
+import { updateCard } from "@/actions/cards/update-card";
+import { assignCardMember } from "@/actions/cards/assign-card-member";
+import { unassignCardMember } from "@/actions/cards/unassign-card-member";
 import {
   getDateTimezoneOffset,
   parseDateTimeLocalInput,

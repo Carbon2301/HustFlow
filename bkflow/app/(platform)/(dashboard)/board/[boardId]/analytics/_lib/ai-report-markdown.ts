@@ -1,4 +1,4 @@
-import type { AiBoardReport } from "@/actions/generate-ai-board-report/types";
+import type { AiBoardReport } from "@/actions/ai/generate-ai-board-report/types";
 
 import type { ReportRange } from "../_types";
 

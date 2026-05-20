@@ -12,7 +12,7 @@ import {
 import { useAction } from "@/hooks/use-action";
 import { useIsMounted } from "@/hooks/use-is-mounted";
 import { Button } from "@/components/ui/button";
-import { createBoard } from "@/actions/create-board";
+import { createBoard } from "@/actions/boards/create-board";
 
 import { FormInput } from "./form-input";
 import { FormSubmit } from "./form-submit";

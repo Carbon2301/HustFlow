@@ -4,7 +4,7 @@ import { useState } from "react";
 import { toast } from "sonner";
 import { Archive, MoreHorizontal, Trash2, X } from "lucide-react";
 
-import { deleteBoard } from "@/actions/delete-board";
+import { deleteBoard } from "@/actions/boards/delete-board";
 import { useAction } from "@/hooks/use-action";
 import { Button } from "@/components/ui/button";
 import {

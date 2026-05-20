@@ -9,9 +9,9 @@ import { BoardMemberRole } from "@prisma/client";
 
 import { useAction } from "@/hooks/use-action";
 import { emptyBoardFilters, useBoardFilters } from "@/hooks/use-board-filters";
-import { updateListOrder } from "@/actions/update-list-order";
-import { updateCardOrder } from "@/actions/update-card-order";
-import { updateCard } from "@/actions/update-card";
+import { updateListOrder } from "@/actions/lists/update-list-order";
+import { updateCardOrder } from "@/actions/cards/update-card-order";
+import { updateCard } from "@/actions/cards/update-card";
 import { useCardModal } from "@/hooks/use-card-modal";
 import { useBoardCalendarInvalidation } from "@/hooks/use-board-calendar-invalidation";
 import { realtimeChannels } from "@/lib/realtime/channels";

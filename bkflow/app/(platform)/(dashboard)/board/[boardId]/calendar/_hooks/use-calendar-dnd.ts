@@ -4,8 +4,8 @@ import { useRef, useState, type DragEvent } from "react";
 import { isSameDay } from "date-fns";
 import { toast } from "sonner";
 
-import type { InputType as SetChecklistItemDueDateInput } from "@/actions/set-checklist-item-due-date/types";
-import type { InputType as UpdateCardInput } from "@/actions/update-card/types";
+import type { InputType as SetChecklistItemDueDateInput } from "@/actions/checklists/set-checklist-item-due-date/types";
+import type { InputType as UpdateCardInput } from "@/actions/cards/update-card/types";
 import { getDateTimezoneOffset } from "@/lib/date-utils";
 import {
   DAY_VIEW_SLOT_COUNT,

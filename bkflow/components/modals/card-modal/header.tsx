@@ -7,7 +7,7 @@ import { useQueryClient } from "@tanstack/react-query";
 
 import { CardWithList } from "@/types";
 import { useAction } from "@/hooks/use-action";
-import { updateCard } from "@/actions/update-card";
+import { updateCard } from "@/actions/cards/update-card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useBoardCalendarInvalidation } from "@/hooks/use-board-calendar-invalidation";
 import { Hint } from "@/components/hint";

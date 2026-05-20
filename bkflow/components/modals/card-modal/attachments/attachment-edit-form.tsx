@@ -3,7 +3,7 @@
 import { AttachmentType, type CardAttachment } from "@prisma/client";
 import { X } from "lucide-react";
 
-import type { InputType as UpdateCardAttachmentInput } from "@/actions/update-card-attachment/types";
+import type { InputType as UpdateCardAttachmentInput } from "@/actions/cards/update-card-attachment/types";
 import { FormInput } from "@/components/form/form-input";
 import { FormSubmit } from "@/components/form/form-submit";
 import { Button } from "@/components/ui/button";

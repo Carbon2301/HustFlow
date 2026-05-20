@@ -5,10 +5,10 @@ import { useRouter } from "next/navigation";
 import { Archive, ChevronLeft, Loader2, RotateCcw, Search, Trash2, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { deleteArchivedCard } from "@/actions/delete-archived-card";
-import { deleteArchivedList } from "@/actions/delete-archived-list";
-import { restoreCard } from "@/actions/restore-card";
-import { restoreList } from "@/actions/restore-list";
+import { deleteArchivedCard } from "@/actions/cards/delete-archived-card";
+import { deleteArchivedList } from "@/actions/lists/delete-archived-list";
+import { restoreCard } from "@/actions/cards/restore-card";
+import { restoreList } from "@/actions/lists/restore-list";
 import { Button } from "@/components/ui/button";
 import {
   DialogTitle,

@@ -15,9 +15,9 @@ import {
 } from "@/components/ui/popover";
 import { useAction } from "@/hooks/use-action";
 import { Button } from "@/components/ui/button";
-import { copyList } from "@/actions/copy-list";
-import { archiveList } from "@/actions/archive-list";
-import { archiveListCards } from "@/actions/archive-list-cards";
+import { copyList } from "@/actions/lists/copy-list";
+import { archiveList } from "@/actions/lists/archive-list";
+import { archiveListCards } from "@/actions/lists/archive-list-cards";
 import { FormSubmit } from "@/components/form/form-submit";
 import { Separator } from "@/components/ui/separator";
 import { useBoardState } from "./board-state-context";

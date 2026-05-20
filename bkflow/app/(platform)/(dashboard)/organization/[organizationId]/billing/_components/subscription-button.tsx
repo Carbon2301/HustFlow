@@ -5,7 +5,7 @@ import { Sparkles, Settings } from "lucide-react";
 
 import { useAction } from "@/hooks/use-action";
 import { Button } from "@/components/ui/button";
-import { stripeRedirect } from "@/actions/stripe-redirect";
+import { stripeRedirect } from "@/actions/billing/stripe-redirect";
 import { useProModal } from "@/hooks/use-pro-modal";
 
 interface SubscriptionButtonProps {

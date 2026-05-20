@@ -6,7 +6,7 @@ import { useEffect, useState, useRef } from "react";
 import type { DraggableProvidedDragHandleProps } from "@hello-pangea/dnd";
 
 import { useAction } from "@/hooks/use-action";
-import { updateList } from "@/actions/update-list";
+import { updateList } from "@/actions/lists/update-list";
 import { Hint } from "@/components/hint";
 import { ListWithCards } from "@/types";
 import { ListOptions } from "./list-options";

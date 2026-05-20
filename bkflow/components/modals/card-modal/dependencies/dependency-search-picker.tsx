@@ -257,7 +257,7 @@ export const DependencySearchPicker = ({
               {visibleGroups.map((group) => (
                 <section key={group.listId} className="space-y-1">
                   <div className="flex items-center justify-between gap-x-3 px-1">
-                    <p className="truncate text-xs font-bold uppercase tracking-wide text-neutral-500">
+                    <p className="truncate text-xs font-bold tracking-wide text-neutral-500">
                       {group.listTitle}
                     </p>
                     <span className="shrink-0 text-[11px] font-semibold text-neutral-400">

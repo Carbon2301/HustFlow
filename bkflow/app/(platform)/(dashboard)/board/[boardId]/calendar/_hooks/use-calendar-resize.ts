@@ -3,7 +3,7 @@
 import { useState, type PointerEvent } from "react";
 import { toast } from "sonner";
 
-import type { InputType as UpdateCardInput } from "@/actions/update-card/types";
+import type { InputType as UpdateCardInput } from "@/actions/cards/update-card/types";
 import { getDateTimezoneOffset } from "@/lib/date-utils";
 import { DAY_VIEW_SLOT_HEIGHT } from "@/lib/calendar-day-view";
 

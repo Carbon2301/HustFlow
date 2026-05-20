@@ -1,6 +1,6 @@
 import { ACTION, AUDIT_EVENT_TYPE, ENTITY_TYPE, type Card } from "@prisma/client";
 
-import type { InputType, ReturnType } from "@/actions/copy-card/types";
+import type { InputType, ReturnType } from "@/actions/cards/copy-card/types";
 import { db } from "@/lib/db";
 import { requireBoardEditorForUser, requireBoardMemberForUser } from "@/lib/permissions";
 import { triggerCardCreated } from "@/lib/boards/realtime";

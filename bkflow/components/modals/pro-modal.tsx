@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useProModal } from "@/hooks/use-pro-modal";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useAction } from "@/hooks/use-action";
-import { stripeRedirect } from "@/actions/stripe-redirect";
+import { stripeRedirect } from "@/actions/billing/stripe-redirect";
 import { toast } from "sonner";
 
 const features = [

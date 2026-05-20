@@ -25,7 +25,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useOnClickOutside } from "usehooks-ts";
 
 import { useAction } from "@/hooks/use-action";
-import { updateCard } from "@/actions/update-card";
+import { updateCard } from "@/actions/cards/update-card";
 import { CardWithList } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";

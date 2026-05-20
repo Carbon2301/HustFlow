@@ -7,7 +7,7 @@ import { X } from "lucide-react";
 import { Checklist, ChecklistItem } from "@prisma/client";
 
 import { useAction } from "@/hooks/use-action";
-import { createChecklist } from "@/actions/create-checklist";
+import { createChecklist } from "@/actions/checklists/create-checklist";
 import {
   Popover,
   PopoverContent,

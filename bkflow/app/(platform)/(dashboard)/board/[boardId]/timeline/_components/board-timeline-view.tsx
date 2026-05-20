@@ -7,7 +7,7 @@ import { useRouter } from "next/navigation";
 import { CalendarX2 } from "lucide-react";
 import { toast } from "sonner";
 
-import { updateCard } from "@/actions/update-card";
+import { updateCard } from "@/actions/cards/update-card";
 import { useAction } from "@/hooks/use-action";
 import { useCardModal } from "@/hooks/use-card-modal";
 import { realtimeChannels } from "@/lib/realtime/channels";

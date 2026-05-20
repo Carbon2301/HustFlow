@@ -1,6 +1,6 @@
 import type { Card, Prisma } from "@prisma/client";
 
-import type { InputType } from "@/actions/update-card/types";
+import type { InputType } from "@/actions/cards/update-card/types";
 import type { CardUpdatedField } from "@/lib/realtime/types";
 
 type CardDateInput = Pick<

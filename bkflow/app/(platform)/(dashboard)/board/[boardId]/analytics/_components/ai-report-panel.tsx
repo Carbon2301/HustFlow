@@ -4,8 +4,8 @@ import { useState } from "react";
 import { Clipboard, RefreshCw, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 
-import { generateAiBoardReport } from "@/actions/generate-ai-board-report";
-import type { AiBoardReport } from "@/actions/generate-ai-board-report/types";
+import { generateAiBoardReport } from "@/actions/ai/generate-ai-board-report";
+import type { AiBoardReport } from "@/actions/ai/generate-ai-board-report/types";
 import { useAction } from "@/hooks/use-action";
 import { cn } from "@/lib/utils";
 

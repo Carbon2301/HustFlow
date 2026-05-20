@@ -5,7 +5,7 @@ import type { QueryClient, UseQueryResult } from "@tanstack/react-query";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { toast } from "sonner";
 
-import { createCard } from "@/actions/create-card";
+import { createCard } from "@/actions/cards/create-card";
 import { useAction } from "@/hooks/use-action";
 import type { BoardCalendarResponse } from "@/types";
 

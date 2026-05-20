@@ -14,10 +14,10 @@ import {
 
 import { Label, CardLabel } from "@prisma/client";
 import { useAction } from "@/hooks/use-action";
-import { createLabel } from "@/actions/create-label";
-import { updateLabel } from "@/actions/update-label";
-import { deleteLabel } from "@/actions/delete-label";
-import { toggleCardLabel } from "@/actions/toggle-card-label";
+import { createLabel } from "@/actions/labels/create-label";
+import { updateLabel } from "@/actions/labels/update-label";
+import { deleteLabel } from "@/actions/labels/delete-label";
+import { toggleCardLabel } from "@/actions/labels/toggle-card-label";
 
 import {
   Popover,

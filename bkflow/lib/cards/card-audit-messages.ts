@@ -1,6 +1,6 @@
 import { ACTION, AUDIT_EVENT_TYPE, type Card } from "@prisma/client";
 
-import type { InputType } from "@/actions/update-card/types";
+import type { InputType } from "@/actions/cards/update-card/types";
 import { formatDateTimeInOffset } from "@/lib/date-utils";
 
 export const formatFriendlyDate = (

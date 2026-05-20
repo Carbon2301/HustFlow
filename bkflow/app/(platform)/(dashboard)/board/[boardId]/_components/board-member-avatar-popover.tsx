@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 import { Check, Eye, ShieldCheck, UserRound, X } from "lucide-react";
 import { toast } from "sonner";
 
-import { updateBoardMemberRole } from "@/actions/update-board-member-role";
+import { updateBoardMemberRole } from "@/actions/boards/update-board-member-role";
 import {
   Avatar,
   AvatarFallback,

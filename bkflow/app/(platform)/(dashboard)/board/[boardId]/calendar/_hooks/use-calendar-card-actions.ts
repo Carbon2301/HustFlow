@@ -5,10 +5,10 @@ import type { QueryClient, UseQueryResult } from "@tanstack/react-query";
 import type { AppRouterInstance } from "next/dist/shared/lib/app-router-context.shared-runtime";
 import { toast } from "sonner";
 
-import { setChecklistItemDueDate } from "@/actions/set-checklist-item-due-date";
-import type { InputType as SetChecklistItemDueDateInput } from "@/actions/set-checklist-item-due-date/types";
-import { updateCard } from "@/actions/update-card";
-import type { InputType as UpdateCardInput } from "@/actions/update-card/types";
+import { setChecklistItemDueDate } from "@/actions/checklists/set-checklist-item-due-date";
+import type { InputType as SetChecklistItemDueDateInput } from "@/actions/checklists/set-checklist-item-due-date/types";
+import { updateCard } from "@/actions/cards/update-card";
+import type { InputType as UpdateCardInput } from "@/actions/cards/update-card/types";
 import { useAction } from "@/hooks/use-action";
 import type { BoardCalendarResponse } from "@/types";
 

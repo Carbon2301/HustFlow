@@ -7,7 +7,7 @@ import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Check, ChevronDown } from "lucide-react";
 import { toast } from "sonner";
 
-import { copyCard } from "@/actions/copy-card";
+import { copyCard } from "@/actions/cards/copy-card";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,

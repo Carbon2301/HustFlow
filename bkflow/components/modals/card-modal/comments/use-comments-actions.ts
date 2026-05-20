@@ -3,10 +3,10 @@
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { createCardComment } from "@/actions/create-card-comment";
-import { deleteCardComment } from "@/actions/delete-card-comment";
-import { toggleCardCommentReaction } from "@/actions/toggle-card-comment-reaction";
-import { updateCardComment } from "@/actions/update-card-comment";
+import { createCardComment } from "@/actions/cards/create-card-comment";
+import { deleteCardComment } from "@/actions/cards/delete-card-comment";
+import { toggleCardCommentReaction } from "@/actions/cards/toggle-card-comment-reaction";
+import { updateCardComment } from "@/actions/cards/update-card-comment";
 import { useAction } from "@/hooks/use-action";
 import type { CardCommentWithReplies } from "@/types";
 

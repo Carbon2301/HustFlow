@@ -6,9 +6,9 @@ import { useMemo, useState } from "react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 
-import { addBoardMember } from "@/actions/add-board-member";
-import { removeBoardMember } from "@/actions/remove-board-member";
-import { updateBoardMemberRole } from "@/actions/update-board-member-role";
+import { addBoardMember } from "@/actions/boards/add-board-member";
+import { removeBoardMember } from "@/actions/boards/remove-board-member";
+import { updateBoardMemberRole } from "@/actions/boards/update-board-member-role";
 import { Button } from "@/components/ui/button";
 import {
   Avatar,
