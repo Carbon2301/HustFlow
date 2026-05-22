@@ -6,10 +6,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useRouter } from "next/navigation";
 import { CalendarX2 } from "lucide-react";
 import { toast } from "sonner";
+import { toPng } from "html-to-image";
 
 import { updateCard } from "@/actions/cards/update-card";
 import { useAction } from "@/hooks/use-action";
 import { useCardModal } from "@/hooks/use-card-modal";
+import { buildBoardExportFileName } from "@/lib/exports/filename";
 import { realtimeChannels } from "@/lib/realtime/channels";
 import { isRealtimeClientConfigured } from "@/lib/realtime/client";
 import { cn } from "@/lib/utils";
@@ -28,8 +30,15 @@ import { useTimelineRealtime } from "../_hooks/use-timeline-realtime";
 import { useTimelineState } from "../_hooks/use-timeline-state";
 import { GANTT_MAX_HEIGHT, formatTimelineRangeEndpoint } from "../_lib/layout-utils";
 
+const waitForAnimationFrames = async (count: number) => {
+  for (let index = 0; index < count; index += 1) {
+    await new Promise((resolve) => window.requestAnimationFrame(resolve));
+  }
+};
+
 type BoardTimelineViewProps = {
   boardId: string;
+  boardTitle: string;
   lists: BoardTimelineList[];
   boardMembers: BoardTimelineBoardMember[];
   currentUserId: string;
@@ -39,13 +48,16 @@ type BoardTimelineViewProps = {
 
 export const BoardTimelineView = ({
   boardId,
+  boardTitle,
   lists,
   currentUserId,
   currentMemberRole,
 }: BoardTimelineViewProps) => {
   const [updatingCardId, setUpdatingCardId] = useState<string | null>(null);
+  const [isExportingPng, setIsExportingPng] = useState(false);
   const pendingUpdateCardIdRef = useRef<string | null>(null);
   const ganttScrollContainerRef = useRef<HTMLDivElement | null>(null);
+  const ganttExportContentRef = useRef<HTMLDivElement | null>(null);
   const router = useRouter();
   const queryClient = useQueryClient();
   const cardModal = useCardModal();
@@ -130,6 +142,52 @@ export const BoardTimelineView = ({
 
     cardModal.onOpen(cardId);
   };
+  const handleExportPng = async () => {
+    const exportNode = ganttExportContentRef.current;
+
+    if (!exportNode || !hasScheduledCards) {
+      toast.error("Không có timeline để xuất.");
+      return;
+    }
+
+    setIsExportingPng(true);
+
+    try {
+      await waitForAnimationFrames(2);
+
+      const width = exportNode.scrollWidth;
+      const height = exportNode.scrollHeight;
+
+      if (width * height > 8_000_000) {
+        toast.info("Timeline lớn, ảnh có thể mất vài giây để xuất.");
+      }
+
+      const dataUrl = await toPng(exportNode, {
+        cacheBust: true,
+        pixelRatio: 2,
+        width,
+        height,
+        style: {
+          width: `${width}px`,
+          height: `${height}px`,
+          background: "#ffffff",
+        },
+      });
+      const anchor = document.createElement("a");
+
+      anchor.href = dataUrl;
+      anchor.download = buildBoardExportFileName(boardTitle, "timeline", "png");
+      document.body.appendChild(anchor);
+      anchor.click();
+      anchor.remove();
+      toast.success("Đã xuất Timeline PNG.");
+    } catch (error) {
+      console.error("[TIMELINE_EXPORT_PNG_ERROR]", error);
+      toast.error("Không thể xuất Timeline PNG. Vui lòng thử lại.");
+    } finally {
+      setIsExportingPng(false);
+    }
+  };
   const hasCards = derived.stats.totalCards > 0;
   const hasScheduledCards = derived.scheduledCards.length > 0;
 
@@ -164,7 +222,13 @@ export const BoardTimelineView = ({
               <CalendarX2 className="h-3.5 w-3.5 shrink-0" />
               <span>Chưa lên lịch ({derived.stats.unscheduledCards})</span>
             </button>
-            <TimelineToolbar zoom={zoom} onZoomChange={setZoom} />
+            <TimelineToolbar
+              zoom={zoom}
+              onZoomChange={setZoom}
+              onExportPng={handleExportPng}
+              isExporting={isExportingPng}
+              canExport={hasScheduledCards}
+            />
           </div>
         </div>
 
@@ -177,7 +241,7 @@ export const BoardTimelineView = ({
               className="h-full overflow-auto rounded-lg border border-neutral-200 bg-white"
               style={{ maxHeight: GANTT_MAX_HEIGHT }}
             >
-              <div className="min-w-max">
+              <div ref={ganttExportContentRef} className="min-w-max bg-white">
                 <TimelineGrid
                   rows={derived.scheduledCards}
                   units={derived.units}
@@ -188,6 +252,7 @@ export const BoardTimelineView = ({
                   updatingCardId={updatingCardId}
                   activeInteraction={interaction}
                   scrollContainerRef={ganttScrollContainerRef}
+                  isExporting={isExportingPng}
                 />
               </div>
             </div>

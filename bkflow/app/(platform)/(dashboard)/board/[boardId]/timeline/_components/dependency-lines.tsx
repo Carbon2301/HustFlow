@@ -1,7 +1,5 @@
 "use client";
 
-import { cn } from "@/lib/utils";
-
 import type { DependencyLine } from "../_types";
 
 type DependencyLinesProps = {
@@ -27,30 +25,6 @@ export const DependencyLines = ({
       height={height}
       viewBox={`0 0 ${width} ${height}`}
     >
-      <defs>
-        <marker
-          id="timeline-dependency-arrow"
-          viewBox="0 0 8 8"
-          refX="7"
-          refY="4"
-          markerWidth="6"
-          markerHeight="6"
-          orient="auto-start-reverse"
-        >
-          <path d="M 0 0 L 8 4 L 0 8 z" className="fill-sky-400" />
-        </marker>
-        <marker
-          id="timeline-dependency-conflict-arrow"
-          viewBox="0 0 8 8"
-          refX="7"
-          refY="4"
-          markerWidth="6"
-          markerHeight="6"
-          orient="auto-start-reverse"
-        >
-          <path d="M 0 0 L 8 4 L 0 8 z" className="fill-rose-500" />
-        </marker>
-      </defs>
       {lines.map((line) => {
         const controlOffset = Math.max(40, Math.abs(line.x2 - line.x1) / 2);
         const path = [
@@ -59,33 +33,44 @@ export const DependencyLines = ({
           `${line.x2 - controlOffset} ${line.y2}`,
           `${line.x2} ${line.y2}`,
         ].join(" ");
+        const arrowColor = line.hasConflict ? "#f43f5e" : "#38bdf8";
+        const strokeColor = line.hasConflict ? "#f43f5e" : "#38bdf8";
+        const angle = 0;
+        const arrowLength = 8;
+        const arrowSpread = 0.55;
+        const arrowPoints = [
+          [line.x2, line.y2],
+          [
+            line.x2 - arrowLength * Math.cos(angle - arrowSpread),
+            line.y2 - arrowLength * Math.sin(angle - arrowSpread),
+          ],
+          [
+            line.x2 - arrowLength * Math.cos(angle + arrowSpread),
+            line.y2 - arrowLength * Math.sin(angle + arrowSpread),
+          ],
+        ].map((point) => point.join(",")).join(" ");
 
         return (
           <g key={line.key}>
             <path
               d={path}
               fill="none"
+              stroke={strokeColor}
+              opacity={line.hasConflict ? 1 : 0.7}
               strokeWidth={line.hasConflict ? 2.25 : 1.75}
               strokeLinecap="round"
               strokeLinejoin="round"
-              markerEnd={`url(#${line.hasConflict
-                ? "timeline-dependency-conflict-arrow"
-                : "timeline-dependency-arrow"})`}
-              className={cn(
-                line.hasConflict
-                  ? "stroke-rose-500"
-                  : "stroke-sky-400/70",
-              )}
             />
+            <polygon points={arrowPoints} fill={arrowColor} opacity={line.hasConflict ? 1 : 0.85} />
             {line.hasConflict && (
               <g transform={`translate(${line.x2 - 18} ${line.y2 - 18})`}>
-                <circle r="8" cx="8" cy="8" className="fill-rose-50 stroke-rose-500" />
+                <circle r="8" cx="8" cy="8" fill="#fff1f2" stroke="#f43f5e" />
                 <path
                   d="M8 4.5v4.25M8 11.25h.01"
                   fill="none"
                   strokeLinecap="round"
                   strokeWidth="1.7"
-                  className="stroke-rose-600"
+                  stroke="#e11d48"
                 />
               </g>
             )}

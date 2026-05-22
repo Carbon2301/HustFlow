@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Archive, MoreHorizontal, Trash2, X } from "lucide-react";
+import { Archive, Download, MoreHorizontal, Trash2, X } from "lucide-react";
 
 import { deleteBoard } from "@/actions/boards/delete-board";
 import { useAction } from "@/hooks/use-action";
@@ -16,14 +16,17 @@ import {
 import { ConfirmModal } from "@/components/modals/confirm-modal";
 
 import { ArchivedItemsModal } from "./archived-items-modal";
+import { BoardExportDialog } from "./board-export-dialog";
 
 interface BoardOptionsProps {
   id: string;
+  title: string;
   canDelete?: boolean;
 };
 
-export const BoardOptions = ({ id, canDelete = false }: BoardOptionsProps) => {
+export const BoardOptions = ({ id, title, canDelete = false }: BoardOptionsProps) => {
   const [isArchivedModalOpen, setIsArchivedModalOpen] = useState(false);
+  const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
 
   const { execute, isLoading } = useAction(deleteBoard, {
     onError: (error) => {
@@ -66,6 +69,17 @@ export const BoardOptions = ({ id, canDelete = false }: BoardOptionsProps) => {
           </PopoverClose>
           <PopoverClose asChild>
             <Button
+              id="board-export-trigger"
+              variant="ghost"
+              onClick={() => setIsExportDialogOpen(true)}
+              className="w-full h-9 px-4 justify-start font-normal text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 gap-x-2 rounded-none"
+            >
+              <Download className="h-4 w-4 text-neutral-400" />
+              Xuất dữ liệu
+            </Button>
+          </PopoverClose>
+          <PopoverClose asChild>
+            <Button
               id="archived-items-trigger"
               variant="ghost"
               onClick={() => setIsArchivedModalOpen(true)}
@@ -97,6 +111,12 @@ export const BoardOptions = ({ id, canDelete = false }: BoardOptionsProps) => {
         boardId={id}
         open={isArchivedModalOpen}
         onOpenChange={setIsArchivedModalOpen}
+      />
+      <BoardExportDialog
+        boardId={id}
+        boardTitle={title}
+        open={isExportDialogOpen}
+        onOpenChange={setIsExportDialogOpen}
       />
     </>
   );

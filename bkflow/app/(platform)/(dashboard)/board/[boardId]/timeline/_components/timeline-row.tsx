@@ -32,6 +32,7 @@ type TimelineRowProps = {
   updatingCardId: string | null;
   activeInteraction: TimelineInteraction | null;
   setCardNodeRef: (cardId: string, node: HTMLButtonElement | null) => void;
+  isExporting?: boolean;
 };
 
 export const TimelineRow = ({
@@ -44,6 +45,7 @@ export const TimelineRow = ({
   updatingCardId,
   activeInteraction,
   setCardNodeRef,
+  isExporting = false,
 }: TimelineRowProps) => {
   const placement = getTimelinePlacement(row, units, columnWidth);
 
@@ -77,6 +79,7 @@ export const TimelineRow = ({
         updatingCardId={updatingCardId}
         activeInteraction={activeInteraction}
         setCardNodeRef={setCardNodeRef}
+        isExporting={isExporting}
       />
     </div>
   );

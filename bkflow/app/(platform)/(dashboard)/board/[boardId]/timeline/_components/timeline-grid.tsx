@@ -49,6 +49,7 @@ type TimelineGridProps = {
   updatingCardId: string | null;
   activeInteraction: TimelineInteraction | null;
   scrollContainerRef: RefObject<HTMLDivElement | null>;
+  isExporting?: boolean;
 };
 
 export const TimelineGrid = ({
@@ -61,6 +62,7 @@ export const TimelineGrid = ({
   updatingCardId,
   activeInteraction,
   scrollContainerRef,
+  isExporting = false,
 }: TimelineGridProps) => {
   const columnWidth = COLUMN_WIDTH_BY_ZOOM[zoom];
   const gridWidth = Math.max(units.length * columnWidth, MIN_GRID_WIDTH);
@@ -124,6 +126,7 @@ export const TimelineGrid = ({
     gridWidth,
     measureDependencyLines,
     units,
+    isExporting,
     updatingCardId,
     zoom,
   ]);
@@ -209,6 +212,7 @@ export const TimelineGrid = ({
             updatingCardId={updatingCardId}
             activeInteraction={activeInteraction}
             setCardNodeRef={setCardNodeRef}
+            isExporting={isExporting}
           />
         ))}
       </div>

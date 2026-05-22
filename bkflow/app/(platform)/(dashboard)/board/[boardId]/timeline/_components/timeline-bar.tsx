@@ -79,6 +79,7 @@ type TimelineBarProps = {
   updatingCardId: string | null;
   activeInteraction: TimelineInteraction | null;
   setCardNodeRef: (cardId: string, node: HTMLButtonElement | null) => void;
+  isExporting?: boolean;
 };
 
 export const TimelineBar = ({
@@ -91,6 +92,7 @@ export const TimelineBar = ({
   updatingCardId,
   activeInteraction,
   setCardNodeRef,
+  isExporting = false,
 }: TimelineBarProps) => {
   const tone = getCardTone(row.card, row.hasInvalidRange);
   const title = getCardTimelineTitle(row);
@@ -133,10 +135,18 @@ export const TimelineBar = ({
             <span className="sr-only">{row.card.title}</span>
           </button>
         </Hint>
+        {isExporting && (
+          <span
+            className="absolute top-1/2 z-20 ml-2 -translate-y-1/2 whitespace-nowrap rounded bg-white/90 px-1.5 py-0.5 text-xs font-semibold text-neutral-800 shadow-sm"
+            style={{ left: placement.left + columnWidth / 2 + 12 }}
+          >
+            {row.card.title}
+          </span>
+        )}
         <DependencyPreviewBadge
           card={row.card}
           className="absolute top-1/2 -translate-y-1/2"
-          style={{ left: placement.left + columnWidth / 2 + 12 }}
+          style={{ left: placement.left + columnWidth / 2 + (isExporting ? 24 + row.card.title.length * 7 : 12) }}
         />
       </>
     );
@@ -154,7 +164,8 @@ export const TimelineBar = ({
           }
         }}
         className={cn(
-          "absolute z-20 flex cursor-pointer touch-none items-center gap-1.5 overflow-hidden rounded-md border px-2 text-left text-xs font-semibold shadow-sm transition hover:shadow-md",
+          "absolute z-20 flex cursor-pointer touch-none items-center gap-1.5 rounded-md border px-2 text-left text-xs font-semibold shadow-sm transition hover:shadow-md",
+          isExporting ? "overflow-visible" : "overflow-hidden",
           tone,
           canEdit && canDragRange && "cursor-grab active:cursor-grabbing",
           isDragging && "z-10 opacity-80 shadow-lg ring-2 ring-neutral-900/10",
@@ -179,7 +190,9 @@ export const TimelineBar = ({
             className="absolute inset-y-1 left-0 w-2 cursor-ew-resize rounded-l-md bg-black/10 opacity-0 transition hover:opacity-100"
           />
         )}
-        <span className="truncate">{row.card.title}</span>
+        <span className={cn(isExporting ? "whitespace-nowrap" : "truncate")}>
+          {row.card.title}
+        </span>
         {row.hasInvalidRange && <AlertTriangle className="h-3 w-3 shrink-0" />}
         <DependencyPreviewBadge card={row.card} className="ml-auto" />
         {canEdit && canDragRange && (

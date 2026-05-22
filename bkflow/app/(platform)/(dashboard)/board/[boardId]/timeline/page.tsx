@@ -318,6 +318,7 @@ const BoardTimelinePage = async ({
       <BoardCardModalFromUrl />
       <BoardTimelineView
         boardId={boardId}
+        boardTitle={currentMembership.membership.board.title}
         lists={lists}
         boardMembers={boardMembers}
         currentUserId={userId}
