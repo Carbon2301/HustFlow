@@ -12,7 +12,7 @@ import { InputType, ReturnType } from "./types";
 import { createAuditLog } from "@/lib/create-audit-log";
 import { ACTION, ENTITY_TYPE } from "@prisma/client";
 import { decreaseAvailableCount } from "@/lib/org-limit";
-import { checkSubscription } from "@/lib/subscription";
+import { checkSubscription } from "@/lib/billing/subscription";
 import { requireBoardAdmin } from "@/lib/permissions";
 import { triggerBoardDeleted } from "@/lib/boards/realtime";
 

@@ -15,7 +15,7 @@ import { revalidatePath } from "next/cache";
 
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
-import { getChecklistItemAccess } from "@/lib/checklist-access";
+import { getChecklistItemAccess } from "@/lib/checklists/checklist-access";
 import { triggerChecklistItemAssigneeUpdated } from "@/lib/boards/realtime";
 import { triggerCardMemberAssigned } from "@/lib/cards/realtime";
 import { triggerNotificationCreated } from "@/lib/notifications/realtime";

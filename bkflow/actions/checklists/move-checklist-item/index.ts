@@ -6,7 +6,7 @@ import { revalidatePath } from "next/cache";
 
 import { createAuditLog } from "@/lib/create-audit-log";
 import { triggerChecklistItemMoved } from "@/lib/boards/realtime";
-import { validateChecklistItemMove } from "@/lib/checklist-access";
+import { validateChecklistItemMove } from "@/lib/checklists/checklist-access";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { CHECKLIST_MESSAGES } from "@/lib/checklists/checklist-messages";

@@ -7,7 +7,7 @@ import { BoardFilters } from "./board-filters";
 import { BoardViewSwitcher } from "./board-view-switcher";
 import { BoardSwitcher } from "./board-switcher";
 import { ClerkOrgMember } from "@/lib/clerk-org-members";
-import type { BoardSwitcherData } from "@/lib/board-switcher";
+import type { BoardSwitcherData } from "@/lib/boards/board-switcher";
 
 interface BoardNavbarProps {
   data: Board & { members: BoardMember[]; labels: Label[] };

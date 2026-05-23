@@ -28,9 +28,9 @@ import { useAction } from "@/hooks/use-action";
 import { ChecklistItemWithAssignee } from "@/types";
 import { cn } from "@/lib/utils";
 
-import { ChecklistHeader } from "../checklist-header";
-import { ChecklistItem } from "../checklist-item";
-import { ChecklistProgress } from "../checklist-progress";
+import { ChecklistHeader } from "./checklist-header";
+import { ChecklistItem } from "./checklist-item";
+import { ChecklistProgress } from "./checklist-progress";
 import { patchBoardCardPreview } from "../card-cache-utils";
 import {
   getChecklistDueDateRangeError as getChecklistDueDateRangeErrorMessage,

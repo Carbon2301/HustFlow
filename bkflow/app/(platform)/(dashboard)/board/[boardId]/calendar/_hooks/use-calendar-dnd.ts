@@ -12,11 +12,11 @@ import {
   DAY_VIEW_SLOT_HEIGHT,
   getDayViewDropDate,
   getDayViewSlotFromPointer,
-} from "@/lib/calendar-day-view";
+} from "@/lib/calendar/calendar-day-view";
 import {
   BOARD_CARD_CALENDAR_DRAG_MIME,
   type BoardCardCalendarDragPayload,
-} from "@/lib/calendar-dnd";
+} from "@/lib/calendar/calendar-dnd";
 import type { BoardCalendarUnscheduledCard } from "@/types";
 
 import { GMT7_OFFSET_MINUTES } from "../_components/board-calendar/constants";

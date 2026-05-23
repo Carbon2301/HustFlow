@@ -21,7 +21,7 @@ import type {
   BoardSwitcherBoard,
   BoardSwitcherData,
   BoardSwitcherOrganization,
-} from "@/lib/board-switcher";
+} from "@/lib/boards/board-switcher";
 
 type BoardSwitcherProps = {
   currentBoardId: string;

@@ -31,7 +31,7 @@ import { BoardFilterState, emptyBoardFilters } from "@/hooks/use-board-filters";
 import {
   boardFiltersAreActive,
   filterableCardMatchesBoardFilters,
-} from "@/lib/board-filters";
+} from "@/lib/boards/board-filters";
 import { cn } from "@/lib/utils";
 
 type MemberProfileTab = "activity" | "cards";

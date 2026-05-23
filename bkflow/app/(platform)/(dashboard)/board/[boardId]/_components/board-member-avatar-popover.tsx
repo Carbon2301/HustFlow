@@ -23,7 +23,7 @@ import {
   boardMemberRoleDescriptions,
   boardMemberRoleOptions,
   getRoleLabel,
-} from "@/lib/board-member-role";
+} from "@/lib/boards/board-member-role";
 import { cn } from "@/lib/utils";
 
 import { MemberProfileModal } from "./member-profile-modal";

@@ -2,7 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
-import { ensureDueReminderNotifications } from "@/lib/reminder-notifications";
+import { ensureDueReminderNotifications } from "@/lib/notifications/reminder-notifications";
 
 export async function GET() {
   try {

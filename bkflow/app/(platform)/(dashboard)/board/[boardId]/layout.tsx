@@ -1,7 +1,7 @@
 import { auth } from "@clerk/nextjs/server";
 import { notFound, redirect } from "next/navigation";
 
-import { getBoardSwitcherData } from "@/lib/board-switcher";
+import { getBoardSwitcherData } from "@/lib/boards/board-switcher";
 import { getOrganizationMembers } from "@/lib/clerk-org-members";
 import { db } from "@/lib/db";
 import { requireBoardMemberForUser } from "@/lib/permissions";

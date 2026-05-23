@@ -18,7 +18,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import { UploadButton } from "@/lib/uploadthing";
+import { UploadButton } from "@/lib/uploads/uploadthing";
 import { patchBoardCardCount } from "../card-cache-utils";
 
 interface AttachmentAddPopoverProps {

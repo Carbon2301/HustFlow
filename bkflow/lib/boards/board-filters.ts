@@ -9,7 +9,7 @@ import {
   getEndOfTomorrow,
   getStartOfTomorrow,
   isOverdue,
-} from "./date-utils";
+} from "../date-utils";
 
 type FilterableAssignee = {
   boardMemberId: string;

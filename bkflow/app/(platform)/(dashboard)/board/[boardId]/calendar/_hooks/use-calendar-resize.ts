@@ -5,7 +5,7 @@ import { toast } from "sonner";
 
 import type { InputType as UpdateCardInput } from "@/actions/cards/update-card/types";
 import { getDateTimezoneOffset } from "@/lib/date-utils";
-import { DAY_VIEW_SLOT_HEIGHT } from "@/lib/calendar-day-view";
+import { DAY_VIEW_SLOT_HEIGHT } from "@/lib/calendar/calendar-day-view";
 
 import { GMT7_OFFSET_MINUTES, MINUTES_IN_DAY } from "../_components/board-calendar/constants";
 import {

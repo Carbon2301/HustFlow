@@ -9,7 +9,7 @@ import { getDateTimezoneOffset } from "@/lib/date-utils";
 import {
   boardFiltersAreActive,
   cardMatchesBoardFilters,
-} from "@/lib/board-filters";
+} from "@/lib/boards/board-filters";
 import type { BoardFilterState } from "@/hooks/use-board-filters";
 import type { CardWithAssignees, ListWithCards } from "@/types";
 

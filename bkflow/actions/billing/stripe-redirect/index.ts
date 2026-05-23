@@ -10,7 +10,7 @@ import { StripeRedirect } from "./schema";
 import { ReturnType } from "./types";
 
 import { absoluteUrl } from "@/lib/utils";
-import { stripe } from "@/lib/stripe";
+import { stripe } from "@/lib/billing/stripe";
 
 const handler = async (): Promise<ReturnType> => {
   const { userId, orgId } = await auth();

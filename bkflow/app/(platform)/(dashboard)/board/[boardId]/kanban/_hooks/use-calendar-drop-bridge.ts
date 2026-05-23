@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef } from "react";
 
-import { getDayViewSlotFromPointer } from "@/lib/calendar-day-view";
+import { getDayViewSlotFromPointer } from "@/lib/calendar/calendar-day-view";
 
 import {
   CALENDAR_DAY_DRAG_CLASSES,

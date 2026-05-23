@@ -3,7 +3,7 @@ import { ENTITY_TYPE, type Card } from "@prisma/client";
 import type { InputType, ReturnType } from "@/actions/cards/update-card/types";
 import { createAuditLog } from "@/lib/create-audit-log";
 import { db } from "@/lib/db";
-import { deleteCardReminderNotifications } from "@/lib/reminder-notifications";
+import { deleteCardReminderNotifications } from "@/lib/notifications/reminder-notifications";
 import { requireBoardEditor } from "@/lib/permissions";
 import {
   triggerCardUpdated,

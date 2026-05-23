@@ -7,7 +7,7 @@ import { revalidatePath } from "next/cache";
 import { createAuditLog } from "@/lib/create-audit-log";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
-import { getRoleLabel } from "@/lib/board-member-role";
+import { getRoleLabel } from "@/lib/boards/board-member-role";
 import { requireBoardAdmin } from "@/lib/permissions";
 import { triggerBoardMemberRoleUpdated } from "@/lib/boards/realtime";
 

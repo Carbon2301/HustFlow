@@ -18,7 +18,7 @@ import {
   PopoverTrigger,
 } from "@/components/ui/popover";
 import { Skeleton } from "@/components/ui/skeleton";
-import { DAY_VIEW_SLOT_HEIGHT } from "@/lib/calendar-day-view";
+import { DAY_VIEW_SLOT_HEIGHT } from "@/lib/calendar/calendar-day-view";
 import { cn } from "@/lib/utils";
 
 import {

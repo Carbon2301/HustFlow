@@ -8,7 +8,7 @@ import { createAuditLog } from "@/lib/create-audit-log";
 import { triggerAttachmentCreated } from "@/lib/cards/realtime";
 import { db } from "@/lib/db";
 import { requireBoardEditor } from "@/lib/permissions";
-import { utapi } from "@/lib/uploadthing-server";
+import { utapi } from "@/lib/uploads/uploadthing-server";
 
 import { CreateCardFileAttachments } from "./schema";
 import { InputType, ReturnType } from "./types";

@@ -3,7 +3,7 @@ import { headers } from "next/headers";
 import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
-import { stripe } from "@/lib/stripe";
+import { stripe } from "@/lib/billing/stripe";
 
 const getSubscriptionPeriodEnd = (subscription: Stripe.Subscription) => {
   return new Date(subscription.items.data[0].current_period_end * 1000);

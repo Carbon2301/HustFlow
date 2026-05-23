@@ -1,7 +1,7 @@
 import {
   getDayViewDropDate,
   getDayViewSlotFromPointer,
-} from "@/lib/calendar-day-view";
+} from "@/lib/calendar/calendar-day-view";
 
 export const getDefaultCalendarDueDate = (day: Date) =>
   new Date(

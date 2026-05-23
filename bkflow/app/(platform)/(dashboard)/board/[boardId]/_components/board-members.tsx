@@ -27,7 +27,7 @@ import {
   boardMemberRoleDescriptions,
   boardMemberRoleOptions,
   getRoleLabel,
-} from "@/lib/board-member-role";
+} from "@/lib/boards/board-member-role";
 import { ClerkOrgMember } from "@/lib/clerk-org-members";
 import { cn } from "@/lib/utils";
 

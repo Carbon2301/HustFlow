@@ -3,7 +3,7 @@
 import { CheckSquare, Clock, Paperclip, Tag, User } from "lucide-react";
 
 import type { CardWithList } from "@/types";
-import { ChecklistPopover } from "../checklist-popover";
+import { ChecklistPopover } from "../checklists/checklist-popover";
 import { LabelPopover } from "../label-popover";
 import { AttachmentAddPopover } from "../attachments/attachment-add-popover";
 

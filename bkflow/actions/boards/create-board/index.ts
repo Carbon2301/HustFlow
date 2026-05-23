@@ -14,7 +14,7 @@ import {
   incrementAvailableCount, 
   hasAvailableCount
 } from "@/lib/org-limit";
-import { checkSubscription } from "@/lib/subscription";
+import { checkSubscription } from "@/lib/billing/subscription";
 
 const handler = async (data: InputType): Promise<ReturnType> => {
   const { userId, orgId } = await auth();

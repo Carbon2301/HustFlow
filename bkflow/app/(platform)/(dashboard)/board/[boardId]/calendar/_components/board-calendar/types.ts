@@ -1,6 +1,6 @@
 import type { CSSProperties } from "react";
 
-import type { BoardCardCalendarDragPayload } from "@/lib/calendar-dnd";
+import type { BoardCardCalendarDragPayload } from "@/lib/calendar/calendar-dnd";
 import type { BoardCalendarCardItem, BoardCalendarItem } from "@/types";
 
 export interface BoardCalendarViewProps {

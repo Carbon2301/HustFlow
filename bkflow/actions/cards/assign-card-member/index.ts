@@ -4,7 +4,7 @@ import { auth, currentUser } from "@clerk/nextjs/server";
 import { ACTION, AUDIT_EVENT_TYPE, ENTITY_TYPE, NOTIFICATION_TYPE } from "@prisma/client";
 
 import { createAuditLog } from "@/lib/create-audit-log";
-import { createNotification } from "@/lib/create-notification";
+import { createNotification } from "@/lib/notifications/create-notification";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { getOrganizationMember } from "@/lib/clerk-org-members";

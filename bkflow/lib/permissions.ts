@@ -1,7 +1,7 @@
 import { BoardMemberRole } from "@prisma/client";
 import { cache } from "react";
 
-import { getRoleLabel } from "@/lib/board-member-role";
+import { getRoleLabel } from "@/lib/boards/board-member-role";
 import { db } from "@/lib/db";
 
 export const BOARD_MEMBER_REQUIRED_ERROR = "Bạn không phải là thành viên của bảng này.";

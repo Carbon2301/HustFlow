@@ -5,7 +5,7 @@ import { ACTION, AUDIT_EVENT_TYPE, BoardMemberRole, ENTITY_TYPE, NOTIFICATION_TY
 import { revalidatePath } from "next/cache";
 
 import { createAuditLog } from "@/lib/create-audit-log";
-import { createNotification } from "@/lib/create-notification";
+import { createNotification } from "@/lib/notifications/create-notification";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { getOrganizationMember } from "@/lib/clerk-org-members";

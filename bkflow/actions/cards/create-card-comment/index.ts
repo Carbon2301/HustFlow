@@ -3,7 +3,7 @@
 import { auth, currentUser } from "@clerk/nextjs/server";
 import { ACTION, AUDIT_EVENT_TYPE, CardComment, ENTITY_TYPE, NOTIFICATION_TYPE } from "@prisma/client";
 
-import { createNotifications } from "@/lib/create-notification";
+import { createNotifications } from "@/lib/notifications/create-notification";
 import { createAuditLog } from "@/lib/create-audit-log";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";

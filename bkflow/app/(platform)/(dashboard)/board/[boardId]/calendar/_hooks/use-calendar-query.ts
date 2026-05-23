@@ -8,7 +8,7 @@ import {
   boardFiltersAreActive,
   calendarItemMatchesBoardFilters,
   unscheduledCardMatchesBoardFilters,
-} from "@/lib/board-filters";
+} from "@/lib/boards/board-filters";
 import type { BoardFilterState } from "@/hooks/use-board-filters";
 import type { BoardCalendarResponse } from "@/types";
 

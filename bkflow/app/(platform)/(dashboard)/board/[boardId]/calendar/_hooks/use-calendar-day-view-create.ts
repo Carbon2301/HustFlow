@@ -2,7 +2,7 @@
 
 import { useState, type PointerEvent } from "react";
 
-import { DAY_VIEW_SLOT_HEIGHT } from "@/lib/calendar-day-view";
+import { DAY_VIEW_SLOT_HEIGHT } from "@/lib/calendar/calendar-day-view";
 
 import { MINUTES_IN_DAY } from "../_components/board-calendar/constants";
 import {

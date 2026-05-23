@@ -1,6 +1,6 @@
 import { NOTIFICATION_TYPE } from "@prisma/client";
 
-import { createNotification } from "@/lib/create-notification";
+import { createNotification } from "@/lib/notifications/create-notification";
 import { db } from "@/lib/db";
 
 export const reminderLabels: Record<string, string> = {

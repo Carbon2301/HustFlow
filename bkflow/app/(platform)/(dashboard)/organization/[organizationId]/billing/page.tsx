@@ -1,4 +1,4 @@
-import { checkSubscription } from "@/lib/subscription"
+import { checkSubscription } from "@/lib/billing/subscription"
 import { Separator } from "@/components/ui/separator";
 
 import { SubscriptionButton } from "./_components/subscription-button";
