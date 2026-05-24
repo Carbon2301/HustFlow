@@ -2,7 +2,7 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Archive, Download, MoreHorizontal, Trash2, X } from "lucide-react";
+import { Activity, Archive, Download, MoreHorizontal, Trash2, X } from "lucide-react";
 
 import { deleteBoard } from "@/actions/boards/delete-board";
 import { useAction } from "@/hooks/use-action";
@@ -16,6 +16,7 @@ import {
 import { ConfirmModal } from "@/components/modals/confirm-modal";
 
 import { ArchivedItemsModal } from "./archived-items-modal";
+import { BoardActivityPopoverContent } from "./board-activity-popover-content";
 import { BoardExportDialog } from "./board-export-dialog";
 
 interface BoardOptionsProps {
@@ -25,6 +26,8 @@ interface BoardOptionsProps {
 };
 
 export const BoardOptions = ({ id, title, canDelete = false }: BoardOptionsProps) => {
+  const [isPopoverOpen, setIsPopoverOpen] = useState(false);
+  const [view, setView] = useState<"menu" | "activity">("menu");
   const [isArchivedModalOpen, setIsArchivedModalOpen] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
 
@@ -38,9 +41,17 @@ export const BoardOptions = ({ id, title, canDelete = false }: BoardOptionsProps
     execute({ id });
   };
 
+  const onPopoverOpenChange = (open: boolean) => {
+    setIsPopoverOpen(open);
+
+    if (!open) {
+      setView("menu");
+    }
+  };
+
   return (
     <>
-      <Popover>
+      <Popover open={isPopoverOpen} onOpenChange={onPopoverOpenChange}>
         <PopoverTrigger asChild>
           <Button
             aria-label="Mở thao tác bảng"
@@ -52,58 +63,80 @@ export const BoardOptions = ({ id, title, canDelete = false }: BoardOptionsProps
         </PopoverTrigger>
         <PopoverContent
           data-role="popover-content"
-          className="px-0 pt-3 pb-2 w-52 shadow-lg rounded-xl border border-neutral-200"
+          className={view === "activity"
+            ? "flex max-h-[620px] w-[420px] max-w-[calc(100vw-24px)] flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white p-0 shadow-lg"
+            : "px-0 pt-3 pb-2 w-52 shadow-lg rounded-xl border border-neutral-200"
+          }
+          style={view === "activity" ? { maxHeight: "calc(100vh - 128px)" } : undefined}
           side="bottom"
           align="start"
         >
-          <div className="text-xs font-semibold text-center text-neutral-400 uppercase tracking-wider pb-2 px-4">
-            Thao tác bảng
-          </div>
-          <PopoverClose asChild>
-            <Button
-              className="h-7 w-7 p-0 absolute top-2 right-2 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 rounded-md"
-              variant="ghost"
-            >
-              <X className="h-3.5 w-3.5" />
-            </Button>
-          </PopoverClose>
-          <PopoverClose asChild>
-            <Button
-              id="board-export-trigger"
-              variant="ghost"
-              onClick={() => setIsExportDialogOpen(true)}
-              className="w-full h-9 px-4 justify-start font-normal text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 gap-x-2 rounded-none"
-            >
-              <Download className="h-4 w-4 text-neutral-400" />
-              Xuất dữ liệu
-            </Button>
-          </PopoverClose>
-          <PopoverClose asChild>
-            <Button
-              id="archived-items-trigger"
-              variant="ghost"
-              onClick={() => setIsArchivedModalOpen(true)}
-              className="w-full h-9 px-4 justify-start font-normal text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 gap-x-2 rounded-none"
-            >
-              <Archive className="h-4 w-4 text-neutral-400" />
-              Mục đã lưu trữ
-            </Button>
-          </PopoverClose>
-          {canDelete && (
-            <ConfirmModal
-              onConfirm={onDelete}
-              title="Xóa bảng này?"
-              description="Bạn có chắc chắn muốn xóa bảng này? Mọi danh sách và thẻ bên trong bảng sẽ bị xóa vĩnh viễn và không thể khôi phục."
-              disabled={isLoading}
-            >
+          {view === "activity" ? (
+            <BoardActivityPopoverContent
+              boardId={id}
+              onBack={() => setView("menu")}
+            />
+          ) : (
+            <>
+              <div className="text-xs font-semibold text-center text-neutral-400 uppercase tracking-wider pb-2 px-4">
+                Thao tác bảng
+              </div>
+              <PopoverClose asChild>
+                <Button
+                  className="h-7 w-7 p-0 absolute top-2 right-2 text-neutral-400 hover:text-neutral-600 hover:bg-neutral-100 rounded-md"
+                  variant="ghost"
+                >
+                  <X className="h-3.5 w-3.5" />
+                </Button>
+              </PopoverClose>
               <Button
+                id="board-activity-trigger"
                 variant="ghost"
-                className="w-full h-9 px-4 justify-start font-normal text-sm text-red-500 hover:bg-red-50 hover:text-red-600 gap-x-2 rounded-none cursor-pointer"
+                onClick={() => setView("activity")}
+                className="w-full h-9 px-4 justify-start font-normal text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 gap-x-2 rounded-none"
               >
-                <Trash2 className="h-4 w-4" />
-                {isLoading ? "Đang xóa…" : "Xóa bảng này"}
+                <Activity className="h-4 w-4 text-neutral-400" />
+                Hoạt động
               </Button>
-            </ConfirmModal>
+              <PopoverClose asChild>
+                <Button
+                  id="board-export-trigger"
+                  variant="ghost"
+                  onClick={() => setIsExportDialogOpen(true)}
+                  className="w-full h-9 px-4 justify-start font-normal text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 gap-x-2 rounded-none"
+                >
+                  <Download className="h-4 w-4 text-neutral-400" />
+                  Xuất dữ liệu
+                </Button>
+              </PopoverClose>
+              <PopoverClose asChild>
+                <Button
+                  id="archived-items-trigger"
+                  variant="ghost"
+                  onClick={() => setIsArchivedModalOpen(true)}
+                  className="w-full h-9 px-4 justify-start font-normal text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 gap-x-2 rounded-none"
+                >
+                  <Archive className="h-4 w-4 text-neutral-400" />
+                  Mục đã lưu trữ
+                </Button>
+              </PopoverClose>
+              {canDelete && (
+                <ConfirmModal
+                  onConfirm={onDelete}
+                  title="Xóa bảng này?"
+                  description="Bạn có chắc chắn muốn xóa bảng này? Mọi danh sách và thẻ bên trong bảng sẽ bị xóa vĩnh viễn và không thể khôi phục."
+                  disabled={isLoading}
+                >
+                  <Button
+                    variant="ghost"
+                    className="w-full h-9 px-4 justify-start font-normal text-sm text-red-500 hover:bg-red-50 hover:text-red-600 gap-x-2 rounded-none cursor-pointer"
+                  >
+                    <Trash2 className="h-4 w-4" />
+                    {isLoading ? "Đang xóa..." : "Xóa bảng này"}
+                  </Button>
+                </ConfirmModal>
+              )}
+            </>
           )}
         </PopoverContent>
       </Popover>

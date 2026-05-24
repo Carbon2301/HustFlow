@@ -14,6 +14,7 @@ interface ActivityItemProps {
   listExists?: boolean;
   memberNames?: string[];
   isCardModal?: boolean;
+  hideBoardContext?: boolean;
   onNavigate?: () => void;
 }
 
@@ -291,6 +292,7 @@ export const ActivityItem = ({
   listExists = true,
   memberNames = [],
   isCardModal = false,
+  hideBoardContext = false,
   onNavigate,
 }: ActivityItemProps) => {
   const initials = data.userName
@@ -317,7 +319,7 @@ export const ActivityItem = ({
         </p>
         <p className="text-xs text-neutral-400 flex items-center gap-x-1.5 mt-0.5">
           <span>{format(new Date(data.createdAt), "HH:mm dd 'thg' M, yyyy")}</span>
-          {!isCardModal && data.boardId && (
+          {!isCardModal && !hideBoardContext && data.boardId && (
             <>
               <span className="text-neutral-300">•</span>
               <span>trên bảng</span>
