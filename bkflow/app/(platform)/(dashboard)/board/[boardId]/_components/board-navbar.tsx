@@ -1,4 +1,4 @@
-import { Board, BoardMember, BoardMemberRole, Label } from "@prisma/client";
+import { Board, BoardMember, BoardMemberRole, Label, List } from "@prisma/client";
 
 import { BoardTitleForm } from "./board-title-form";
 import { BoardOptions } from "./board-options";
@@ -10,7 +10,7 @@ import { ClerkOrgMember } from "@/lib/clerk-org-members";
 import type { BoardSwitcherData } from "@/lib/boards/board-switcher";
 
 interface BoardNavbarProps {
-  data: Board & { members: BoardMember[]; labels: Label[] };
+  data: Board & { members: BoardMember[]; labels: Label[]; lists: List[] };
   organizationMembers: ClerkOrgMember[];
   boardSwitcherData: BoardSwitcherData;
   currentUserId: string;
@@ -25,6 +25,7 @@ export const BoardNavbar = async ({
   currentMemberRole,
 }: BoardNavbarProps) => {
   const isAdmin = currentMemberRole === BoardMemberRole.ADMIN;
+  const canEdit = currentMemberRole !== BoardMemberRole.VIEWER;
 
   return (
     <div className="fixed top-14 z-[40] flex h-14 w-full items-center justify-between bg-gradient-to-b from-black/50 to-black/30 px-3 text-white backdrop-blur-sm md:px-6">
@@ -53,7 +54,15 @@ export const BoardNavbar = async ({
           currentUserId={currentUserId}
           canManage={isAdmin}
         />
-        <BoardOptions id={data.id} title={data.title} canDelete={isAdmin} />
+        <BoardOptions
+          id={data.id}
+          title={data.title}
+          canDelete={isAdmin}
+          canEdit={canEdit}
+          lists={data.lists}
+          members={data.members}
+          labels={data.labels}
+        />
       </div>
     </div>
   );

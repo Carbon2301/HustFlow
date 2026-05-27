@@ -85,6 +85,14 @@ const BoardIdLayout = async ({
             createdAt: "asc",
           },
         },
+        lists: {
+          where: {
+            archivedAt: null,
+          },
+          orderBy: {
+            order: "asc",
+          },
+        },
       },
     }),
     getOrganizationMembers(boardOrgId),

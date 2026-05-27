@@ -1,0 +1,265 @@
+"use server";
+
+import { auth } from "@clerk/nextjs/server";
+import { revalidatePath } from "next/cache";
+import { ACTION, ENTITY_TYPE, Prisma } from "@prisma/client";
+
+import { createAuditLog } from "@/lib/create-audit-log";
+import { createSafeAction } from "@/lib/create-safe-action";
+import { db } from "@/lib/db";
+import { requireBoardEditor } from "@/lib/permissions";
+import { triggerCardCreated } from "@/lib/boards/realtime";
+
+import { CreateSmartCaptureCard } from "./schema";
+import { InputType, ReturnType } from "./types";
+
+const normalizeDueDate = (value: InputType["dueDate"]) => {
+  if (!value) {
+    return null;
+  }
+
+  const date = value instanceof Date ? value : new Date(value);
+
+  return Number.isNaN(date.getTime()) ? null : date;
+};
+
+const normalizeChecklistItems = (items: string[]) => {
+  const seen = new Set<string>();
+  const result: string[] = [];
+
+  for (const item of items) {
+    const title = item.replace(/\s+/g, " ").trim();
+    const key = title.toLowerCase();
+
+    if (!title || seen.has(key)) {
+      continue;
+    }
+
+    seen.add(key);
+    result.push(title);
+  }
+
+  return result;
+};
+
+const handler = async (data: InputType): Promise<ReturnType> => {
+  const { userId, orgId } = await auth();
+
+  if (!userId || !orgId) {
+    return { error: "Không có quyền truy cập." };
+  }
+
+  const {
+    boardId,
+    listId,
+    title,
+    description,
+    dueDate,
+    assigneeBoardMemberId,
+    labelIds,
+  } = data;
+  const checklistItems = normalizeChecklistItems(data.checklistItems);
+  const dueDateValue = normalizeDueDate(dueDate);
+
+  try {
+    const permission = await requireBoardEditor({ boardId, orgId, userId });
+
+    if (permission.error) {
+      return { error: permission.error };
+    }
+
+    const list = await db.list.findFirst({
+      where: {
+        id: listId,
+        archivedAt: null,
+        board: {
+          id: boardId,
+          orgId,
+        },
+      },
+      select: {
+        id: true,
+        title: true,
+      },
+    });
+
+    if (!list) {
+      return { error: "Không tìm thấy danh sách." };
+    }
+
+    const [assignee, labels] = await Promise.all([
+      assigneeBoardMemberId
+        ? db.boardMember.findFirst({
+            where: {
+              id: assigneeBoardMemberId,
+              boardId,
+              board: {
+                orgId,
+              },
+            },
+            select: {
+              id: true,
+            },
+          })
+        : null,
+      labelIds.length > 0
+        ? db.label.findMany({
+            where: {
+              id: {
+                in: Array.from(new Set(labelIds)),
+              },
+              boardId,
+              board: {
+                orgId,
+              },
+            },
+            select: {
+              id: true,
+            },
+          })
+        : [],
+    ]);
+
+    const validLabelIds = labels.map((label) => label.id);
+
+    const card = await db.$transaction(async (tx) => {
+      const lastCard = await tx.card.findFirst({
+        where: {
+          listId,
+          archivedAt: null,
+        },
+        orderBy: {
+          order: "desc",
+        },
+        select: {
+          order: true,
+        },
+      });
+      const newOrder = lastCard ? lastCard.order + 1 : 1;
+
+      const createdCard = await tx.card.create({
+        data: {
+          title,
+          description,
+          listId,
+          order: newOrder,
+          ...(dueDateValue ? { dueDate: dueDateValue } : {}),
+        },
+      });
+
+      if (assignee) {
+        await tx.cardAssignee.create({
+          data: {
+            cardId: createdCard.id,
+            boardMemberId: assignee.id,
+          },
+        });
+      }
+
+      if (validLabelIds.length > 0) {
+        await tx.cardLabel.createMany({
+          data: validLabelIds.map((labelId) => ({
+            cardId: createdCard.id,
+            labelId,
+          })),
+          skipDuplicates: true,
+        });
+      }
+
+      if (checklistItems.length > 0) {
+        const checklist = await tx.checklist.create({
+          data: {
+            cardId: createdCard.id,
+            title: "Việc cần làm",
+            order: 0,
+          },
+        });
+
+        await tx.checklistItem.createMany({
+          data: checklistItems.map((item, index) => ({
+            checklistId: checklist.id,
+            title: item,
+            order: index,
+            isCompleted: false,
+          })),
+        });
+      }
+
+      return tx.card.findUniqueOrThrow({
+        where: {
+          id: createdCard.id,
+        },
+        include: {
+          assignees: {
+            include: {
+              boardMember: true,
+            },
+            orderBy: {
+              createdAt: "asc",
+            },
+          },
+          labels: {
+            include: {
+              label: true,
+            },
+            orderBy: {
+              createdAt: "asc",
+            },
+          },
+          checklists: {
+            select: {
+              items: {
+                select: {
+                  isCompleted: true,
+                },
+              },
+            },
+          },
+          _count: {
+            select: {
+              comments: true,
+              attachments: true,
+            },
+          },
+        },
+      });
+    }, {
+      isolationLevel: Prisma.TransactionIsolationLevel.ReadCommitted,
+    });
+
+    await createAuditLog({
+      entityId: card.id,
+      entityTitle: `detail:đã tạo thẻ "${card.title}" từ Smart Capture trong danh sách "${list.title}"`,
+      entityType: ENTITY_TYPE.CARD,
+      action: ACTION.CREATE,
+      boardId,
+      cardId: card.id,
+    });
+
+    await triggerCardCreated({
+      boardId,
+      listId,
+      cardId: card.id,
+      actorUserId: userId,
+    });
+
+    revalidatePath(`/board/${boardId}`);
+
+    return {
+      data: {
+        ...card,
+        checklistProgress: {
+          total: checklistItems.length,
+          completed: 0,
+        },
+        unresolvedBlockerCount: 0,
+      },
+    };
+  } catch (error) {
+    console.error("[CREATE_SMART_CAPTURE_CARD_ERROR]", error);
+
+    return { error: "Tạo thẻ từ Smart Capture thất bại." };
+  }
+};
+
+export const createSmartCaptureCard = createSafeAction(CreateSmartCaptureCard, handler);

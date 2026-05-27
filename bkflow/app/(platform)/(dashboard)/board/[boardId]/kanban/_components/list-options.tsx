@@ -140,7 +140,7 @@ export const ListOptions = ({
         </Button>
       </PopoverTrigger>
       <PopoverContent className="px-0 pt-3 pb-2 w-60 shadow-lg rounded-xl border border-neutral-200" side="bottom" align="start">
-        <div className="text-xs font-semibold text-center text-neutral-400 uppercase tracking-wider pb-2 px-4">
+        <div className="text-sm font-semibold text-center text-neutral-700 pb-2 border-b border-neutral-100 mb-2 px-4">
           Thao tác danh sách
         </div>
         <PopoverClose ref={closeRef} asChild>

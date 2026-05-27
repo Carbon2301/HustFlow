@@ -2,7 +2,8 @@
 
 import { useState } from "react";
 import { toast } from "sonner";
-import { Activity, Archive, Download, MoreHorizontal, Trash2, X } from "lucide-react";
+import { Activity, Archive, Download, MoreHorizontal, Sparkles, Trash2, X } from "lucide-react";
+import type { BoardMember, Label, List } from "@prisma/client";
 
 import { deleteBoard } from "@/actions/boards/delete-board";
 import { useAction } from "@/hooks/use-action";
@@ -18,18 +19,32 @@ import { ConfirmModal } from "@/components/modals/confirm-modal";
 import { ArchivedItemsModal } from "./archived-items-modal";
 import { BoardActivityPopoverContent } from "./board-activity-popover-content";
 import { BoardExportDialog } from "./board-export-dialog";
+import { SmartCaptureDialog } from "./smart-capture-dialog";
 
 interface BoardOptionsProps {
   id: string;
   title: string;
   canDelete?: boolean;
+  canEdit?: boolean;
+  lists: Pick<List, "id" | "title">[];
+  members: Pick<BoardMember, "id" | "userName" | "userEmail">[];
+  labels: Pick<Label, "id" | "title" | "color">[];
 };
 
-export const BoardOptions = ({ id, title, canDelete = false }: BoardOptionsProps) => {
+export const BoardOptions = ({
+  id,
+  title,
+  canDelete = false,
+  canEdit = false,
+  lists,
+  members,
+  labels,
+}: BoardOptionsProps) => {
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [view, setView] = useState<"menu" | "activity">("menu");
   const [isArchivedModalOpen, setIsArchivedModalOpen] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
+  const [isSmartCaptureOpen, setIsSmartCaptureOpen] = useState(false);
 
   const { execute, isLoading } = useAction(deleteBoard, {
     onError: (error) => {
@@ -78,7 +93,7 @@ export const BoardOptions = ({ id, title, canDelete = false }: BoardOptionsProps
             />
           ) : (
             <>
-              <div className="text-xs font-semibold text-center text-neutral-400 uppercase tracking-wider pb-2 px-4">
+              <div className="text-sm font-semibold text-center text-neutral-700 pb-2 border-b border-neutral-100 mb-2 px-4">
                 Thao tác bảng
               </div>
               <PopoverClose asChild>
@@ -109,6 +124,19 @@ export const BoardOptions = ({ id, title, canDelete = false }: BoardOptionsProps
                   Xuất dữ liệu
                 </Button>
               </PopoverClose>
+              {canEdit && (
+                <PopoverClose asChild>
+                  <Button
+                    id="smart-capture-trigger"
+                    variant="ghost"
+                    onClick={() => setIsSmartCaptureOpen(true)}
+                    className="w-full h-9 px-4 justify-start font-normal text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 gap-x-2 rounded-none"
+                  >
+                    <Sparkles className="h-4 w-4 text-violet-500" />
+                    Smart Capture
+                  </Button>
+                </PopoverClose>
+              )}
               <PopoverClose asChild>
                 <Button
                   id="archived-items-trigger"
@@ -150,6 +178,14 @@ export const BoardOptions = ({ id, title, canDelete = false }: BoardOptionsProps
         boardTitle={title}
         open={isExportDialogOpen}
         onOpenChange={setIsExportDialogOpen}
+      />
+      <SmartCaptureDialog
+        boardId={id}
+        open={isSmartCaptureOpen}
+        onOpenChange={setIsSmartCaptureOpen}
+        lists={lists}
+        members={members}
+        labels={labels}
       />
     </>
   );
