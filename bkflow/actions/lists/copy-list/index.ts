@@ -5,6 +5,7 @@ import { revalidatePath } from "next/cache";
 import { ACTION, ENTITY_TYPE } from "@prisma/client";
 
 import { db } from "@/lib/db";
+import { isAssignableBoardMember } from "@/lib/boards/board-member-role";
 import { createAuditLog } from "@/lib/create-audit-log";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { requireBoardEditor } from "@/lib/permissions";
@@ -167,13 +168,19 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         }
 
         if (cardToCopy.assignees.length > 0) {
-          await tx.cardAssignee.createMany({
-            data: cardToCopy.assignees.map((assignee) => ({
-              cardId: createdCard.id,
-              boardMemberId: assignee.boardMemberId,
-            })),
-            skipDuplicates: true,
-          });
+          const assignableCardAssignees = cardToCopy.assignees.filter((assignee) =>
+            isAssignableBoardMember(assignee.boardMember),
+          );
+
+          if (assignableCardAssignees.length > 0) {
+            await tx.cardAssignee.createMany({
+              data: assignableCardAssignees.map((assignee) => ({
+                cardId: createdCard.id,
+                boardMemberId: assignee.boardMemberId,
+              })),
+              skipDuplicates: true,
+            });
+          }
         }
 
         if (cardToCopy.attachments.length > 0) {
@@ -203,14 +210,20 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
             if (checklist.items.length > 0) {
               await tx.checklistItem.createMany({
-                data: checklist.items.map((item) => ({
-                  checklistId: createdChecklist.id,
-                  title: item.title,
-                  isCompleted: item.isCompleted,
-                  order: item.order,
-                  dueDate: item.dueDate,
-                  assigneeId: item.assigneeId,
-                })),
+                data: checklist.items.map((item) => {
+                  const assigneeId = item.assignee && isAssignableBoardMember(item.assignee)
+                    ? item.assigneeId
+                    : null;
+
+                  return {
+                    checklistId: createdChecklist.id,
+                    title: item.title,
+                    isCompleted: item.isCompleted,
+                    order: item.order,
+                    dueDate: item.dueDate,
+                    assigneeId,
+                  };
+                }),
               });
             }
           }

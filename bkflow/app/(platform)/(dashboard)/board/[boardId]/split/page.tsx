@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { BoardMemberRole } from "@prisma/client";
 import { redirect } from "next/navigation";
 
 import { db } from "@/lib/db";
@@ -48,6 +49,13 @@ const BoardSplitPage = async ({
         },
         include: {
           assignees: {
+            where: {
+              boardMember: {
+                role: {
+                  not: BoardMemberRole.VIEWER,
+                },
+              },
+            },
             include: {
               boardMember: true,
             },

@@ -183,7 +183,6 @@ export const ChecklistsSection = ({
         );
       }
 
-      toast.success("Đã thêm mục mới");
       setNewItemTitle("");
       temporaryItemIdRef.current = null;
       invalidateCard(true);

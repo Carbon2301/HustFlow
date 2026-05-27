@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server"; 
+import { BoardMemberRole } from "@prisma/client";
 import { NextRequest } from "next/server";
 import { NextResponse } from "next/server";
 
@@ -35,6 +36,13 @@ export async function GET(
           },
         },
         assignees: {
+          where: {
+            boardMember: {
+              role: {
+                not: BoardMemberRole.VIEWER,
+              },
+            },
+          },
           include: {
             boardMember: true,
           },

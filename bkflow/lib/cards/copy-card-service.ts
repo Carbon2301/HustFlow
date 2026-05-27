@@ -3,6 +3,7 @@ import { ACTION, AUDIT_EVENT_TYPE, ENTITY_TYPE, type Card } from "@prisma/client
 import type { InputType, ReturnType } from "@/actions/cards/copy-card/types";
 import { db } from "@/lib/db";
 import { requireBoardEditorForUser, requireBoardMemberForUser } from "@/lib/permissions";
+import { isAssignableBoardMember } from "@/lib/boards/board-member-role";
 import { triggerCardCreated } from "@/lib/boards/realtime";
 import { copyCardLabels } from "@/lib/cards/copy-card-labels";
 import {
@@ -262,7 +263,7 @@ export const copyCardService = async ({
           if (checklist.items.length > 0) {
             await tx.checklistItem.createMany({
               data: checklist.items.map((item) => {
-                const assigneeId = item.assignee
+                const assigneeId = item.assignee && isAssignableBoardMember(item.assignee)
                   ? resolveChecklistItemAssigneeId({
                       userId: item.assignee.userId,
                       targetMembersByUserId,

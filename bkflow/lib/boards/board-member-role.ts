@@ -1,4 +1,5 @@
 import { BoardMemberRole } from "@prisma/client";
+import type { BoardMember } from "@prisma/client";
 
 export const getRoleLabel = (role: BoardMemberRole) => {
   if (role === BoardMemberRole.ADMIN) {
@@ -23,3 +24,10 @@ export const boardMemberRoleOptions: BoardMemberRole[] = [
   BoardMemberRole.VIEWER,
   BoardMemberRole.ADMIN,
 ];
+
+export const isAssignableBoardMemberRole = (role: BoardMemberRole) =>
+  role !== BoardMemberRole.VIEWER;
+
+export const isAssignableBoardMember = (
+  member: Pick<BoardMember, "role">,
+) => isAssignableBoardMemberRole(member.role);

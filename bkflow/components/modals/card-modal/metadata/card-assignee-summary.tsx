@@ -9,6 +9,7 @@ import {
   AvatarImage,
 } from "@/components/ui/avatar";
 import { Hint } from "@/components/hint";
+import { isAssignableBoardMember } from "@/lib/boards/board-member-role";
 
 import { CardMemberPopover } from "./card-member-popover";
 import { getInitials } from "./metadata-utils";
@@ -38,13 +39,17 @@ export const CardAssigneeSummary = ({
   onToggleMember,
   canEdit = true,
 }: CardAssigneeSummaryProps) => {
+  const visibleAssignees = assignees.filter((assignee) =>
+    isAssignableBoardMember(assignee.boardMember),
+  );
+
   return (
     <div className="flex flex-col gap-y-1.5">
       <span className="text-xs font-semibold text-neutral-600 pl-0.5">
         Thành viên
       </span>
       <div className="flex flex-wrap items-center gap-1.5">
-        {assignees.map((assignee) => (
+        {visibleAssignees.map((assignee) => (
           <Hint
             key={assignee.id}
             description={assignee.boardMember.userName}

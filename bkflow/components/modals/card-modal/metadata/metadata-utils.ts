@@ -2,6 +2,7 @@ import { format } from "date-fns";
 import { vi } from "date-fns/locale";
 
 import type { CardWithList } from "@/types";
+import { isAssignableBoardMember } from "@/lib/boards/board-member-role";
 
 export const getInitials = (name: string) => {
   const words = name.trim().split(/\s+/).filter(Boolean);
@@ -14,6 +15,10 @@ export const getFilteredBoardMembers = (
   searchQuery: string,
 ) => {
   return boardMembers.filter((member) => {
+    if (!isAssignableBoardMember(member)) {
+      return false;
+    }
+
     const nameMatch = member.userName.toLowerCase().includes(searchQuery.toLowerCase());
     const emailMatch = member.userEmail?.toLowerCase().includes(searchQuery.toLowerCase()) ?? false;
     return nameMatch || emailMatch;

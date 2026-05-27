@@ -7,6 +7,7 @@ import { CardWithList } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { getDueDateStatus } from "@/components/due-date-badge";
 import { formatDateTimeLocalInput } from "@/lib/date-utils";
+import { isAssignableBoardMember } from "@/lib/boards/board-member-role";
 import { useBoardCalendarInvalidation } from "@/hooks/use-board-calendar-invalidation";
 
 import { CardAssigneeSummary } from "./card-assignee-summary";
@@ -72,7 +73,11 @@ export const MetadataSection = ({
     [data.blockedByDependencies],
   );
 
-  const hasAssignees = data.assignees && data.assignees.length > 0;
+  const visibleAssignees = useMemo(
+    () => data.assignees.filter((assignee) => isAssignableBoardMember(assignee.boardMember)),
+    [data.assignees],
+  );
+  const hasAssignees = visibleAssignees.length > 0;
   const hasStartDate = !!data.startDate;
   const hasDueDate = !!data.dueDate;
   const hasDateRange = hasStartDate || hasDueDate;
@@ -131,7 +136,7 @@ export const MetadataSection = ({
         {/* Column A: Thành viên (Active State) */}
         {hasAssignees && (
           <CardAssigneeSummary
-            assignees={data.assignees}
+            assignees={visibleAssignees}
             isMemberOpen={isMemberOpen}
             onMemberOpenChange={setIsMemberOpen}
             searchQuery={searchQuery}

@@ -574,6 +574,11 @@ export const useBoardRealtimeSync = ({
       return;
     }
 
+    if ("role" in payload && cardModal.isOpen && cardModal.id) {
+      queryClient.invalidateQueries({ queryKey: ["card", cardModal.id] });
+      queryClient.invalidateQueries({ queryKey: ["card-logs", cardModal.id] });
+    }
+
     if ("orderedListIds" in payload && payload.orderedListIds) {
       let applied = false;
 
@@ -673,7 +678,7 @@ export const useBoardRealtimeSync = ({
       reason: "board event payload requires server refresh",
     });
     router.refresh();
-  }, [boardId, processBoardEvent, router, setOrderedData]);
+  }, [boardId, cardModal.id, cardModal.isOpen, processBoardEvent, queryClient, router, setOrderedData]);
 
   const handleBoardDeleted = useCallback((payload: BoardDeletedPayload) => {
     if (payload.boardId !== boardId || !processBoardEvent(payload.eventId)) {

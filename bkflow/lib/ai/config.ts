@@ -1,4 +1,4 @@
-export const AI_MODEL = process.env.OPENAI_MODEL || "gpt-4.1-mini";
+export const AI_MODEL = process.env.OPENAI_MODEL || "gpt-4o-mini";
 
 export const AI_REQUEST_TIMEOUT_MS = 25_000;
 

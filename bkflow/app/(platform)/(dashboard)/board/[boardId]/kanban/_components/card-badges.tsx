@@ -10,6 +10,7 @@ import {
   AvatarGroup,
   AvatarImage,
 } from "@/components/ui/avatar";
+import { isAssignableBoardMember } from "@/lib/boards/board-member-role";
 import { cn, getColorName } from "@/lib/utils";
 import type { CardBadgesProps } from "../_types";
 
@@ -49,8 +50,11 @@ export const CardLabels = ({
 export const CardBadges = ({
   card,
 }: CardBadgesProps) => {
-  const visibleAssignees = card.assignees.slice(0, 3);
-  const hiddenAssigneesCount = Math.max(card.assignees.length - visibleAssignees.length, 0);
+  const assignableAssignees = card.assignees.filter((assignee) =>
+    isAssignableBoardMember(assignee.boardMember),
+  );
+  const visibleAssignees = assignableAssignees.slice(0, 3);
+  const hiddenAssigneesCount = Math.max(assignableAssignees.length - visibleAssignees.length, 0);
 
   const fallbackChecklistTotalItems = card.checklists?.reduce((acc, cl) => acc + cl.items.length, 0) ?? 0;
   const fallbackChecklistCompletedItems = card.checklists?.reduce(
@@ -67,7 +71,7 @@ export const CardBadges = ({
   const unresolvedBlockerCount = card.unresolvedBlockerCount ?? 0;
   const isBlocked = unresolvedBlockerCount > 0;
 
-  const hasFooter = Boolean(card.dueDate) || Boolean(card.startDate) || card.isCompleted || card.assignees.length > 0
+  const hasFooter = Boolean(card.dueDate) || Boolean(card.startDate) || card.isCompleted || assignableAssignees.length > 0
     || Boolean(card._count && card._count.comments > 0) || hasChecklistProgress || hasAttachments || isBlocked;
 
   if (!hasFooter) {
@@ -135,7 +139,7 @@ export const CardBadges = ({
           </Hint>
         )}
       </div>
-      {card.assignees.length > 0 && (
+      {assignableAssignees.length > 0 && (
         <AvatarGroup className="-mr-1 ml-auto flex-shrink-0 -space-x-1.5 *:data-[slot=avatar]:ring-white">
           {visibleAssignees.map((assignee) => (
             <Hint

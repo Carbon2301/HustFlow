@@ -74,7 +74,7 @@ export const CardMemberPopover = ({
           </p>
           <div className="max-h-[220px] overflow-y-auto space-y-1 pr-1">
             {boardMembers.length === 0 ? (
-              <p className="text-xs text-neutral-400 text-center py-2">Không tìm thấy thành viên</p>
+              <p className="text-xs text-neutral-400 text-center py-2">Không có thành viên có thể giao việc.</p>
             ) : (
               boardMembers.map((member) => {
                 const isAssigned = assignees?.some((a) => a.boardMemberId === member.id) ?? false;

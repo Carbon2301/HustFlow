@@ -1,6 +1,6 @@
 import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
+import { BoardMemberRole, Prisma } from "@prisma/client";
 
 import { db } from "@/lib/db";
 
@@ -119,6 +119,9 @@ export async function GET(
               some: {
                 boardMember: {
                   userId: targetUserId,
+                  role: {
+                    not: BoardMemberRole.VIEWER,
+                  },
                   boardId: {
                     in: accessibleBoardIds,
                   },
@@ -150,6 +153,13 @@ export async function GET(
               },
             },
             assignees: {
+              where: {
+                boardMember: {
+                  role: {
+                    not: BoardMemberRole.VIEWER,
+                  },
+                },
+              },
               include: {
                 boardMember: true,
               },

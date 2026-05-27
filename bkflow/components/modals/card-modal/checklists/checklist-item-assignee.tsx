@@ -11,6 +11,7 @@ import {
 } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Hint } from "@/components/hint";
+import { isAssignableBoardMember } from "@/lib/boards/board-member-role";
 import {
   Popover,
   PopoverContent,
@@ -39,15 +40,19 @@ export const ChecklistItemAssignee = ({
 }: ChecklistItemAssigneeProps) => {
   const [isOpen, setIsOpen] = useState(false);
   const [query, setQuery] = useState("");
+  const visibleAssignee = assignee && isAssignableBoardMember(assignee)
+    ? assignee
+    : null;
 
   const filteredMembers = useMemo(() => {
     const normalizedQuery = query.trim().toLowerCase();
+    const assignableMembers = boardMembers.filter(isAssignableBoardMember);
 
     if (!normalizedQuery) {
-      return boardMembers;
+      return assignableMembers;
     }
 
-    return boardMembers.filter((member) => (
+    return assignableMembers.filter((member) => (
       member.userName.toLowerCase().includes(normalizedQuery) ||
       (member.userEmail?.toLowerCase().includes(normalizedQuery) ?? false)
     ));
@@ -55,19 +60,19 @@ export const ChecklistItemAssignee = ({
 
   return (
     <Popover open={isOpen} onOpenChange={setIsOpen}>
-      <Hint description={assignee ? assignee.userName : "Gán thành viên"}>
+      <Hint description={visibleAssignee ? visibleAssignee.userName : "Gán thành viên"}>
         <PopoverTrigger asChild>
           <button
             type="button"
             disabled={isPending}
             className="inline-flex h-7 w-7 shrink-0 items-center justify-center rounded-full bg-neutral-100 text-neutral-500 transition hover:bg-neutral-200 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-violet-300 disabled:opacity-50"
-            aria-label={assignee ? `Đổi người phụ trách ${assignee.userName}` : "Gán thành viên"}
+            aria-label={visibleAssignee ? `Đổi người phụ trách ${visibleAssignee.userName}` : "Gán thành viên"}
           >
-            {assignee ? (
+            {visibleAssignee ? (
               <Avatar className="h-7 w-7">
-                <AvatarImage src={assignee.userImage} alt={assignee.userName} />
+                <AvatarImage src={visibleAssignee.userImage} alt={visibleAssignee.userName} />
                 <AvatarFallback className="text-[10px] font-semibold">
-                  {getInitials(assignee.userName)}
+                  {getInitials(visibleAssignee.userName)}
                 </AvatarFallback>
               </Avatar>
             ) : (
@@ -105,7 +110,7 @@ export const ChecklistItemAssignee = ({
           />
         </div>
         <div className="max-h-[220px] space-y-1 overflow-y-auto pr-1">
-          {assignee && (
+          {visibleAssignee && (
             <button
               type="button"
               disabled={isPending}
@@ -121,11 +126,11 @@ export const ChecklistItemAssignee = ({
           )}
           {filteredMembers.length === 0 ? (
             <p className="py-2 text-center text-xs text-neutral-400">
-              Không tìm thấy thành viên
+              Không có thành viên có thể giao việc.
             </p>
           ) : (
             filteredMembers.map((member) => {
-              const selected = assignee?.id === member.id;
+              const selected = visibleAssignee?.id === member.id;
 
               return (
                 <button

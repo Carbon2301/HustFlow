@@ -1,4 +1,5 @@
 import ExcelJS from "exceljs";
+import { BoardMemberRole } from "@prisma/client";
 
 import { db } from "@/lib/db";
 
@@ -117,6 +118,13 @@ export const getBoardExportData = async ({
                 createdAt: true,
                 updatedAt: true,
                 assignees: {
+                  where: {
+                    boardMember: {
+                      role: {
+                        not: BoardMemberRole.VIEWER,
+                      },
+                    },
+                  },
                   select: {
                     boardMember: {
                       select: {
@@ -162,6 +170,7 @@ export const getBoardExportData = async ({
                             id: true,
                             userName: true,
                             userEmail: true,
+                            role: true,
                           },
                         },
                       },
@@ -541,7 +550,9 @@ export const buildBoardWorkbookBuffer = async (data: BoardExportData) => {
           item: item.title,
           completed: item.isCompleted ? "Yes" : "No",
           dueDate: item.dueDate,
-          assignee: item.assignee?.userName ?? "",
+          assignee: item.assignee?.role === BoardMemberRole.VIEWER
+            ? ""
+            : item.assignee?.userName ?? "",
         })),
       ),
     ),

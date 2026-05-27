@@ -27,7 +27,7 @@ interface BoardOptionsProps {
   canDelete?: boolean;
   canEdit?: boolean;
   lists: Pick<List, "id" | "title">[];
-  members: Pick<BoardMember, "id" | "userName" | "userEmail">[];
+  members: Pick<BoardMember, "id" | "userName" | "userEmail" | "role">[];
   labels: Pick<Label, "id" | "title" | "color">[];
 };
 
@@ -133,7 +133,7 @@ export const BoardOptions = ({
                     className="w-full h-9 px-4 justify-start font-normal text-sm text-neutral-600 hover:bg-neutral-50 hover:text-neutral-900 gap-x-2 rounded-none"
                   >
                     <Sparkles className="h-4 w-4 text-violet-500" />
-                    Smart Capture
+                    Tạo nhanh thông minh
                   </Button>
                 </PopoverClose>
               )}

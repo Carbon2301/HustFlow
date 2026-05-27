@@ -1,4 +1,4 @@
-import { NOTIFICATION_TYPE } from "@prisma/client";
+import { BoardMemberRole, NOTIFICATION_TYPE } from "@prisma/client";
 
 import { createNotification } from "@/lib/notifications/create-notification";
 import { db } from "@/lib/db";
@@ -72,6 +72,9 @@ export const ensureDueReminderNotifications = async ({
         some: {
           boardMember: {
             userId,
+            role: {
+              not: BoardMemberRole.VIEWER,
+            },
           },
         },
       },

@@ -13,6 +13,7 @@ export type SmartCaptureBoardMember = {
   id: string;
   userName: string;
   userEmail: string | null;
+  role: string;
 };
 
 export type SmartCaptureBoardLabel = {
@@ -26,9 +27,11 @@ export type SmartCaptureDraft = {
   description: string;
   checklistItems: string[];
   dueDateIso: string | null;
-  assigneeBoardMemberId: string | null;
+  assigneeBoardMemberIds: string[];
   labelIds: string[];
   listId: string;
+  assigneeWarnings: string[];
+  suggestedAssigneeBoardMemberIds: string[];
   suggestedLabelIds: string[];
 };
 

@@ -15,6 +15,7 @@ import { revalidatePath } from "next/cache";
 
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
+import { isAssignableBoardMember } from "@/lib/boards/board-member-role";
 import { getChecklistItemAccess } from "@/lib/checklists/checklist-access";
 import { triggerChecklistItemAssigneeUpdated } from "@/lib/boards/realtime";
 import { triggerCardMemberAssigned } from "@/lib/cards/realtime";
@@ -65,6 +66,10 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
     if (assigneeId && !nextAssignee) {
       return { error: "Người được giao phải thuộc cùng bảng." };
+    }
+
+    if (nextAssignee && !isAssignableBoardMember(nextAssignee)) {
+      return { error: "Khách chỉ có quyền xem và không thể được giao checklist." };
     }
 
     if ((access.item.assigneeId ?? null) === assigneeId) {

@@ -20,9 +20,10 @@ export const CreateSmartCaptureCard = z.object({
         .refine((value) => !value.includes("```"), {
           message: "Mô tả không được chứa mã markdown code fence.",
         }),
-    ),
+  ),
   dueDate: z.optional(DueDateValue),
   assigneeBoardMemberId: z.optional(z.union([z.string().min(1), z.null()])),
+  assigneeBoardMemberIds: z.array(z.string().min(1)).max(20).default([]),
   labelIds: z.array(z.string().min(1)).max(20).default([]),
   checklistItems: z.array(
     z.string()

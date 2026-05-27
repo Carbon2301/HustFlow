@@ -73,13 +73,46 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       }
     }
 
-    boardMember = await db.boardMember.update({
-      where: {
-        id: existingBoardMember.id,
-      },
-      data: {
-        role,
-      },
+    boardMember = await db.$transaction(async (tx) => {
+      const updatedBoardMember = await tx.boardMember.update({
+        where: {
+          id: existingBoardMember.id,
+        },
+        data: {
+          role,
+        },
+      });
+
+      if (role === BoardMemberRole.VIEWER) {
+        await tx.cardAssignee.deleteMany({
+          where: {
+            boardMemberId: existingBoardMember.id,
+            card: {
+              list: {
+                boardId,
+              },
+            },
+          },
+        });
+
+        await tx.checklistItem.updateMany({
+          where: {
+            assigneeId: existingBoardMember.id,
+            checklist: {
+              card: {
+                list: {
+                  boardId,
+                },
+              },
+            },
+          },
+          data: {
+            assigneeId: null,
+          },
+        });
+      }
+
+      return updatedBoardMember;
     });
 
     const actionLabel =

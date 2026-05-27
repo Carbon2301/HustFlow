@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { BoardMemberRole } from "@prisma/client";
 import { redirect } from "next/navigation";
 
 import { db } from "@/lib/db";
@@ -68,6 +69,13 @@ const BoardTimelinePage = async ({
             createdAt: true,
             updatedAt: true,
             assignees: {
+              where: {
+                boardMember: {
+                  role: {
+                    not: BoardMemberRole.VIEWER,
+                  },
+                },
+              },
               select: {
                 id: true,
                 boardMemberId: true,

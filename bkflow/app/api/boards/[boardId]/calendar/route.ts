@@ -1,4 +1,5 @@
 import { auth } from "@clerk/nextjs/server";
+import { BoardMemberRole } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
@@ -183,6 +184,13 @@ export async function GET(
             },
           },
           assignees: {
+            where: {
+              boardMember: {
+                role: {
+                  not: BoardMemberRole.VIEWER,
+                },
+              },
+            },
             select: {
               id: true,
               boardMemberId: true,
@@ -272,6 +280,7 @@ export async function GET(
               userId: true,
               userName: true,
               userImage: true,
+              role: true,
             },
           },
         },
@@ -317,6 +326,13 @@ export async function GET(
                 },
               },
               assignees: {
+                where: {
+                  boardMember: {
+                    role: {
+                      not: BoardMemberRole.VIEWER,
+                    },
+                  },
+                },
                 select: {
                   id: true,
                   boardMemberId: true,
@@ -405,7 +421,7 @@ export async function GET(
           title: item.title,
           dueDate: item.dueDate.toISOString(),
           isCompleted: item.isCompleted,
-          assignee: item.assignee
+          assignee: item.assignee && item.assignee.role !== BoardMemberRole.VIEWER
             ? {
                 id: item.assignee.id,
                 boardMemberId: item.assignee.id,

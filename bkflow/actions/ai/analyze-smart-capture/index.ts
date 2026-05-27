@@ -1,12 +1,14 @@
 "use server";
 
 import { auth } from "@clerk/nextjs/server";
+import { BoardMemberRole } from "@prisma/client";
 import { z } from "zod";
 
 import { generateAiText } from "@/lib/ai/client";
 import { parseAiJson } from "@/lib/ai/json";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
+import { isAssignableBoardMember } from "@/lib/boards/board-member-role";
 import { requireBoardEditor } from "@/lib/permissions";
 
 import { AnalyzeSmartCapture } from "./schema";
@@ -33,6 +35,12 @@ const normalizeVietnameseForCompare = (value: string) =>
     .replace(/đ/g, "d")
     .replace(/Đ/g, "D")
     .toLowerCase();
+
+const normalizeAssigneeEvidence = (value: string | null | undefined) =>
+  normalizeVietnameseForCompare(value ?? "")
+    .replace(/[^\p{L}\p{N}@._+-]+/gu, " ")
+    .replace(/\s+/g, " ")
+    .trim();
 
 const hasRequiredMarkdownHeadings = (value: string) => {
   const normalized = normalizeVietnameseForCompare(value);
@@ -127,12 +135,96 @@ const parseDueDate = (
   return Number.isNaN(date.getTime()) ? null : date.toISOString();
 };
 
+type AssignableMember = {
+  id: string;
+  userName: string;
+  userEmail: string | null;
+  role: BoardMemberRole;
+};
+
+const resolveAssignees = ({
+  candidates,
+  members,
+}: {
+  candidates: { boardMemberId: string; evidence?: string | null }[];
+  members: AssignableMember[];
+}) => {
+  const memberById = new Map(members.map((member) => [member.id, member]));
+  const warnings: string[] = [];
+  const result: string[] = [];
+  const seen = new Set<string>();
+
+  for (const candidate of candidates) {
+    const member = memberById.get(candidate.boardMemberId);
+    const evidence = normalizeAssigneeEvidence(candidate.evidence);
+
+    if (!member || !evidence) {
+      continue;
+    }
+
+    const normalizedName = normalizeAssigneeEvidence(member.userName);
+    const normalizedEmail = normalizeAssigneeEvidence(member.userEmail);
+    const fullNameMatches = normalizedName === evidence || evidence.includes(normalizedName);
+    const emailMatches = Boolean(
+      normalizedEmail &&
+      (normalizedEmail === evidence || normalizedEmail.includes(evidence)),
+    );
+    const matchingMembers = members.filter((item) => {
+      const itemName = normalizeAssigneeEvidence(item.userName);
+      const itemEmail = normalizeAssigneeEvidence(item.userEmail);
+
+      return (
+        itemName.includes(evidence) ||
+        Boolean(itemEmail && itemEmail.includes(evidence))
+      );
+    });
+
+    if (
+      matchingMembers.length > 1 &&
+      !fullNameMatches &&
+      !emailMatches
+    ) {
+      warnings.push(
+        `"${candidate.evidence}" khớp nhiều thành viên: ${matchingMembers
+          .map((item) => item.userName)
+          .join(", ")}. Vui lòng chọn thủ công.`,
+      );
+      continue;
+    }
+
+    if (!fullNameMatches && !emailMatches && matchingMembers.length !== 1) {
+      continue;
+    }
+
+    if (!fullNameMatches && !emailMatches && matchingMembers[0]?.id !== member.id) {
+      continue;
+    }
+
+    if (!seen.has(member.id)) {
+      seen.add(member.id);
+      result.push(member.id);
+    }
+  }
+
+  return {
+    assigneeBoardMemberIds: result,
+    assigneeWarnings: Array.from(new Set(warnings)),
+  };
+};
+
 const AiSmartCaptureResponse = z.object({
   title: z.string().optional().nullable(),
   description: z.string().optional().nullable(),
   checklistItems: z.array(z.string()).optional().default([]),
   dueDateIso: z.string().optional().nullable(),
   assigneeBoardMemberId: z.string().optional().nullable(),
+  assigneeBoardMemberIds: z.array(z.string()).optional().default([]),
+  assignees: z.array(
+    z.object({
+      boardMemberId: z.string(),
+      evidence: z.string().optional().nullable(),
+    }),
+  ).optional().default([]),
   labelIds: z.array(z.string()).optional().default([]),
   listId: z.string().optional().nullable(),
 });
@@ -140,9 +232,12 @@ const AiSmartCaptureResponse = z.object({
 const systemPrompt = [
   "Bạn là trợ lý quản lý dự án cho HustFlow.",
   "Chỉ trả JSON hợp lệ, không markdown wrapper, không giải thích ngoài JSON.",
-  'Định dạng bắt buộc: {"title":"...","description":"...","checklistItems":["..."],"dueDateIso":null,"assigneeBoardMemberId":null,"labelIds":[],"listId":null}.',
+  'Định dạng bắt buộc: {"title":"...","description":"...","checklistItems":["..."],"dueDateIso":null,"assignees":[{"boardMemberId":"...","evidence":"..."}],"labelIds":[],"listId":null}.',
   "Chỉ dùng id có trong boardContext. Không tự tạo list, label hoặc member mới.",
-  "Nếu không chắc assignee, label hoặc list, trả null hoặc mảng rỗng.",
+  "Chỉ chọn assignee từ boardContext.assignableMembers. Không chọn viewer/guest hoặc member không có trong assignableMembers.",
+  "Nếu nội dung nhắc nhiều người phụ trách, trả tất cả người phù hợp trong assignees.",
+  "Mỗi assignee phải có evidence là đoạn text gốc khiến bạn match người đó, ví dụ full name, email, username hoặc tên được nhắc.",
+  "Nếu không chắc assignee, label hoặc list, trả mảng rỗng hoặc null cho field không áp dụng.",
   "description phải là Markdown tiếng Việt, đúng 3 heading cấp 2 theo thứ tự: ## Mục tiêu, ## Phạm vi, ## Tiêu chí nghiệm thu.",
   "Dưới Tiêu chí nghiệm thu dùng checklist Markdown dạng '- [ ] ...'.",
   "checklistItems là các đầu việc con ngắn, không lặp với tiêu chí nghiệm thu nếu có thể.",
@@ -197,6 +292,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
           id: true,
           userName: true,
           userEmail: true,
+          role: true,
         },
         orderBy: {
           createdAt: "asc",
@@ -224,6 +320,8 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       return { error: "Bảng chưa có cột để tạo thẻ." };
     }
 
+    const assignableMembers = members.filter(isAssignableBoardMember);
+
     const payload = {
       nowIso,
       timezoneOffsetMinutes,
@@ -232,7 +330,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       rawText,
       boardContext: {
         lists,
-        members,
+        assignableMembers,
         labels,
       },
     };
@@ -250,9 +348,26 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     );
 
     const validListIds = new Set(lists.map((list) => list.id));
-    const validMemberIds = new Set(members.map((member) => member.id));
+    const validMemberIds = new Set(assignableMembers.map((member) => member.id));
     const validLabelIds = new Set(labels.map((label) => label.id));
     const title = trimWhitespace(parsed.title || rawText).slice(0, TITLE_MAX_LENGTH);
+    const assigneeCandidates = [
+      ...parsed.assignees,
+      ...parsed.assigneeBoardMemberIds.map((boardMemberId) => ({
+        boardMemberId,
+        evidence: null,
+      })),
+      ...(parsed.assigneeBoardMemberId
+        ? [{
+            boardMemberId: parsed.assigneeBoardMemberId,
+            evidence: null,
+          }]
+        : []),
+    ].filter((candidate) => validMemberIds.has(candidate.boardMemberId));
+    const { assigneeBoardMemberIds, assigneeWarnings } = resolveAssignees({
+      candidates: assigneeCandidates,
+      members: assignableMembers,
+    });
     const labelIds = Array.from(new Set(parsed.labelIds.filter((id) => validLabelIds.has(id))));
 
     return {
@@ -261,14 +376,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         description: normalizeDescription(parsed.description, rawText),
         checklistItems: normalizeChecklistItems(parsed.checklistItems),
         dueDateIso: parseDueDate(parsed.dueDateIso, timezoneLabel),
-        assigneeBoardMemberId:
-          parsed.assigneeBoardMemberId && validMemberIds.has(parsed.assigneeBoardMemberId)
-            ? parsed.assigneeBoardMemberId
-            : null,
+        assigneeBoardMemberIds,
         labelIds,
         listId: parsed.listId && validListIds.has(parsed.listId)
           ? parsed.listId
           : lists[0].id,
+        suggestedAssigneeBoardMemberIds: assigneeBoardMemberIds,
+        assigneeWarnings,
         suggestedLabelIds: labelIds,
       },
     };

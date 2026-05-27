@@ -1,5 +1,7 @@
 import "server-only";
 
+import { BoardMemberRole } from "@prisma/client";
+
 import { db } from "@/lib/db";
 
 export type BoardReportRange = "7d" | "30d";
@@ -75,6 +77,13 @@ export const getBoardAnalyticsData = async ({
             createdAt: true,
             updatedAt: true,
             assignees: {
+              where: {
+                boardMember: {
+                  role: {
+                    not: BoardMemberRole.VIEWER,
+                  },
+                },
+              },
               select: {
                 id: true,
                 boardMember: {

@@ -7,6 +7,7 @@ import { createAuditLog } from "@/lib/create-audit-log";
 import { createNotification } from "@/lib/notifications/create-notification";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
+import { isAssignableBoardMember } from "@/lib/boards/board-member-role";
 import { getOrganizationMember } from "@/lib/clerk-org-members";
 import { requireBoardEditor } from "@/lib/permissions";
 import { triggerCardMemberAssigned } from "@/lib/cards/realtime";
@@ -76,6 +77,10 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
     if (!boardMember) {
       return { error: "Không tìm thấy thành viên trong bảng." };
+    }
+
+    if (!isAssignableBoardMember(boardMember)) {
+      return { error: "Khách chỉ có quyền xem và không thể được giao thẻ." };
     }
 
     const orgMember = await getOrganizationMember(orgId, boardMember.userId);

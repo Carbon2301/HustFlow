@@ -7,6 +7,7 @@ import { ACTION, ENTITY_TYPE, Prisma } from "@prisma/client";
 import { createAuditLog } from "@/lib/create-audit-log";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
+import { isAssignableBoardMember } from "@/lib/boards/board-member-role";
 import { requireBoardEditor } from "@/lib/permissions";
 import { triggerCardCreated } from "@/lib/boards/realtime";
 
@@ -56,8 +57,15 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     description,
     dueDate,
     assigneeBoardMemberId,
+    assigneeBoardMemberIds,
     labelIds,
   } = data;
+  const requestedAssigneeIds = Array.from(
+    new Set([
+      ...assigneeBoardMemberIds,
+      ...(assigneeBoardMemberId ? [assigneeBoardMemberId] : []),
+    ]),
+  );
   const checklistItems = normalizeChecklistItems(data.checklistItems);
   const dueDateValue = normalizeDueDate(dueDate);
 
@@ -87,11 +95,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       return { error: "Không tìm thấy danh sách." };
     }
 
-    const [assignee, labels] = await Promise.all([
-      assigneeBoardMemberId
-        ? db.boardMember.findFirst({
+    const [assignees, labels] = await Promise.all([
+      requestedAssigneeIds.length > 0
+        ? db.boardMember.findMany({
             where: {
-              id: assigneeBoardMemberId,
+              id: {
+                in: requestedAssigneeIds,
+              },
               boardId,
               board: {
                 orgId,
@@ -99,9 +109,10 @@ const handler = async (data: InputType): Promise<ReturnType> => {
             },
             select: {
               id: true,
+              role: true,
             },
           })
-        : null,
+        : [],
       labelIds.length > 0
         ? db.label.findMany({
             where: {
@@ -120,6 +131,9 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         : [],
     ]);
 
+    const validAssigneeIds = assignees
+      .filter(isAssignableBoardMember)
+      .map((assignee) => assignee.id);
     const validLabelIds = labels.map((label) => label.id);
 
     const card = await db.$transaction(async (tx) => {
@@ -147,12 +161,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
         },
       });
 
-      if (assignee) {
-        await tx.cardAssignee.create({
-          data: {
+      if (validAssigneeIds.length > 0) {
+        await tx.cardAssignee.createMany({
+          data: validAssigneeIds.map((boardMemberId) => ({
             cardId: createdCard.id,
-            boardMemberId: assignee.id,
-          },
+            boardMemberId,
+          })),
+          skipDuplicates: true,
         });
       }
 
