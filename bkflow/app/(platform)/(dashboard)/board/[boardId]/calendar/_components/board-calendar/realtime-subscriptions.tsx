@@ -12,7 +12,7 @@ import {
   BOARD_CALENDAR_DELETE_EVENTS,
   BOARD_CALENDAR_INVALIDATE_EVENTS,
   BOARD_CALENDAR_REFRESH_EVENTS,
-} from "./realtime";
+} from "../../_lib/realtime";
 
 type RealtimeSubscriptionProps<TEvent extends RealtimeEventName> = {
   channelName: RealtimeChannelName;

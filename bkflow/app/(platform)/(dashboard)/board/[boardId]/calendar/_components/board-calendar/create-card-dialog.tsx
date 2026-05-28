@@ -11,7 +11,7 @@ import {
 } from "@/components/ui/dialog";
 import type { FieldErrors } from "@/lib/create-safe-action";
 
-import type { BoardCalendarList } from "./types";
+import type { BoardCalendarList } from "../../_types";
 
 type CreateCardInput = {
   title: string;

@@ -14,15 +14,15 @@ import {
   RANGE_LANE_HEIGHT,
   WEEK_DAYS,
   WEEK_RANGE_LANES,
-} from "./constants";
-import { getDayKey } from "./date-utils";
+} from "../../_lib/constants";
+import { getDayKey } from "../../_lib/date-utils";
 import type {
   CalendarMarkerListStyle,
   CalendarOccurrence,
   CalendarRangeSegment,
   CalendarResizeState,
   ViewMode,
-} from "./types";
+} from "../../_types";
 
 type CalendarDayCellProps = {
   day: Date;

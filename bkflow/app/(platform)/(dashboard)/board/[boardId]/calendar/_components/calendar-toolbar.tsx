@@ -11,7 +11,7 @@ import { Hint } from "@/components/hint";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
-import type { ViewMode } from "./board-calendar/types";
+import type { ViewMode } from "../_types";
 
 type CalendarToolbarProps = {
   titleLabel: string;

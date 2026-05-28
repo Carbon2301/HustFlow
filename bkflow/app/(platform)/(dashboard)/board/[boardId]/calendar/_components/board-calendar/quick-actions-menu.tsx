@@ -16,8 +16,8 @@ import {
 } from "@/components/ui/popover";
 import type { BoardCalendarItem } from "@/types";
 
-import { isCalendarCardItem } from "./item-utils";
-import type { CalendarOccurrence } from "./types";
+import { isCalendarCardItem } from "../../_lib/item-utils";
+import type { CalendarOccurrence } from "../../_types";
 
 type QuickActionsMenuProps = {
   occurrence: CalendarOccurrence;

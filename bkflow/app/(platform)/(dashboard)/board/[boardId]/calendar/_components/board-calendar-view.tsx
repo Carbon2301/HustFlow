@@ -21,15 +21,15 @@ import {
   WEEK_DAYS,
   WEEK_VISIBLE_DESKTOP,
   WEEK_VISIBLE_MOBILE,
-} from "./board-calendar/constants";
+} from "../_lib/constants";
 import {
   formatDayTitle,
-} from "./board-calendar/date-utils";
-import { isOverdue } from "./board-calendar/item-utils";
+} from "../_lib/date-utils";
+import { isOverdue } from "../_lib/item-utils";
 import { BoardCalendarRealtimeSubscriptions } from "./board-calendar/realtime-subscriptions";
 import { CreateCardDialog } from "./board-calendar/create-card-dialog";
 import { UnscheduledPanel } from "./board-calendar/unscheduled-panel";
-import type { BoardCalendarViewProps } from "./board-calendar/types";
+import type { BoardCalendarViewProps } from "../_types";
 import { useCalendarQuery } from "../_hooks/use-calendar-query";
 import { useCalendarCardActions } from "../_hooks/use-calendar-card-actions";
 import { useCalendarCardInteractions } from "../_hooks/use-calendar-card-interactions";

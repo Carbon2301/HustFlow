@@ -6,9 +6,9 @@ import { useQueryClient } from "@tanstack/react-query";
 import type { Dispatch, SetStateAction } from "react";
 import { toast } from "sonner";
 
-import { deleteCardAttachment } from "@/actions/cards/delete-card-attachment";
-import { updateCardAttachment } from "@/actions/cards/update-card-attachment";
-import { updateCardAttachmentOrder } from "@/actions/cards/update-card-attachment-order";
+import { deleteCardAttachment } from "@/actions/attachments/delete-card-attachment";
+import { updateCardAttachment } from "@/actions/attachments/update-card-attachment";
+import { updateCardAttachmentOrder } from "@/actions/attachments/update-card-attachment-order";
 import { useAction } from "@/hooks/use-action";
 import { patchBoardCardCount } from "../card-cache-utils";
 

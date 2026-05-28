@@ -15,29 +15,29 @@ import type { BoardCalendarResponse } from "@/types";
 import {
   MAX_DAY_LANES,
   MAX_MOBILE_DAY_LANES,
-} from "../_components/board-calendar/constants";
+} from "../_lib/constants";
 import {
   getDayGridRange,
   getDayKey,
   getMonthGridRange,
   getWeekGridRange,
-} from "../_components/board-calendar/date-utils";
+} from "../_lib/date-utils";
 import {
   getDayViewBlocks,
   getOverlappingDayBlockLayout,
-} from "../_components/board-calendar/day-view-layout";
+} from "../_lib/day-view-layout";
 import {
   getOccurrences,
   getRanges,
   getRangeOccurrencesByDay,
   getRangeSegmentsForWeeks,
   getWeekRows,
-} from "../_components/board-calendar/range-layout";
+} from "../_lib/range-layout";
 import type {
   CalendarOccurrence,
   DayViewBlock,
   ViewMode,
-} from "../_components/board-calendar/types";
+} from "../_types";
 
 type UseCalendarQueryOptions = {
   boardId: string;

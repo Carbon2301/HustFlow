@@ -3,7 +3,7 @@
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 
-import type { ViewMode } from "./board-calendar/types";
+import type { ViewMode } from "../_types";
 
 type CalendarLoadingStateProps = {
   viewMode: Exclude<ViewMode, "day">;

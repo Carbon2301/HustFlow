@@ -17,7 +17,7 @@ import type {
   CalendarOccurrence,
   CalendarRange,
   CalendarRangeSegment,
-} from "./types";
+} from "../_types";
 
 export const getOccurrences = (items: BoardCalendarItem[]) =>
   items.reduce<CalendarOccurrence[]>((acc, item) => {

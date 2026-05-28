@@ -2,7 +2,7 @@
 
 import { CalendarDays } from "lucide-react";
 
-import type { ViewMode } from "./board-calendar/types";
+import type { ViewMode } from "../_types";
 
 type CalendarEmptyStateProps = {
   viewMode: ViewMode;

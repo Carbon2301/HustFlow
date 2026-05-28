@@ -34,7 +34,7 @@ import {
   patchCardQueryData,
   removeCardLabel,
   scheduleCoalescedCardRefetch,
-} from "./card-cache-utils";
+} from "../card-cache-utils";
 
 const LABEL_COLORS = [
   // Hàng 1

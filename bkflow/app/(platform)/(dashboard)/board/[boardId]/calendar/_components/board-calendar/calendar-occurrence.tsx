@@ -13,9 +13,9 @@ import {
   getOccurrenceTone,
   isCalendarCardItem,
   isCalendarChecklistItem,
-} from "./item-utils";
+} from "../../_lib/item-utils";
 import { QuickActionsMenu } from "./quick-actions-menu";
-import type { CalendarOccurrence } from "./types";
+import type { CalendarOccurrence } from "../../_types";
 
 type CalendarOccurrenceItemProps = {
   occurrence: CalendarOccurrence;

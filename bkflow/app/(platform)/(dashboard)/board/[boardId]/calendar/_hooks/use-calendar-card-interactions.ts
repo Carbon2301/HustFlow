@@ -4,8 +4,8 @@ import { useCallback, type MouseEvent } from "react";
 
 import type { InputType as UpdateCardInput } from "@/actions/cards/update-card/types";
 
-import { isCalendarCardItem } from "../_components/board-calendar/item-utils";
-import type { CalendarOccurrence } from "../_components/board-calendar/types";
+import { isCalendarCardItem } from "../_lib/item-utils";
+import type { CalendarOccurrence } from "../_types";
 
 type BooleanRef = {
   current: boolean;

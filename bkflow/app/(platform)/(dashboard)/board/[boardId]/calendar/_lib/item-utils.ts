@@ -11,7 +11,7 @@ import {
   formatCalendarTime,
   parseCalendarDate,
 } from "./date-utils";
-import type { CalendarOccurrence } from "./types";
+import type { CalendarOccurrence } from "../_types";
 
 export const parseDayViewItemDates = (item: BoardCalendarItem) => ({
   startDate: isCalendarCardItem(item) ? parseCalendarDate(item.startDate) : null,

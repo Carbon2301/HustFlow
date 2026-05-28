@@ -19,7 +19,7 @@ import {
 } from "@/lib/calendar/calendar-dnd";
 import type { BoardCalendarUnscheduledCard } from "@/types";
 
-import { GMT7_OFFSET_MINUTES } from "../_components/board-calendar/constants";
+import { GMT7_OFFSET_MINUTES } from "../_lib/constants";
 import {
   copyDateToDay,
   getDayKey,
@@ -27,17 +27,17 @@ import {
   getGmt7DayKey,
   getReminderError,
   parseCalendarDate,
-} from "../_components/board-calendar/date-utils";
+} from "../_lib/date-utils";
 import {
   isCalendarCardItem,
   isCalendarChecklistItem,
-} from "../_components/board-calendar/item-utils";
+} from "../_lib/item-utils";
 import type {
   CalendarDragPayload,
   CalendarOccurrence,
   DayViewBlock,
   PositionedDayViewBlock,
-} from "../_components/board-calendar/types";
+} from "../_types";
 
 type BooleanRef = {
   current: boolean;

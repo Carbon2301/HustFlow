@@ -7,12 +7,12 @@ import { cn } from "@/lib/utils";
 import {
   RANGE_LANE_GAP,
   RANGE_LANE_HEIGHT,
-} from "./constants";
-import { getDayKey } from "./date-utils";
+} from "../../_lib/constants";
+import { getDayKey } from "../../_lib/date-utils";
 import type {
   CalendarRangeSegment,
   ViewMode,
-} from "./types";
+} from "../../_types";
 
 type CalendarRangeOverflowsProps = {
   weekDays: Date[];

@@ -7,7 +7,7 @@ import type { InputType as UpdateCardInput } from "@/actions/cards/update-card/t
 import { getDateTimezoneOffset } from "@/lib/date-utils";
 import { DAY_VIEW_SLOT_HEIGHT } from "@/lib/calendar/calendar-day-view";
 
-import { GMT7_OFFSET_MINUTES, MINUTES_IN_DAY } from "../_components/board-calendar/constants";
+import { GMT7_OFFSET_MINUTES, MINUTES_IN_DAY } from "../_lib/constants";
 import {
   getDateWithPreservedTime,
   getDayKey,
@@ -17,8 +17,8 @@ import {
   parseCalendarDate,
   roundDayViewEndMinute,
   roundDayViewStartMinute,
-} from "../_components/board-calendar/date-utils";
-import { isCalendarCardItem } from "../_components/board-calendar/item-utils";
+} from "../_lib/date-utils";
+import { isCalendarCardItem } from "../_lib/item-utils";
 import type {
   CalendarRange,
   CalendarResizeEdge,
@@ -26,7 +26,7 @@ import type {
   DayViewCreateSelectionState,
   DayViewResizeState,
   PositionedDayViewBlock,
-} from "../_components/board-calendar/types";
+} from "../_types";
 
 type BooleanRef = {
   current: boolean;

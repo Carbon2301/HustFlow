@@ -9,15 +9,15 @@ import { cn } from "@/lib/utils";
 import {
   RANGE_LANE_GAP,
   RANGE_LANE_HEIGHT,
-} from "./constants";
+} from "../../_lib/constants";
 import {
   formatCalendarTime,
   parseCalendarDate,
-} from "./date-utils";
+} from "../../_lib/date-utils";
 import {
   getCalendarItemTitle,
   getOccurrenceTone,
-} from "./item-utils";
+} from "../../_lib/item-utils";
 import { QuickActionsMenu } from "./quick-actions-menu";
 import type {
   CalendarOccurrence,
@@ -26,7 +26,7 @@ import type {
   CalendarResizeEdge,
   CalendarResizeState,
   ViewMode,
-} from "./types";
+} from "../../_types";
 
 type CalendarRangeSegmentItemProps = {
   segment: CalendarRangeSegment;

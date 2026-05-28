@@ -10,7 +10,7 @@ import { isRealtimeClientConfigured } from "@/lib/realtime/client";
 import type {
   BoardCalendarAccessPayload,
   BoardCalendarRealtimePayload,
-} from "../_components/board-calendar/types";
+} from "../_types";
 
 type CalendarCardModal = {
   onClose: () => void;

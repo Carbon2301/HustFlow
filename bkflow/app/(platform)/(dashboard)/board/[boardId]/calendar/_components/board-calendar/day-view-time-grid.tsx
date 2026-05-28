@@ -24,20 +24,20 @@ import { cn } from "@/lib/utils";
 import {
   DAY_TIME_SLOTS,
   MINUTES_IN_DAY,
-} from "./constants";
+} from "../../_lib/constants";
 import {
   formatDayTitle,
   getGmt7DayKey,
   getGmt7Parts,
-} from "./date-utils";
+} from "../../_lib/date-utils";
 import {
   getDayViewBlockContext,
   getDayViewBlockStyle,
   getDayViewBlockTimeLabel,
   getDayViewBlockTone,
   getDayViewBlockTooltip,
-} from "./day-view-layout";
-import { isOverdue } from "./item-utils";
+} from "../../_lib/day-view-layout";
+import { isOverdue } from "../../_lib/item-utils";
 import type {
   CalendarResizeEdge,
   DayViewBlock,
@@ -45,7 +45,7 @@ import type {
   DayViewOverflowGroup,
   DayViewResizeState,
   PositionedDayViewBlock,
-} from "./types";
+} from "../../_types";
 
 type DayViewCreatePreview = {
   startMinute: number;

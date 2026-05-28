@@ -23,7 +23,7 @@ import { Hint } from "@/components/hint";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import type { BoardCalendarUnscheduledCard } from "@/types";
-import type { BoardCalendarList } from "./types";
+import type { BoardCalendarList } from "../../_types";
 
 type UnscheduledPanelProps = {
   lists: BoardCalendarList[];

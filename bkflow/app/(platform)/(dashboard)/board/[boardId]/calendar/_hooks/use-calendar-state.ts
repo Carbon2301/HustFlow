@@ -10,7 +10,7 @@ import {
   subWeeks,
 } from "date-fns";
 
-import type { BoardCalendarList, ViewMode } from "../_components/board-calendar/types";
+import type { BoardCalendarList, ViewMode } from "../_types";
 
 type UseCalendarStateOptions = {
   defaultUnscheduledCollapsed: boolean;

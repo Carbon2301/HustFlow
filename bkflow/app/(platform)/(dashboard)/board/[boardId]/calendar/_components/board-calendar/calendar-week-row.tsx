@@ -10,7 +10,7 @@ import { CalendarRangeSegmentItem } from "./calendar-range-segment";
 import {
   MONTH_RANGE_LANES,
   WEEK_RANGE_LANES,
-} from "./constants";
+} from "../../_lib/constants";
 import type {
   CalendarOccurrence,
   CalendarRange,
@@ -18,7 +18,7 @@ import type {
   CalendarResizeEdge,
   CalendarResizeState,
   ViewMode,
-} from "./types";
+} from "../../_types";
 
 type CalendarWeekRowProps = {
   weekDays: Date[];

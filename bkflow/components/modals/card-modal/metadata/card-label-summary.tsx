@@ -5,7 +5,7 @@ import { Plus } from "lucide-react";
 import type { CardWithList } from "@/types";
 import { Hint } from "@/components/hint";
 import { getColorName } from "@/lib/utils";
-import { LabelPopover } from "../label-popover";
+import { LabelPopover } from "./label-popover";
 
 interface CardLabelSummaryProps {
   cardId: string;

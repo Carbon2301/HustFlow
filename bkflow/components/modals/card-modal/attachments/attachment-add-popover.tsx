@@ -6,8 +6,8 @@ import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 import type { CardAttachment } from "@prisma/client";
 
-import { createCardAttachment } from "@/actions/cards/create-card-attachment";
-import { createCardFileAttachments } from "@/actions/cards/create-card-file-attachments";
+import { createCardAttachment } from "@/actions/attachments/create-card-attachment";
+import { createCardFileAttachments } from "@/actions/attachments/create-card-file-attachments";
 import { FormInput } from "@/components/form/form-input";
 import { FormSubmit } from "@/components/form/form-submit";
 import { Button } from "@/components/ui/button";

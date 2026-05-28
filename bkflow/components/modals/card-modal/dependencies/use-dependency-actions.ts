@@ -4,8 +4,8 @@ import { useState } from "react";
 import { useQueryClient } from "@tanstack/react-query";
 import { toast } from "sonner";
 
-import { createCardDependency } from "@/actions/cards/create-card-dependency";
-import { deleteCardDependency } from "@/actions/cards/delete-card-dependency";
+import { createCardDependency } from "@/actions/dependencies/create-card-dependency";
+import { deleteCardDependency } from "@/actions/dependencies/delete-card-dependency";
 import { useAction } from "@/hooks/use-action";
 
 import type { DependencyListItem } from "./dependency-utils";

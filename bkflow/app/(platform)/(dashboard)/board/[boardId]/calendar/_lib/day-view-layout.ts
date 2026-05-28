@@ -19,7 +19,7 @@ import type {
   DayViewBlockStyle,
   DayViewOverflowGroup,
   PositionedDayViewBlock,
-} from "./types";
+} from "../_types";
 
 export const clampRangeToGmt7Day = (
   rangeStart: Date,

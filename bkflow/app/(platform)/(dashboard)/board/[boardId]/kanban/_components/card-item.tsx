@@ -16,7 +16,7 @@ import { archiveCard } from "@/actions/cards/archive-card";
 import { updateCard } from "@/actions/cards/update-card";
 import { cn } from "@/lib/utils";
 import type { ListWithCards } from "@/types";
-import { CopyCardDialog } from "@/components/modals/card-modal/copy-card-dialog";
+import { CopyCardDialog } from "@/components/modals/copy-card-dialog";
 
 import { useBoardState } from "./board-state-context";
 import { CardBadges, CardLabels } from "./card-badges";

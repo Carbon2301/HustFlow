@@ -11,13 +11,13 @@ import type { BoardCalendarResponse } from "@/types";
 
 import {
   MIN_CREATE_DURATION_MS,
-} from "../_components/board-calendar/constants";
+} from "../_lib/constants";
 import {
   formatGmt7DateTimeInput,
   getDefaultCreateRangeForDay,
   parseGmt7DateTimeInput,
-} from "../_components/board-calendar/date-utils";
-import type { BoardCalendarList } from "../_components/board-calendar/types";
+} from "../_lib/date-utils";
+import type { BoardCalendarList } from "../_types";
 
 type CalendarCreateCardModal = {
   onOpen: (id: string, options?: { checklistItemId?: string }) => void;
