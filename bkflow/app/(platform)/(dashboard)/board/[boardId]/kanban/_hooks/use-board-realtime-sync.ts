@@ -435,6 +435,16 @@ export const useBoardRealtimeSync = ({
       return;
     }
 
+    if (payload.actorUserId === currentUserId) {
+      debugBoardRealtime("event ignored", {
+        boardId,
+        cardId: payload.cardId,
+        eventId: payload.eventId,
+        reason: "own card member assigned event already applied optimistically",
+      });
+      return;
+    }
+
     if (!await patchCardFromFetch(payload.cardId, "card member assigned")) {
       debugBoardRealtime("fallback fetch/refresh", {
         boardId,
@@ -454,6 +464,7 @@ export const useBoardRealtimeSync = ({
     boardId,
     cardModal.id,
     cardModal.isOpen,
+    currentUserId,
     patchCardFromFetch,
     processBoardEvent,
     queryClient,
@@ -462,6 +473,16 @@ export const useBoardRealtimeSync = ({
 
   const handleCardMemberUnassigned = useCallback((payload: CardMemberUnassignedPayload) => {
     if (payload.boardId !== boardId || !processBoardEvent(payload.eventId)) {
+      return;
+    }
+
+    if (payload.actorUserId === currentUserId) {
+      debugBoardRealtime("event ignored", {
+        boardId,
+        cardId: payload.cardId,
+        eventId: payload.eventId,
+        reason: "own card member unassigned event already applied optimistically",
+      });
       return;
     }
 
@@ -495,6 +516,7 @@ export const useBoardRealtimeSync = ({
     boardId,
     cardModal.id,
     cardModal.isOpen,
+    currentUserId,
     processBoardEvent,
     queryClient,
     setOrderedData,
@@ -784,6 +806,18 @@ export const useBoardRealtimeSync = ({
       return;
     }
 
+    const isCardLabelEvent = "attachedAt" in payload || "detachedAt" in payload;
+
+    if (isCardLabelEvent && payload.actorUserId === currentUserId) {
+      debugBoardRealtime("event ignored", {
+        boardId,
+        cardId: payload.cardId,
+        eventId: payload.eventId,
+        reason: "own card label event already applied optimistically",
+      });
+      return;
+    }
+
     if (payload.cardId) {
       if (!await patchCardFromFetch(payload.cardId, "label sync")) {
         router.refresh();
@@ -801,7 +835,7 @@ export const useBoardRealtimeSync = ({
         queryClient.invalidateQueries({ queryKey: ["card", cardModal.id] });
       }
     }
-  }, [boardId, cardModal.id, cardModal.isOpen, patchCardFromFetch, processBoardEvent, queryClient, router]);
+  }, [boardId, cardModal.id, cardModal.isOpen, currentUserId, patchCardFromFetch, processBoardEvent, queryClient, router]);
 
   const handleAttachmentReordered = useCallback((payload: AttachmentReorderedPayload) => {
     if (payload.boardId !== boardId || !processBoardEvent(payload.eventId)) {

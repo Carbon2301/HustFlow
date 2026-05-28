@@ -28,7 +28,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { useBoardCalendarInvalidation } from "@/hooks/use-board-calendar-invalidation";
-import { patchBoardCardPreview, patchCardQueryData } from "./card-cache-utils";
+import {
+  mergeCardLabel,
+  patchBoardCardPreview,
+  patchCardQueryData,
+  removeCardLabel,
+  scheduleCoalescedCardRefetch,
+} from "./card-cache-utils";
 
 const LABEL_COLORS = [
   // Hàng 1
@@ -72,11 +78,14 @@ export const LabelPopover = ({
   const [screen, setScreen] = useState<"select" | "create" | "edit">("select");
   const [searchQuery, setSearchQuery] = useState("");
   const [editingLabelId, setEditingLabelId] = useState<string | null>(null);
-  const labelRollbackRef = useRef<Map<string, {
-    previousLabels: (CardLabel & { label: Label })[];
+  const labelRequestsRef = useRef<Map<string, {
+    previousCardLabel: (CardLabel & { label: Label }) | null;
+    sentAttached: boolean;
+    queuedAttached: boolean | null;
     version: number;
   }>>(new Map());
   const labelRequestVersionsRef = useRef<Map<string, number>>(new Map());
+  const labelPendingCountRef = useRef(0);
 
   // Form states
   const [titleValue, setTitleValue] = useState("");
@@ -96,14 +105,18 @@ export const LabelPopover = ({
     }
   };
 
-  const invalidateCardQueries = () => {
-    queryClient.invalidateQueries({
-      queryKey: ["card", cardId],
-    });
+  const invalidateCardMetadataQueries = () => {
     queryClient.invalidateQueries({
       queryKey: ["card-logs", cardId],
     });
     invalidateBoardCalendar();
+  };
+
+  const invalidateFullCardQueries = () => {
+    queryClient.invalidateQueries({
+      queryKey: ["card", cardId],
+    });
+    invalidateCardMetadataQueries();
   };
 
   // Actions
@@ -113,54 +126,164 @@ export const LabelPopover = ({
     return nextVersion;
   };
 
-  const executeToggle = async (labelId: string, version: number) => {
-    const result = await toggleCardLabel({
+  const getCurrentLabels = () =>
+    queryClient.getQueryData<{ labels?: (CardLabel & { label: Label })[] }>(["card", cardId])?.labels ??
+    labels;
+
+  const patchLabels = (nextLabels: (CardLabel & { label: Label })[]) => {
+    patchCardQueryData(queryClient, cardId, {
+      labels: nextLabels,
+    });
+    patchBoardCardPreview(boardId, cardId, {
+      labels: nextLabels,
+    });
+  };
+
+  const getOptimisticCardLabel = (labelId: string) => {
+    const labelToAttach = boardLabels.find((label) => label.id === labelId);
+
+    if (!labelToAttach) {
+      return null;
+    }
+
+    const now = new Date();
+
+    return {
+      id: `temp-cl-${cardId}-${labelId}`,
       cardId,
       labelId,
-      boardId,
-    });
+      createdAt: now,
+      updatedAt: now,
+      label: labelToAttach,
+    };
+  };
 
-    if (result.error) {
-      const rollback = labelRollbackRef.current.get(labelId);
+  const finishLabelSuccess = (
+    labelId: string,
+    confirmedAttached: boolean,
+    nextLabels: (CardLabel & { label: Label })[],
+    version: number,
+  ) => {
+    const request = labelRequestsRef.current.get(labelId);
 
-      if (rollback && rollback.version === version) {
-        patchCardQueryData(queryClient, cardId, {
-          labels: rollback.previousLabels,
-        });
-        patchBoardCardPreview(boardId, cardId, {
-          labels: rollback.previousLabels,
-        });
-        labelRollbackRef.current.delete(labelId);
-      }
-
-      toast.error(result.error);
+    if (!request || request.version !== version) {
       return;
     }
 
-    if (result.data) {
-      const rollback = labelRollbackRef.current.get(result.data.labelId);
+    invalidateCardMetadataQueries();
 
-      if (rollback && rollback.version === version) {
-        labelRollbackRef.current.delete(result.data.labelId);
-        invalidateCardQueries();
+    const queuedAttached = request.queuedAttached;
+    labelRequestsRef.current.delete(labelId);
+
+    if (queuedAttached !== null && queuedAttached !== confirmedAttached) {
+      sendLabelMutation(labelId, queuedAttached, nextLabels);
+      return;
+    }
+
+    patchLabels(nextLabels);
+  };
+
+  const finishLabelError = (
+    labelId: string,
+    desiredAttached: boolean,
+    version: number,
+    error: string,
+  ) => {
+    const request = labelRequestsRef.current.get(labelId);
+
+    if (request && request.version === version && request.sentAttached === desiredAttached) {
+      const currentLabels = getCurrentLabels();
+      const nextLabels = request.previousCardLabel
+        ? mergeCardLabel(currentLabels, request.previousCardLabel)
+        : removeCardLabel(currentLabels, labelId);
+
+      patchLabels(nextLabels);
+      labelRequestsRef.current.delete(labelId);
+    }
+
+    toast.error(error);
+  };
+
+  const executeToggle = async (labelId: string, desiredAttached: boolean, version: number) => {
+    labelPendingCountRef.current += 1;
+
+    try {
+      const result = await toggleCardLabel({
+        cardId,
+        labelId,
+        boardId,
+      });
+
+      if (result.error) {
+        finishLabelError(labelId, desiredAttached, version, result.error);
+        return;
+      }
+
+      if (result.data) {
+        const confirmedLabel = getOptimisticCardLabel(result.data.labelId);
+        const nextLabels = result.data.toggled && confirmedLabel
+          ? mergeCardLabel(getCurrentLabels(), confirmedLabel)
+          : removeCardLabel(getCurrentLabels(), result.data.labelId);
+
+        finishLabelSuccess(
+          result.data.labelId,
+          result.data.toggled,
+          nextLabels,
+          version,
+        );
+        return;
+      }
+
+      finishLabelError(
+        labelId,
+        desiredAttached,
+        version,
+        "Có lỗi xảy ra khi cập nhật nhãn.",
+      );
+    } catch {
+      finishLabelError(
+        labelId,
+        desiredAttached,
+        version,
+        "Có lỗi xảy ra khi cập nhật nhãn.",
+      );
+    } finally {
+      labelPendingCountRef.current = Math.max(0, labelPendingCountRef.current - 1);
+
+      if (labelPendingCountRef.current === 0) {
+        scheduleCoalescedCardRefetch(queryClient, cardId);
       }
     }
+  };
+
+  const sendLabelMutation = (
+    labelId: string,
+    desiredAttached: boolean,
+    previousLabels: (CardLabel & { label: Label })[],
+  ) => {
+    const version = getNextLabelRequestVersion(labelId);
+
+    labelRequestsRef.current.set(labelId, {
+      previousCardLabel: previousLabels.find((item) => item.labelId === labelId) ?? null,
+      sentAttached: desiredAttached,
+      queuedAttached: null,
+      version,
+    });
+
+    void executeToggle(labelId, desiredAttached, version);
   };
 
   const { execute: executeCreate, isLoading: isLoadingCreate } = useAction(createLabel, {
     onSuccess: (data) => {
       toast.success(`Đã tạo và gắn nhãn "${data.title || "không tên"}"`);
-      const nextLabels = [
-        ...labels,
-        {
-          id: `temp-cl-${new Date().getTime()}`,
-          cardId,
-          labelId: data.id,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-          label: data,
-        },
-      ];
+      const nextLabels = mergeCardLabel(getCurrentLabels(), {
+        id: `temp-cl-${new Date().getTime()}`,
+        cardId,
+        labelId: data.id,
+        createdAt: new Date(),
+        updatedAt: new Date(),
+        label: data,
+      });
 
       patchCardQueryData(queryClient, cardId, {
         labels: nextLabels,
@@ -169,7 +292,8 @@ export const LabelPopover = ({
         labels: nextLabels,
       });
 
-      invalidateCardQueries();
+      invalidateCardMetadataQueries();
+      scheduleCoalescedCardRefetch(queryClient, cardId);
       setScreen("select");
       setTitleValue("");
       setColorValue("#0ea5e9");
@@ -181,7 +305,7 @@ export const LabelPopover = ({
 
   const { execute: executeUpdate, isLoading: isLoadingUpdate } = useAction(updateLabel, {
     onSuccess: () => {
-      invalidateCardQueries();
+      invalidateFullCardQueries();
       router.refresh();
       setScreen("select");
       setEditingLabelId(null);
@@ -196,7 +320,7 @@ export const LabelPopover = ({
   const { execute: executeDelete, isLoading: isLoadingDelete } = useAction(deleteLabel, {
     onSuccess: (data) => {
       toast.success(`Đã xóa nhãn "${data.title || "không tên"}" khỏi bảng`);
-      invalidateCardQueries();
+      invalidateFullCardQueries();
       router.refresh();
       setScreen("select");
       setEditingLabelId(null);
@@ -209,42 +333,26 @@ export const LabelPopover = ({
   });
 
   // Action Triggers
-  const handleToggleLabel = (labelId: string) => {
-    const currentLabels =
-      queryClient.getQueryData<{ labels?: (CardLabel & { label: Label })[] }>(["card", cardId])?.labels ??
-      labels;
+  const handleToggleLabel = async (labelId: string) => {
+    const currentLabels = getCurrentLabels();
     const isAttached = currentLabels.some((item) => item.labelId === labelId);
-    const labelToAttach = boardLabels.find((label) => label.id === labelId);
+    const desiredAttached = !isAttached;
+    const activeRequest = labelRequestsRef.current.get(labelId);
+    await queryClient.cancelQueries({ queryKey: ["card", cardId] });
+    const optimisticCardLabel = getOptimisticCardLabel(labelId);
     const nextLabels = isAttached
-      ? currentLabels.filter((item) => item.labelId !== labelId)
-      : labelToAttach
-        ? [
-          ...currentLabels,
-          {
-            id: `temp-cl-${cardId}-${labelId}`,
-            cardId,
-            labelId,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-            label: labelToAttach,
-          },
-        ]
+      ? removeCardLabel(currentLabels, labelId)
+      : optimisticCardLabel
+        ? mergeCardLabel(currentLabels, optimisticCardLabel)
         : currentLabels;
 
-    const version = getNextLabelRequestVersion(labelId);
+    patchLabels(nextLabels);
 
-    labelRollbackRef.current.set(labelId, {
-      previousLabels: currentLabels,
-      version,
-    });
-    patchCardQueryData(queryClient, cardId, {
-      labels: nextLabels,
-    });
-    patchBoardCardPreview(boardId, cardId, {
-      labels: nextLabels,
-    });
-
-    void executeToggle(labelId, version);
+    if (activeRequest) {
+      activeRequest.queuedAttached = desiredAttached;
+    } else {
+      sendLabelMutation(labelId, desiredAttached, currentLabels);
+    }
   };
 
   const handleCreateLabel = (e: React.FormEvent) => {
@@ -299,9 +407,7 @@ export const LabelPopover = ({
     );
   }, [boardLabels, searchQuery]);
 
-  const activeLabelIds = useMemo(() => {
-    return new Set(labels.map((l) => l.labelId));
-  }, [labels]);
+  const activeLabelIds = new Set(getCurrentLabels().map((l) => l.labelId));
 
   const isLoading = isLoadingCreate || isLoadingUpdate || isLoadingDelete;
 
@@ -364,7 +470,6 @@ export const LabelPopover = ({
                         <input
                           type="checkbox"
                           checked={isChecked}
-                          disabled={isLoading}
                           onChange={() => handleToggleLabel(label.id)}
                           className="h-4 w-4 rounded-sm border-neutral-300 accent-violet-600 cursor-pointer shadow-xs"
                         />
@@ -372,7 +477,6 @@ export const LabelPopover = ({
                         <button
                           type="button"
                           onClick={() => handleToggleLabel(label.id)}
-                          disabled={isLoading}
                           style={{ backgroundColor: label.color }}
                           className="flex-1 h-8 rounded-md px-3 text-left font-semibold text-neutral-900/90 text-xs truncate hover:opacity-85 active:opacity-75 transition-opacity shadow-xs border border-black/5 flex items-center justify-between cursor-pointer"
                         >

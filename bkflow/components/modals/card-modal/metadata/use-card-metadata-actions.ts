@@ -15,7 +15,13 @@ import {
 } from "@/lib/date-utils";
 
 import { humanizeReminderMinutes } from "./metadata-utils";
-import { patchBoardCardPreview, patchCardQueryData } from "../card-cache-utils";
+import {
+  mergeCardAssignee,
+  patchBoardCardPreview,
+  patchCardQueryData,
+  removeCardAssignee,
+  scheduleCoalescedCardRefetch,
+} from "../card-cache-utils";
 
 interface UseCardMetadataActionsProps {
   data: CardWithList;
@@ -41,12 +47,13 @@ export const useCardMetadataActions = ({
     previousIsCompleted: CardWithList["isCompleted"];
   } | null>(null);
   const memberRequestsRef = useRef(new Map<string, {
-    previousAssignees: CardWithList["assignees"];
+    previousAssignee: CardWithList["assignees"][number] | null;
     sentAssigned: boolean;
     queuedAssigned: boolean | null;
     version: number;
   }>());
   const memberRequestVersionsRef = useRef(new Map<string, number>());
+  const memberPendingCountRef = useRef(0);
   const [assignPendingCount, setAssignPendingCount] = useState(0);
   const [unassignPendingCount, setUnassignPendingCount] = useState(0);
 
@@ -183,7 +190,12 @@ export const useCardMetadataActions = ({
     const request = memberRequestsRef.current.get(memberId);
 
     if (request && request.version === version && request.sentAssigned === sentAssigned) {
-      patchAssignees(request.previousAssignees);
+      const currentAssignees = getCurrentAssignees();
+      const assignees = request.previousAssignee
+        ? mergeCardAssignee(currentAssignees, request.previousAssignee)
+        : removeCardAssignee(currentAssignees, memberId);
+
+      patchAssignees(assignees);
       memberRequestsRef.current.delete(memberId);
     }
 
@@ -191,6 +203,7 @@ export const useCardMetadataActions = ({
   };
 
   const executeAssignMember = async (memberId: string, version: number) => {
+    memberPendingCountRef.current += 1;
     setAssignPendingCount((count) => count + 1);
 
     try {
@@ -207,10 +220,7 @@ export const useCardMetadataActions = ({
 
       if (result.data) {
         const assigned = result.data;
-        const assignees = [
-          ...getCurrentAssignees().filter((item) => item.boardMemberId !== assigned.boardMemberId),
-          assigned,
-        ];
+        const assignees = mergeCardAssignee(getCurrentAssignees(), assigned);
 
         finishMemberSuccess(
           assigned.boardMemberId,
@@ -220,12 +230,34 @@ export const useCardMetadataActions = ({
           version,
         );
       }
+
+      if (!result.data) {
+        finishMemberError(
+          memberId,
+          true,
+          version,
+          "Có lỗi xảy ra khi cập nhật thành viên.",
+        );
+      }
+    } catch {
+      finishMemberError(
+        memberId,
+        true,
+        version,
+        "Có lỗi xảy ra khi cập nhật thành viên.",
+      );
     } finally {
+      memberPendingCountRef.current = Math.max(0, memberPendingCountRef.current - 1);
       setAssignPendingCount((count) => Math.max(0, count - 1));
+
+      if (memberPendingCountRef.current === 0) {
+        scheduleCoalescedCardRefetch(queryClient, data.id);
+      }
     }
   };
 
   const executeUnassignMember = async (memberId: string, version: number) => {
+    memberPendingCountRef.current += 1;
     setUnassignPendingCount((count) => count + 1);
 
     try {
@@ -242,8 +274,10 @@ export const useCardMetadataActions = ({
 
       if (result.data) {
         const unassigned = result.data;
-        const assignees = getCurrentAssignees()
-          .filter((item) => item.boardMemberId !== unassigned.boardMemberId);
+        const assignees = removeCardAssignee(
+          getCurrentAssignees(),
+          unassigned.boardMemberId,
+        );
 
         finishMemberSuccess(
           unassigned.boardMemberId,
@@ -253,8 +287,29 @@ export const useCardMetadataActions = ({
           version,
         );
       }
+
+      if (!result.data) {
+        finishMemberError(
+          memberId,
+          false,
+          version,
+          "Có lỗi xảy ra khi cập nhật thành viên.",
+        );
+      }
+    } catch {
+      finishMemberError(
+        memberId,
+        false,
+        version,
+        "Có lỗi xảy ra khi cập nhật thành viên.",
+      );
     } finally {
+      memberPendingCountRef.current = Math.max(0, memberPendingCountRef.current - 1);
       setUnassignPendingCount((count) => Math.max(0, count - 1));
+
+      if (memberPendingCountRef.current === 0) {
+        scheduleCoalescedCardRefetch(queryClient, data.id);
+      }
     }
   };
 
@@ -266,7 +321,7 @@ export const useCardMetadataActions = ({
     const version = getNextMemberRequestVersion(memberId);
 
     memberRequestsRef.current.set(memberId, {
-      previousAssignees,
+      previousAssignee: previousAssignees.find((item) => item.boardMemberId === memberId) ?? null,
       sentAssigned: desiredAssigned,
       queuedAssigned: null,
       version,
@@ -448,16 +503,20 @@ export const useCardMetadataActions = ({
     });
   };
 
-  const handleMemberToggle = (memberId: string, isAssigned: boolean) => {
+  const handleMemberToggle = async (memberId: string, isAssigned: boolean) => {
     const desiredAssigned = !isAssigned;
     const activeRequest = memberRequestsRef.current.get(memberId);
     const currentAssignees = getCurrentAssignees();
+    await queryClient.cancelQueries({ queryKey: ["card", data.id] });
     const nextAssignees = desiredAssigned
-      ? [
-        ...currentAssignees.filter((item) => item.boardMemberId !== memberId),
-        getOptimisticAssignee(memberId),
-      ].filter((item): item is CardWithList["assignees"][number] => Boolean(item))
-      : currentAssignees.filter((item) => item.boardMemberId !== memberId);
+      ? (() => {
+          const optimisticAssignee = getOptimisticAssignee(memberId);
+
+          return optimisticAssignee
+            ? mergeCardAssignee(currentAssignees, optimisticAssignee)
+            : currentAssignees;
+        })()
+      : removeCardAssignee(currentAssignees, memberId);
 
     patchAssignees(nextAssignees);
 
