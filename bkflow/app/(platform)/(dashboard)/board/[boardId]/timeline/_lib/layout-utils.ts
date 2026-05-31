@@ -101,9 +101,9 @@ export const getTimelinePlacement = (
   };
 };
 
-export const getTimelineBounds = (cards: ScheduledCard[]) => {
+export const getTimelineBounds = (cards: ScheduledCard[], now: Date) => {
   if (cards.length === 0) {
-    const today = startOfDay(new Date());
+    const today = startOfDay(now);
 
     return {
       start: today,
@@ -120,10 +120,10 @@ export const getTimelineBounds = (cards: ScheduledCard[]) => {
   };
 };
 
-export const isCardOverdue = (card: BoardTimelineCard) => {
+export const isCardOverdue = (card: BoardTimelineCard, now = new Date()) => {
   const dueDate = parseTimelineDate(card.dueDate);
 
-  return Boolean(dueDate && isBefore(dueDate, startOfDay(new Date())) && !card.isCompleted);
+  return Boolean(dueDate && isBefore(dueDate, startOfDay(now)) && !card.isCompleted);
 };
 
 export const getCardTimelineTitle = (row: ScheduledCard) => {
@@ -201,6 +201,7 @@ export const applyTimelineDateOverrides = (
 export const getTimelineDerivedData = (
   lists: BoardTimelineList[],
   zoom: TimelineZoom,
+  now = new Date(),
 ): TimelineDerivedData => {
   const allCards = lists.flatMap((list) => list.cards);
   const scheduledCards = allCards
@@ -219,7 +220,7 @@ export const getTimelineDerivedData = (
   const unscheduledCards = allCards
     .filter((card) => !card.startDate && !card.dueDate)
     .sort((left, right) => left.listOrder - right.listOrder || left.order - right.order);
-  const bounds = getTimelineBounds(scheduledCards);
+  const bounds = getTimelineBounds(scheduledCards, now);
   const units = getTimelineUnits(bounds.start, bounds.end, zoom);
 
   return {

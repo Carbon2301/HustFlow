@@ -119,6 +119,7 @@ const BoardSplitPage = async ({
     title: list.title,
     order: list.order,
   }));
+  const initialNowIso = new Date().toISOString();
 
   return (
     <SplitPane
@@ -128,6 +129,7 @@ const BoardSplitPage = async ({
           lists={calendarLists}
           currentUserId={userId}
           currentBoardMemberId={currentMembership.membership.id}
+          initialNowIso={initialNowIso}
           defaultUnscheduledCollapsed
           variant="split"
         />

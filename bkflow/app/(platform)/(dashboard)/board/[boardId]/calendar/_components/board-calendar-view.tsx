@@ -53,6 +53,7 @@ export const BoardCalendarView = ({
   lists,
   currentUserId,
   currentBoardMemberId,
+  initialNowIso,
   defaultUnscheduledCollapsed = false,
   variant = "default",
 }: BoardCalendarViewProps) => {
@@ -84,7 +85,7 @@ export const BoardCalendarView = ({
     goToNext,
     goToToday,
     changeViewMode,
-  } = useCalendarState({ defaultUnscheduledCollapsed, lists });
+  } = useCalendarState({ defaultUnscheduledCollapsed, initialNowIso, lists });
   const suppressClickRef = useRef(false);
   const filters = useBoardFilters((state) =>
     state.filtersByBoardId[boardId] ?? emptyBoardFilters,

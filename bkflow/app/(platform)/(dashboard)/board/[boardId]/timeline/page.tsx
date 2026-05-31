@@ -332,6 +332,7 @@ const BoardTimelinePage = async ({
         currentUserId={userId}
         currentBoardMemberId={currentMembership.membership.id}
         currentMemberRole={currentMembership.membership.role}
+        initialNowIso={new Date().toISOString()}
       />
     </div>
   );

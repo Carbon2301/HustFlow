@@ -14,16 +14,18 @@ import type { BoardCalendarList, ViewMode } from "../_types";
 
 type UseCalendarStateOptions = {
   defaultUnscheduledCollapsed: boolean;
+  initialNowIso: string;
   lists: BoardCalendarList[];
 };
 
 export const useCalendarState = ({
   defaultUnscheduledCollapsed,
+  initialNowIso,
   lists,
 }: UseCalendarStateOptions) => {
   const [viewMode, setViewMode] = useState<ViewMode>("month");
-  const [anchorDate, setAnchorDate] = useState(() => new Date());
-  const [currentTime, setCurrentTime] = useState(() => new Date());
+  const [anchorDate, setAnchorDate] = useState(() => new Date(initialNowIso));
+  const [currentTime, setCurrentTime] = useState(() => new Date(initialNowIso));
   const [expandedDayKey, setExpandedDayKey] = useState<string | null>(null);
   const [openDayOverflowGroupId, setOpenDayOverflowGroupId] = useState<string | null>(null);
   const [createDialogDay, setCreateDialogDay] = useState<Date | null>(null);

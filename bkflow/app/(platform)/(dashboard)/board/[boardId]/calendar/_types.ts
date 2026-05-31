@@ -8,6 +8,7 @@ export interface BoardCalendarViewProps {
   lists: BoardCalendarList[];
   currentUserId: string;
   currentBoardMemberId: string;
+  initialNowIso: string;
   defaultUnscheduledCollapsed?: boolean;
   variant?: "default" | "split";
 }
