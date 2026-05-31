@@ -312,7 +312,7 @@ export const ChecklistsSection = ({
     onSuccess: () => {
       mutationRollbackRef.current = null;
       toast.success("Đã xoá mục công việc");
-      invalidateCard(false);
+      invalidateCard(true);
     },
     onError: (error) => {
       rollbackLocalChecklists();

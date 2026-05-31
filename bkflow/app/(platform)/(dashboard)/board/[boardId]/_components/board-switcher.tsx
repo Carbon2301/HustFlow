@@ -111,7 +111,7 @@ export const BoardSwitcher = ({
           className="ml-1 gap-x-2 text-white/90 hover:bg-white/20 hover:text-white font-medium"
         >
           <Kanban className="h-4 w-4" />
-          <span className="hidden sm:inline">Chuyển đổi các bảng</span>
+          <span className="hidden lg:inline">Chuyển đổi các bảng</span>
         </Button>
       </DialogTrigger>
       <DialogContent className="sm:max-w-3xl w-[calc(100%-2rem)] h-[min(720px,calc(100vh-4rem))] gap-4 rounded-xl bg-white p-6 text-neutral-900 border border-neutral-200 shadow-2xl flex flex-col">

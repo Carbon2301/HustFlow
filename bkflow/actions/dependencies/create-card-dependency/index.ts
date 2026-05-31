@@ -178,7 +178,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     await triggerRelatedDependencyCardsUpdated({
       boardId,
       sourceCardId: blockerCard.id,
-      relatedCardIds: [blockedCard.id],
+      relatedCardIds: [blockerCard.id, blockedCard.id],
       actorUserId: userId,
     });
 

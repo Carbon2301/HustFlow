@@ -13,6 +13,8 @@ type BoardActivityLog = AuditLog & {
   cardTitle?: string;
   cardArchived?: boolean;
   listExists?: boolean;
+  checklistExists?: boolean;
+  checklistItemExists?: boolean;
 };
 
 type BoardActivityResponse = {
@@ -122,6 +124,8 @@ export const BoardActivityPopoverContent = ({
                 cardTitle={item.cardTitle}
                 cardArchived={item.cardArchived}
                 listExists={item.listExists}
+                checklistExists={item.checklistExists}
+                checklistItemExists={item.checklistItemExists}
                 memberNames={memberNames}
                 hideBoardContext
               />

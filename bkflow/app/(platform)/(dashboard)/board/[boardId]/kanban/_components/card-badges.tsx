@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { CheckSquare, LockKeyhole, MessageSquare, Paperclip } from "lucide-react";
 
 import { DueDateBadge } from "@/components/due-date-badge";
@@ -21,28 +22,95 @@ const getInitials = (name: string) => {
   return initials.toUpperCase() || "U";
 };
 
+const getContrastColor = (hexColor: string): string => {
+  let hex = hexColor.replace("#", "");
+  if (hex.length === 3) {
+    hex = hex.split("").map((c) => c + c).join("");
+  }
+  if (hex.length !== 6) {
+    return "text-neutral-900";
+  }
+  const r = parseInt(hex.slice(0, 2), 16);
+  const g = parseInt(hex.slice(2, 4), 16);
+  const b = parseInt(hex.slice(4, 6), 16);
+  
+  const a = [r, g, b].map((v) => {
+    v /= 255;
+    return v <= 0.03928 ? v / 12.92 : Math.pow((v + 0.055) / 1.055, 2.4);
+  });
+  const luminance = 0.2126 * a[0] + 0.7152 * a[1] + 0.0722 * a[2];
+  
+  return luminance > 0.45 ? "text-neutral-900/90" : "text-white";
+};
+
 export const CardLabels = ({
   card,
 }: CardBadgesProps) => {
+  const [isExpanded, setIsExpanded] = useState(false);
+
+  useEffect(() => {
+    const saved = localStorage.getItem("bkflow-labels-expanded");
+    if (saved === "true") {
+      setIsExpanded(true);
+    }
+
+    const handleToggle = () => {
+      const currentSaved = localStorage.getItem("bkflow-labels-expanded");
+      setIsExpanded(currentSaved === "true");
+    };
+
+    window.addEventListener("bkflow-labels-toggle", handleToggle);
+    return () => {
+      window.removeEventListener("bkflow-labels-toggle", handleToggle);
+    };
+  }, []);
+
+  const onToggle = (e: React.MouseEvent) => {
+    e.stopPropagation();
+    e.preventDefault();
+    const nextState = !isExpanded;
+    localStorage.setItem("bkflow-labels-expanded", String(nextState));
+    window.dispatchEvent(new CustomEvent("bkflow-labels-toggle"));
+  };
+
   if (!card.labels || card.labels.length === 0) {
     return null;
   }
 
   return (
-    <div className="absolute top-0 left-0 right-0 flex h-2 gap-x-0.5">
-      {card.labels.map((cardLabel) => (
-        <Hint
-          key={cardLabel.id}
-          description={`Màu: ${getColorName(cardLabel.label.color)}, Tiêu đề: ${cardLabel.label.title || "Không"}`}
-          side="top"
-          sideOffset={4}
-        >
-          <div
-            className="h-full flex-1"
-            style={{ backgroundColor: cardLabel.label.color }}
-          />
-        </Hint>
-      ))}
+    <div 
+      onClick={onToggle}
+      className="flex flex-wrap gap-1 mb-1.5 transition-all duration-300"
+    >
+      {card.labels.map((cardLabel) => {
+        const textClass = getContrastColor(cardLabel.label.color);
+        
+        return (
+          <Hint
+            key={cardLabel.id}
+            description={`Màu: ${getColorName(cardLabel.label.color)}, Tiêu đề: ${cardLabel.label.title || "Không"}`}
+            side="top"
+            sideOffset={4}
+          >
+            {isExpanded ? (
+              <div
+                className={cn(
+                  "h-5 min-w-8 max-w-[140px] px-2 rounded-full flex items-center justify-center text-[10px] font-bold shadow-xs border border-black/5 hover:opacity-90 transition-all duration-150 cursor-pointer select-none",
+                  textClass
+                )}
+                style={{ backgroundColor: cardLabel.label.color }}
+              >
+                <span className="truncate">{cardLabel.label.title || " "}</span>
+              </div>
+            ) : (
+              <div
+                className="h-2 w-10 rounded-full shadow-xs border border-black/5 hover:brightness-95 cursor-pointer"
+                style={{ backgroundColor: cardLabel.label.color }}
+              />
+            )}
+          </Hint>
+        );
+      })}
     </div>
   );
 };

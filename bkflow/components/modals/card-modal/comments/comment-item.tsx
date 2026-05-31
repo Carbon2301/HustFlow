@@ -26,6 +26,7 @@ import { ReactionBar } from "./reaction-bar";
 export const CommentItem = ({
   comment,
   isReply = false,
+  canWriteComments,
   currentUserId,
   currentMemberRole,
   boardMembers,
@@ -45,6 +46,7 @@ export const CommentItem = ({
 }: {
   comment: CommentItemData;
   isReply?: boolean;
+  canWriteComments: boolean;
   currentUserId?: string;
   currentMemberRole?: BoardMemberRole;
   boardMembers: BoardMember[];
@@ -63,9 +65,12 @@ export const CommentItem = ({
   onToggleReaction: (commentId: string, emoji: ReactionEmoji) => void;
 }) => {
   const isOwner = currentUserId === comment.userId;
-  const canDelete = isOwner || currentMemberRole === BoardMemberRole.ADMIN;
+  const canEditOwnComment = canWriteComments && isOwner;
+  const canDeleteComment =
+    canWriteComments && (isOwner || currentMemberRole === BoardMemberRole.ADMIN);
+  const canReply = canWriteComments;
   const isEdited = new Date(comment.updatedAt).getTime() !== new Date(comment.createdAt).getTime();
-  const isEditing = editingCommentId === comment.id;
+  const isEditing = canEditOwnComment && editingCommentId === comment.id;
   const isReplying = replyingCommentId === comment.id;
 
   return (
@@ -116,22 +121,26 @@ export const CommentItem = ({
             currentUserId={currentUserId}
             reactionCounts={reactionCounts}
             isReacting={isReacting}
+            canReact={canWriteComments}
             onToggleReaction={onToggleReaction}
           />
+          {canReply && (
+            <>
+              <span>•</span>
+              <button
+                type="button"
+                onClick={() => {
+                  onSetEditingCommentId(null);
+                  onSetReplyingCommentId(comment.id);
+                }}
+                className="underline-offset-2 hover:underline"
+              >
+                Trả lời
+              </button>
+            </>
+          )}
 
-            <span>•</span>
-          <button
-            type="button"
-            onClick={() => {
-              onSetEditingCommentId(null);
-              onSetReplyingCommentId(comment.id);
-            }}
-            className="underline-offset-2 hover:underline"
-          >
-            Trả lời
-          </button>
-
-          {isOwner && (
+          {canEditOwnComment && (
             <>
               <span>•</span>
               <button
@@ -147,7 +156,7 @@ export const CommentItem = ({
             </>
           )}
 
-          {canDelete && (
+          {canDeleteComment && (
             <>
               <span>•</span>
               <Popover>
@@ -192,7 +201,7 @@ export const CommentItem = ({
           )}
         </div>
 
-        {isReplying && (
+        {canReply && isReplying && (
           <CommentEditor
             placeholder="Viết phản hồi..."
             initialValue={`${

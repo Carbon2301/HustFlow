@@ -28,7 +28,7 @@ export const Activity = ({
       {items.length === 0 ? (
         <p className="text-sm text-neutral-400 italic pl-0">Chưa có hoạt động nào.</p>
       ) : (
-        <div className="max-h-[250px] overflow-y-auto pr-2 styled-scrollbar">
+        <div className="max-h-[450px] overflow-y-auto pr-2 styled-scrollbar">
           <ol className="space-y-3.5 pl-0">
             {items.map((item) => (
               <ActivityItem

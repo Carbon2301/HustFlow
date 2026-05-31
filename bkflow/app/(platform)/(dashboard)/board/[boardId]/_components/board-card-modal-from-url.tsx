@@ -9,6 +9,7 @@ export const BoardCardModalFromUrl = () => {
   const router = useRouter();
   const searchParams = useSearchParams();
   const cardId = searchParams.get("cardId");
+  const checklistItemId = searchParams.get("checklistItemId") || undefined;
   const onOpen = useCardModal((state) => state.onOpen);
   const openedFromUrlRef = useRef<string | null>(null);
 
@@ -18,12 +19,15 @@ export const BoardCardModalFromUrl = () => {
       return;
     }
 
-    if (openedFromUrlRef.current === cardId) {
+    const openKey = `${cardId}:${checklistItemId ?? ""}`;
+
+    if (openedFromUrlRef.current === openKey) {
       return;
     }
 
-    openedFromUrlRef.current = cardId;
+    openedFromUrlRef.current = openKey;
     onOpen(cardId, {
+      checklistItemId,
       onClose: () => {
         const url = new URL(window.location.href);
 
@@ -32,12 +36,13 @@ export const BoardCardModalFromUrl = () => {
         }
 
         url.searchParams.delete("cardId");
+        url.searchParams.delete("checklistItemId");
         router.replace(`${url.pathname}${url.search}${url.hash}`, {
           scroll: false,
         });
       },
     });
-  }, [cardId, onOpen, router]);
+  }, [cardId, checklistItemId, onOpen, router]);
 
   return null;
 };

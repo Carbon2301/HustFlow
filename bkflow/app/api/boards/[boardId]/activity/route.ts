@@ -52,8 +52,22 @@ export async function GET(
           .filter(Boolean),
       ),
     ) as string[];
+    const checklistIds = Array.from(
+      new Set(
+        auditLogs
+          .filter((log) => log.entityType === "CHECKLIST")
+          .map((log) => log.entityId),
+      ),
+    );
+    const checklistItemIds = Array.from(
+      new Set(
+        auditLogs
+          .filter((log) => log.entityType === "CHECKLIST_ITEM")
+          .map((log) => log.entityId),
+      ),
+    );
 
-    const [existingCards, boardMembers, lists] = await Promise.all([
+    const [existingCards, boardMembers, lists, checklists, checklistItems] = await Promise.all([
       cardIds.length > 0
         ? db.card.findMany({
             where: {
@@ -102,6 +116,48 @@ export async function GET(
           id: true,
         },
       }),
+      checklistIds.length > 0
+        ? db.checklist.findMany({
+            where: {
+              id: {
+                in: checklistIds,
+              },
+              card: {
+                list: {
+                  board: {
+                    id: boardId,
+                    orgId,
+                  },
+                },
+              },
+            },
+            select: {
+              id: true,
+            },
+          })
+        : Promise.resolve([]),
+      checklistItemIds.length > 0
+        ? db.checklistItem.findMany({
+            where: {
+              id: {
+                in: checklistItemIds,
+              },
+              checklist: {
+                card: {
+                  list: {
+                    board: {
+                      id: boardId,
+                      orgId,
+                    },
+                  },
+                },
+              },
+            },
+            select: {
+              id: true,
+            },
+          })
+        : Promise.resolve([]),
     ]);
 
     const cardMap = new Map(
@@ -114,6 +170,8 @@ export async function GET(
       ]),
     );
     const existingListIds = new Set(lists.map((list) => list.id));
+    const existingChecklistIds = new Set(checklists.map((checklist) => checklist.id));
+    const existingChecklistItemIds = new Set(checklistItems.map((item) => item.id));
     const memberNames = Array.from(
       new Set([
         ...auditLogs.map((log) => log.userName),
@@ -131,6 +189,8 @@ export async function GET(
           cardTitle: cardInfo?.title,
           cardArchived: cardInfo?.isArchived ?? false,
           listExists: log.entityType === "LIST" ? existingListIds.has(log.entityId) : true,
+          checklistExists: log.entityType === "CHECKLIST" ? existingChecklistIds.has(log.entityId) : true,
+          checklistItemExists: log.entityType === "CHECKLIST_ITEM" ? existingChecklistItemIds.has(log.entityId) : true,
         };
       }),
       memberNames,

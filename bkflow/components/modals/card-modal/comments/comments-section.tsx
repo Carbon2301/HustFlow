@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { useUser } from "@clerk/nextjs";
 import { MessageSquare } from "lucide-react";
-import type { BoardMember, BoardMemberRole } from "@prisma/client";
+import { BoardMemberRole, type BoardMember } from "@prisma/client";
 
 import { Skeleton } from "@/components/ui/skeleton";
 import type { CardCommentWithReplies } from "@/types";
@@ -50,6 +50,8 @@ export const CommentsSection = ({
     () => getReactionCountsByCommentId(items),
     [items],
   );
+  const canWriteComments =
+    !!currentMemberRole && currentMemberRole !== BoardMemberRole.VIEWER;
 
   return (
     <div className="w-full border-t border-neutral-200 pt-6">
@@ -61,13 +63,15 @@ export const CommentsSection = ({
       </div>
 
       <div className="space-y-5">
-        <CommentEditor
-          placeholder="Viết bình luận..."
-          submitLabel="Gửi"
-          isLoading={isCreating}
-          onSubmit={(content) => onCreateComment(content)}
-          boardMembers={boardMembers}
-        />
+        {canWriteComments && (
+          <CommentEditor
+            placeholder="Viết bình luận..."
+            submitLabel="Gửi"
+            isLoading={isCreating}
+            onSubmit={(content) => onCreateComment(content)}
+            boardMembers={boardMembers}
+          />
+        )}
 
         {items.length === 0 ? (
           <p className="text-sm italic text-neutral-400">
@@ -79,6 +83,7 @@ export const CommentsSection = ({
               <div key={comment.id} className="space-y-4">
                 <CommentItem
                   comment={comment}
+                  canWriteComments={canWriteComments}
                   currentUserId={user?.id}
                   currentMemberRole={currentMemberRole}
                   boardMembers={boardMembers}
@@ -101,6 +106,7 @@ export const CommentsSection = ({
                     key={reply.id}
                     comment={reply}
                     isReply
+                    canWriteComments={canWriteComments}
                     currentUserId={user?.id}
                     currentMemberRole={currentMemberRole}
                     boardMembers={boardMembers}

@@ -93,7 +93,11 @@ export const CardRealtimeSync = ({
       return;
     }
 
-    toast.error("Thẻ này đã bị xóa.");
+    toast.error(
+      payload.archived
+        ? "Thẻ này đã được lưu trữ."
+        : "Thẻ này đã bị xóa."
+    );
     cardModal.onClose();
   }, [cardId, cardModal, user]);
 

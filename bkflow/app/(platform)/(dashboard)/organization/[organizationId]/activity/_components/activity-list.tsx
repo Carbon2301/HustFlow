@@ -308,6 +308,21 @@ export const ActivityList = async ({
         .filter(Boolean)
     )
   ) as string[];
+  const checklistIds = Array.from(
+    new Set(
+      auditLogs
+        .filter((log) => log.entityType === "CHECKLIST")
+        .map((log) => log.entityId)
+    )
+  );
+  const checklistItemIds = Array.from(
+    new Set(
+      auditLogs
+        .filter((log) => log.entityType === "CHECKLIST_ITEM")
+        .map((log) => log.entityId)
+    )
+  );
+  const accessibleBoardIds = boards.map((board) => board.id);
   const existingCards = cardIds.length > 0
     ? await db.card.findMany({
         where: {
@@ -329,6 +344,52 @@ export const ActivityList = async ({
               archivedAt: true,
             },
           },
+        },
+      })
+    : [];
+  const existingChecklists = checklistIds.length > 0
+    ? await db.checklist.findMany({
+        where: {
+          id: {
+            in: checklistIds,
+          },
+          card: {
+            list: {
+              board: {
+                id: {
+                  in: accessibleBoardIds,
+                },
+                orgId,
+              },
+            },
+          },
+        },
+        select: {
+          id: true,
+        },
+      })
+    : [];
+  const existingChecklistItems = checklistItemIds.length > 0
+    ? await db.checklistItem.findMany({
+        where: {
+          id: {
+            in: checklistItemIds,
+          },
+          checklist: {
+            card: {
+              list: {
+                board: {
+                  id: {
+                    in: accessibleBoardIds,
+                  },
+                  orgId,
+                },
+              },
+            },
+          },
+        },
+        select: {
+          id: true,
         },
       })
     : [];
@@ -372,6 +433,8 @@ export const ActivityList = async ({
     },
   });
   const existingListIds = new Set(lists.map((list) => list.id));
+  const existingChecklistIds = new Set(existingChecklists.map((checklist) => checklist.id));
+  const existingChecklistItemIds = new Set(existingChecklistItems.map((item) => item.id));
 
   const hasExplicitFilter = Boolean(
     validBoardIds.length > 0 ||
@@ -435,6 +498,8 @@ export const ActivityList = async ({
                 const cardTitle = cardInfo?.title;
                 const cardArchived = cardInfo?.isArchived;
                 const listExists = log.entityType === "LIST" ? existingListIds.has(log.entityId) : true;
+                const checklistExists = log.entityType === "CHECKLIST" ? existingChecklistIds.has(log.entityId) : true;
+                const checklistItemExists = log.entityType === "CHECKLIST_ITEM" ? existingChecklistItemIds.has(log.entityId) : true;
                 return (
                   <ActivityItem
                     key={log.id}
@@ -443,6 +508,8 @@ export const ActivityList = async ({
                     cardTitle={cardTitle}
                     cardArchived={cardArchived}
                     listExists={listExists}
+                    checklistExists={checklistExists}
+                    checklistItemExists={checklistItemExists}
                     memberNames={memberNames}
                   />
                 );

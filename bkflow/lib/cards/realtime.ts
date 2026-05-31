@@ -97,7 +97,6 @@ export const triggerCardUpdated = async ({
 
 export const triggerRelatedDependencyCardsUpdated = async ({
   boardId,
-  sourceCardId,
   relatedCardIds,
   actorUserId,
 }: {
@@ -106,8 +105,7 @@ export const triggerRelatedDependencyCardsUpdated = async ({
   relatedCardIds: string[];
   actorUserId: string;
 }) => {
-  const uniqueRelatedCardIds = Array.from(new Set(relatedCardIds))
-    .filter((cardId) => cardId && cardId !== sourceCardId);
+  const uniqueRelatedCardIds = Array.from(new Set(relatedCardIds)).filter(Boolean);
 
   if (uniqueRelatedCardIds.length === 0) {
     return;
@@ -122,11 +120,7 @@ export const triggerRelatedDependencyCardsUpdated = async ({
         actorUserId,
         changedFields: ["dependencies"] as CardUpdatedField[],
         updatedAt: new Date().toISOString(),
-        invalidate: [
-          {
-            queryKey: ["card", cardId],
-          } as RealtimeQueryInvalidation,
-        ],
+        invalidate: cardInvalidations(cardId),
       };
 
       return [

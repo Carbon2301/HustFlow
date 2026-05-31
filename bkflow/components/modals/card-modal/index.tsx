@@ -59,9 +59,6 @@ const CardModalMainContent = ({
         <AiCardQualityAssistant
           cardId={cardData.id}
           boardId={cardData.list.boardId}
-          description={cardData.description}
-          getDescriptionBaseUpdatedAt={getDescriptionBaseUpdatedAt}
-          onDescriptionBaseUpdatedAtChange={setDescriptionBaseUpdatedAt}
           checklists={cardData.checklists || []}
         />
       )}
@@ -165,15 +162,15 @@ export const CardModal = () => {
             }
             {!id
               ? <Comments.Skeleton />
-              : canEdit ? (
-                  <Comments
-                    cardId={id}
-                    boardId={cardData?.list.boardId}
-                    items={commentsData ?? []}
-                    boardMembers={cardData?.boardMembers}
-                    currentMemberRole={cardData?.currentMemberRole}
-                  />
-                ) : null
+              : (
+                <Comments
+                  cardId={id}
+                  boardId={cardData?.list.boardId}
+                  items={commentsData ?? []}
+                  boardMembers={cardData?.boardMembers}
+                  currentMemberRole={cardData?.currentMemberRole}
+                />
+              )
             }
           </div>
         </div>

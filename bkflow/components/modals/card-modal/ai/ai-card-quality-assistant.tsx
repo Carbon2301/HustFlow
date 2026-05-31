@@ -3,30 +3,14 @@
 import { useMemo, useState } from "react";
 import type { Checklist } from "@prisma/client";
 import { useQueryClient } from "@tanstack/react-query";
-import { CheckSquare, Eye, Pencil, RefreshCw, Sparkles, X } from "lucide-react";
+import { CheckSquare, RefreshCw, Sparkles, X } from "lucide-react";
 import { toast } from "sonner";
 
 import { createAiChecklistItems } from "@/actions/ai/create-ai-checklist-items";
-import { generateAiCardQuality } from "@/actions/ai/generate-ai-card-quality";
 import { generateAiChecklist } from "@/actions/ai/generate-ai-checklist";
-import { updateCard } from "@/actions/cards/update-card";
 import { Button } from "@/components/ui/button";
-import {
-  Popover,
-  PopoverAnchor,
-  PopoverContent,
-  PopoverDescription,
-} from "@/components/ui/popover";
-import { Textarea } from "@/components/ui/textarea";
 import { useAction } from "@/hooks/use-action";
 import { cn } from "@/lib/utils";
-
-import { MarkdownPreview } from "../markdown-preview";
-import { patchBoardCardPreview, patchCardQueryData } from "../card-cache-utils";
-
-type QualityTask = "create_description" | "rewrite_description";
-type AiTask = QualityTask | "suggest_checklist";
-type PreviewMode = "edit" | "preview";
 
 type ChecklistOption = Checklist & {
   items: {
@@ -38,30 +22,8 @@ type ChecklistOption = Checklist & {
 interface AiCardQualityAssistantProps {
   boardId: string;
   cardId: string;
-  description: string | null;
-  getDescriptionBaseUpdatedAt: () => string | null;
-  onDescriptionBaseUpdatedAtChange: (value: string) => void;
   checklists: ChecklistOption[];
 }
-
-const DESCRIPTION_CONFLICT_ERROR_CODE = "DESCRIPTION_CONFLICT";
-const DESCRIPTION_CONFLICT_MESSAGE =
-  "Dữ liệu đã được cập nhật bởi một thành viên khác. Vui lòng reload thẻ để xem bản mới nhất.";
-
-const toTimestampString = (value: Date | string | null | undefined) => {
-  if (!value) {
-    return null;
-  }
-
-  const date = value instanceof Date ? value : new Date(value);
-
-  return Number.isNaN(date.getTime()) ? null : date.toISOString();
-};
-
-const taskLabels: Record<QualityTask, string> = {
-  create_description: "Tạo mô tả từ tiêu đề",
-  rewrite_description: "Viết lại mô tả",
-};
 
 const NEW_CHECKLIST_VALUE = "__new__";
 const DEFAULT_CHECKLIST_TITLE = "Việc cần làm";
@@ -69,25 +31,16 @@ const DEFAULT_CHECKLIST_TITLE = "Việc cần làm";
 export const AiCardQualityAssistant = ({
   boardId,
   cardId,
-  description,
-  getDescriptionBaseUpdatedAt,
-  onDescriptionBaseUpdatedAtChange,
   checklists,
 }: AiCardQualityAssistantProps) => {
   const queryClient = useQueryClient();
-  const [activeTask, setActiveTask] = useState<AiTask | null>(null);
-  const [previewDescription, setPreviewDescription] = useState("");
-  const [previewMode, setPreviewMode] = useState<PreviewMode>("edit");
+  const [activeTask, setActiveTask] = useState<"suggest_checklist" | null>(null);
   const [checklistSuggestions, setChecklistSuggestions] = useState<string[]>([]);
-  const [isConflictOpen, setIsConflictOpen] = useState(false);
-  const [generationBaseUpdatedAt, setGenerationBaseUpdatedAt] = useState<string | null>(null);
   const [selectedChecklistItems, setSelectedChecklistItems] = useState<Set<string>>(new Set());
   const [selectedChecklistId, setSelectedChecklistId] = useState(
     checklists[0]?.id ?? NEW_CHECKLIST_VALUE,
   );
 
-  const hasDescription = !!description?.trim();
-  const isDescriptionTask = activeTask === "create_description" || activeTask === "rewrite_description";
   const isChecklistTask = activeTask === "suggest_checklist";
   const selectedChecklistItemCount = useMemo(
     () => checklistSuggestions.filter((item) => selectedChecklistItems.has(item)).length,
@@ -107,61 +60,13 @@ export const AiCardQualityAssistant = ({
 
   const resetPreview = () => {
     setActiveTask(null);
-    setPreviewDescription("");
-    setPreviewMode("edit");
     setChecklistSuggestions([]);
     setSelectedChecklistItems(new Set());
   };
 
-  const { execute: executeGenerate, isLoading: isGenerating } = useAction(generateAiCardQuality, {
-    onSuccess: (data) => {
-      setActiveTask(data.task);
-
-      if (data.description) {
-        setPreviewDescription(data.description);
-        setPreviewMode("edit");
-        return;
-      }
-    },
-    onError: (error) => toast.error(error),
-  });
-
-  const { execute: executeUpdateCard, isLoading: isUpdatingDescription } = useAction(updateCard, {
-    onSuccess: (updatedCard) => {
-      const nextDescriptionUpdatedAt = toTimestampString(
-        updatedCard.descriptionUpdatedAt,
-      );
-
-      patchCardQueryData(queryClient, updatedCard.id, {
-        description: updatedCard.description,
-        descriptionUpdatedAt: updatedCard.descriptionUpdatedAt,
-      });
-      patchBoardCardPreview(boardId, updatedCard.id, {
-        description: updatedCard.description,
-        descriptionUpdatedAt: updatedCard.descriptionUpdatedAt,
-      });
-      if (nextDescriptionUpdatedAt) {
-        onDescriptionBaseUpdatedAtChange(nextDescriptionUpdatedAt);
-      }
-      invalidateCard();
-      resetPreview();
-    },
-    onError: (error, errorCode) => {
-      if (errorCode === DESCRIPTION_CONFLICT_ERROR_CODE) {
-        setIsConflictOpen(true);
-        return;
-      }
-
-      toast.error(error);
-    },
-  });
-
-
-
   const { execute: executeGenerateChecklist, isLoading: isGeneratingChecklist } = useAction(generateAiChecklist, {
     onSuccess: (data) => {
       setActiveTask("suggest_checklist");
-      setPreviewDescription("");
       setChecklistSuggestions(data.items);
       setSelectedChecklistItems(new Set(data.items));
     },
@@ -182,22 +87,6 @@ export const AiCardQualityAssistant = ({
     },
   });
 
-  const handleGenerate = (task: QualityTask) => {
-    setActiveTask(task);
-    setPreviewMode("edit");
-    setChecklistSuggestions([]);
-    setSelectedChecklistItems(new Set());
-
-    const currentBase = getDescriptionBaseUpdatedAt();
-    setGenerationBaseUpdatedAt(currentBase);
-
-    executeGenerate({
-      boardId,
-      cardId,
-      task,
-    });
-  };
-
   const handleGenerateChecklist = () => {
     setActiveTask("suggest_checklist");
     executeGenerateChecklist({
@@ -205,44 +94,6 @@ export const AiCardQualityAssistant = ({
       cardId,
     });
   };
-
-  const handleApplyDescription = () => {
-    if (!previewDescription.trim()) {
-      return;
-    }
-
-    const baseUpdatedAt = generationBaseUpdatedAt || getDescriptionBaseUpdatedAt();
-
-    if (!baseUpdatedAt) {
-      toast.error("Không thể xác định mốc cập nhật mô tả.");
-      return;
-    }
-
-    executeUpdateCard({
-      id: cardId,
-      boardId,
-      description: previewDescription,
-      descriptionBaseUpdatedAt: baseUpdatedAt,
-    });
-  };
-
-  const reloadCard = async () => {
-    setIsConflictOpen(false);
-    await queryClient.invalidateQueries({ queryKey: ["card", cardId] });
-
-    const latestCard = queryClient.getQueryData<{
-      descriptionUpdatedAt?: Date | string;
-    }>(["card", cardId]);
-    const nextDescriptionUpdatedAt = toTimestampString(
-      latestCard?.descriptionUpdatedAt,
-    );
-
-    if (nextDescriptionUpdatedAt) {
-      onDescriptionBaseUpdatedAtChange(nextDescriptionUpdatedAt);
-    }
-  };
-
-
 
   const handleToggleChecklistItem = (item: string) => {
     setSelectedChecklistItems((current) => {
@@ -276,7 +127,7 @@ export const AiCardQualityAssistant = ({
     });
   };
 
-  const isBusy = isGenerating || isUpdatingDescription || isGeneratingChecklist || isCreatingChecklistItems;
+  const isBusy = isGeneratingChecklist || isCreatingChecklistItems;
 
   return (
     <div className="flex items-start gap-x-4 w-full">
@@ -290,7 +141,7 @@ export const AiCardQualityAssistant = ({
               Cải thiện thẻ bằng AI
             </p>
             <p className="mt-0.5 text-xs text-neutral-500">
-              Tạo bản nháp trước, chỉ áp dụng khi bạn xác nhận.
+              Gợi ý các việc cần làm phù hợp với ngữ cảnh của thẻ.
             </p>
           </div>
           {activeTask && (
@@ -307,30 +158,6 @@ export const AiCardQualityAssistant = ({
         </div>
 
         <div className="mt-3 flex flex-wrap gap-2">
-          {(Object.keys(taskLabels) as QualityTask[]).map((task) => {
-            const disabled = isBusy || (task === "rewrite_description" && !hasDescription);
-
-            return (
-              <Button
-                key={task}
-                type="button"
-                variant="outline"
-                onClick={() => handleGenerate(task)}
-                disabled={disabled}
-                className={cn(
-                  "h-8 rounded-lg border-sky-200 bg-white px-3 text-xs font-semibold text-sky-700 hover:bg-sky-50",
-                  activeTask === task && "border-sky-300 bg-sky-50",
-                )}
-              >
-                {isGenerating && activeTask === task ? (
-                  <RefreshCw className="mr-1.5 h-3.5 w-3.5 animate-spin" />
-                ) : (
-                  <Sparkles className="mr-1.5 h-3.5 w-3.5" />
-                )}
-              {isGenerating && activeTask === task ? "Đang tạo..." : taskLabels[task]}
-              </Button>
-            );
-          })}
           <Button
             type="button"
             variant="outline"
@@ -350,93 +177,6 @@ export const AiCardQualityAssistant = ({
           </Button>
         </div>
 
-        {isDescriptionTask && previewDescription && (
-          <div className="mt-3 space-y-3 rounded-lg border border-white/70 bg-white p-3 shadow-xs">
-            <div className="flex flex-wrap items-center justify-between gap-2">
-              <p className="text-xs font-semibold text-neutral-500">
-                {previewMode === "edit" ? "Bản nháp" : "Xem trước"}
-              </p>
-              <div className="flex items-center rounded-lg border border-neutral-200 bg-neutral-50 p-0.5">
-                {(["edit", "preview"] as PreviewMode[]).map((mode) => (
-                  <button
-                    key={mode}
-                    type="button"
-                    onClick={() => setPreviewMode(mode)}
-                    disabled={isBusy}
-                    className={cn(
-                      "inline-flex h-7 items-center gap-1.5 rounded-md px-3 text-xs font-semibold transition disabled:opacity-50",
-                      previewMode === mode
-                        ? "bg-sky-600 text-white shadow-xs"
-                        : "text-neutral-500 hover:bg-white hover:text-neutral-900",
-                    )}
-                  >
-                    {mode === "edit" ? (
-                      <Pencil className="h-3.5 w-3.5" />
-                    ) : (
-                      <Eye className="h-3.5 w-3.5" />
-                    )}
-                    {mode === "edit" ? "Viết" : "Xem trước"}
-                  </button>
-                ))}
-              </div>
-            </div>
-            {previewMode === "edit" ? (
-              <Textarea
-                value={previewDescription}
-                onChange={(event) => setPreviewDescription(event.target.value)}
-                disabled={isBusy}
-                className="min-h-[320px] resize-y rounded-lg border-neutral-200 text-sm leading-relaxed focus:border-sky-400 focus:ring-1 focus:ring-sky-200"
-              />
-            ) : (
-              <div className="min-h-[320px] rounded-lg border border-neutral-200 bg-neutral-50/60 px-3 py-2.5 text-sm leading-relaxed">
-                <MarkdownPreview
-                  value={previewDescription}
-                  emptyText="Bản xem trước mô tả sẽ hiển thị ở đây."
-                />
-              </div>
-            )}
-            <div className="flex flex-wrap items-center justify-end gap-2 border-t border-neutral-100 pt-3">
-              <Button
-                type="button"
-                variant="outline"
-                onClick={() => activeTask && handleGenerate(activeTask)}
-                disabled={isBusy}
-                className="h-8 rounded-lg px-3 text-xs font-semibold"
-              >
-                <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-                Tạo lại
-              </Button>
-              <Popover open={isConflictOpen} onOpenChange={setIsConflictOpen}>
-                <PopoverAnchor asChild>
-                  <Button
-                    type="button"
-                    onClick={handleApplyDescription}
-                    disabled={isBusy || !previewDescription.trim()}
-                    className="h-8 rounded-lg bg-sky-600 px-3 text-xs font-semibold text-white hover:bg-sky-700"
-                  >
-                    {isUpdatingDescription ? "Đang áp dụng..." : "Áp dụng mô tả"}
-                  </Button>
-                </PopoverAnchor>
-                <PopoverContent align="end" side="bottom" className="w-80">
-                  <PopoverDescription>{DESCRIPTION_CONFLICT_MESSAGE}</PopoverDescription>
-                  <Button
-                    type="button"
-                    size="sm"
-                    variant="outline"
-                    onClick={reloadCard}
-                    className="h-8 self-start rounded-lg text-xs font-semibold"
-                  >
-                    <RefreshCw className="mr-1.5 h-3.5 w-3.5" />
-                    Reload thẻ
-                  </Button>
-                </PopoverContent>
-              </Popover>
-            </div>
-          </div>
-        )}
-
-
-
         {isChecklistTask && checklistSuggestions.length > 0 && (
           <div className="mt-3 space-y-3 rounded-lg border border-white/70 bg-white p-3 shadow-xs">
             <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
@@ -444,10 +184,10 @@ export const AiCardQualityAssistant = ({
                 <label className="flex min-w-0 flex-1 items-center gap-2 text-xs font-semibold text-neutral-600">
                   Thêm vào
                   <select
-                    value={effectiveChecklistId}
-                    onChange={(event) => setSelectedChecklistId(event.target.value)}
-                    disabled={isBusy}
-                    className="h-8 min-w-0 flex-1 rounded-lg border border-neutral-200 bg-white px-2 text-xs text-neutral-700 outline-none transition focus:border-sky-400 focus:ring-1 focus:ring-sky-200"
+                     value={effectiveChecklistId}
+                     onChange={(event) => setSelectedChecklistId(event.target.value)}
+                     disabled={isBusy}
+                     className="h-8 min-w-0 flex-1 rounded-lg border border-neutral-200 bg-white px-2 text-xs text-neutral-700 outline-none transition focus:border-sky-400 focus:ring-1 focus:ring-sky-200"
                   >
                     {checklists.map((checklist) => (
                       <option key={checklist.id} value={checklist.id}>

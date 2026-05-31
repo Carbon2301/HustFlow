@@ -12,6 +12,8 @@ interface ActivityItemProps {
   cardTitle?: string;
   cardArchived?: boolean;
   listExists?: boolean;
+  checklistExists?: boolean;
+  checklistItemExists?: boolean;
   memberNames?: string[];
   isCardModal?: boolean;
   hideBoardContext?: boolean;
@@ -64,6 +66,50 @@ const replaceTextWithLink = (
   return result;
 };
 
+const replaceFirstTextWithLink = (
+  nodes: React.ReactNode[],
+  targetText: string,
+  href: string,
+  linkLabel: string,
+  onNavigate?: () => void,
+) => {
+  const result: React.ReactNode[] = [];
+  let replaced = false;
+
+  nodes.forEach((node) => {
+    if (replaced || typeof node !== "string") {
+      result.push(node);
+      return;
+    }
+
+    const index = node.indexOf(targetText);
+
+    if (index === -1) {
+      result.push(node);
+      return;
+    }
+
+    const before = node.slice(0, index);
+    const after = node.slice(index + targetText.length);
+
+    if (before) result.push(before);
+    result.push(
+      <Link
+        key={`${href}-${index}`}
+        href={href}
+        onClick={onNavigate}
+        className="text-blue-600 hover:text-blue-800 underline font-normal decoration-blue-600/30 hover:decoration-blue-800"
+      >
+        {linkLabel}
+      </Link>
+    );
+    if (after) result.push(after);
+    replaced = true;
+  });
+
+  return result;
+};
+
 const replaceTextWithLabel = (
   nodes: React.ReactNode[],
   targetText: string,
@@ -89,6 +135,43 @@ const replaceTextWithLabel = (
       result.push(node);
     }
   });
+  return result;
+};
+
+const replaceFirstTextWithLabel = (
+  nodes: React.ReactNode[],
+  targetText: string,
+  labelText: string,
+) => {
+  const result: React.ReactNode[] = [];
+  let replaced = false;
+
+  nodes.forEach((node) => {
+    if (replaced || typeof node !== "string") {
+      result.push(node);
+      return;
+    }
+
+    const index = node.indexOf(targetText);
+
+    if (index === -1) {
+      result.push(node);
+      return;
+    }
+
+    const before = node.slice(0, index);
+    const after = node.slice(index + targetText.length);
+
+    if (before) result.push(before);
+    result.push(
+      <span key={`label-first-${index}`} className="text-neutral-500 italic font-normal">
+        {labelText}
+      </span>
+    );
+    if (after) result.push(after);
+    replaced = true;
+  });
+
   return result;
 };
 
@@ -137,6 +220,11 @@ const boldMemberName = (
     }
   });
   return result;
+};
+
+const getFirstQuotedText = (message: string) => {
+  const match = message.match(/["“]([^"”]+)["”]/);
+  return match ? match[1] : null;
 };
 
 const replaceCardMarkers = (
@@ -198,6 +286,8 @@ const renderMessageWithLinks = (
   cardTitle?: string,
   boardTitle?: string,
   listExists?: boolean,
+  checklistExists?: boolean,
+  checklistItemExists?: boolean,
   memberNames: string[] = [],
   isCardModal?: boolean,
   cardArchived?: boolean,
@@ -218,6 +308,7 @@ const renderMessageWithLinks = (
     const boardHref = log.boardId ? `/board/${log.boardId}` : null;
     const resolvedCardId = log.cardId || (log.entityType === "CARD" ? log.entityId : null);
     const cardHref = log.boardId && resolvedCardId ? `/board/${log.boardId}?cardId=${resolvedCardId}` : null;
+    const firstQuotedText = getFirstQuotedText(message);
 
     // 1. Handle Card Links / Deleted / Archived notice
     if (!hasCardMarkers && resolvedCardId) {
@@ -263,6 +354,57 @@ const renderMessageWithLinks = (
         elements = replaceTextWithLabel(elements, `“${resolvedListTitle}”`, `${resolvedListTitle} (đã bị xóa)`);
       }
     }
+
+    // 4. Handle Checklist / Checklist Item Links / Deleted notice
+    if (firstQuotedText && log.entityType === "CHECKLIST") {
+      if (!checklistExists) {
+        elements = replaceFirstTextWithLabel(
+          elements,
+          `"${firstQuotedText}"`,
+          `${firstQuotedText} (Đã bị xóa)`,
+        );
+        elements = replaceFirstTextWithLabel(
+          elements,
+          `“${firstQuotedText}”`,
+          `${firstQuotedText} (Đã bị xóa)`,
+        );
+      }
+    }
+
+    if (firstQuotedText && log.entityType === "CHECKLIST_ITEM") {
+      const checklistItemHref =
+        cardHref && !cardArchived && checklistItemExists
+          ? `${cardHref}&checklistItemId=${log.entityId}`
+          : null;
+
+      if (checklistItemHref) {
+        elements = replaceFirstTextWithLink(
+          elements,
+          `"${firstQuotedText}"`,
+          checklistItemHref,
+          firstQuotedText,
+          onNavigate,
+        );
+        elements = replaceFirstTextWithLink(
+          elements,
+          `“${firstQuotedText}”`,
+          checklistItemHref,
+          firstQuotedText,
+          onNavigate,
+        );
+      } else if (!checklistItemExists) {
+        elements = replaceFirstTextWithLabel(
+          elements,
+          `"${firstQuotedText}"`,
+          `${firstQuotedText} (Đã bị xóa)`,
+        );
+        elements = replaceFirstTextWithLabel(
+          elements,
+          `“${firstQuotedText}”`,
+          `${firstQuotedText} (Đã bị xóa)`,
+        );
+      }
+    }
   } else if (!hasCardMarkers) {
     // Inside card modal: replace card title with "này"
     const isCardRename = log.entityType === "CARD" && log.entityTitle.startsWith("detail:đã đổi tên thẻ thành ");
@@ -290,6 +432,8 @@ export const ActivityItem = ({
   cardTitle,
   cardArchived = false,
   listExists = true,
+  checklistExists = true,
+  checklistItemExists = true,
   memberNames = [],
   isCardModal = false,
   hideBoardContext = false,
@@ -315,7 +459,7 @@ export const ActivityItem = ({
           <span className="font-semibold text-neutral-900">
             {data.userName}
           </span>{" "}
-          {renderMessageWithLinks(message, data, cardTitle, boardTitle, listExists, memberNames, isCardModal, cardArchived, onNavigate)}
+          {renderMessageWithLinks(message, data, cardTitle, boardTitle, listExists, checklistExists, checklistItemExists, memberNames, isCardModal, cardArchived, onNavigate)}
         </p>
         <p className="text-xs text-neutral-400 flex items-center gap-x-1.5 mt-0.5">
           <span>{format(new Date(data.createdAt), "HH:mm dd 'thg' M, yyyy")}</span>

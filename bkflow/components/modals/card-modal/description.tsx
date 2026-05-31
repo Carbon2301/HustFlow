@@ -11,6 +11,7 @@ import {
   List,
   Pencil,
   RefreshCw,
+  Sparkles,
   Type,
   Underline,
 } from "lucide-react";
@@ -26,6 +27,7 @@ import { useOnClickOutside } from "usehooks-ts";
 
 import { useAction } from "@/hooks/use-action";
 import { updateCard } from "@/actions/cards/update-card";
+import { generateAiCardQuality } from "@/actions/ai/generate-ai-card-quality";
 import { CardWithList } from "@/types";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
@@ -495,6 +497,42 @@ export const Description = ({
     },
   });
 
+  const [activeAiTask, setActiveAiTask] = useState<"create_description" | "rewrite_description" | null>(null);
+
+  const { execute: executeGenerateAi, isLoading: isGeneratingAi } = useAction(generateAiCardQuality, {
+    onSuccess: (resData) => {
+      if (resData.description) {
+        if (!isEditing) {
+          setIsConflictOpen(false);
+          setPreviewMode("edit");
+          setIsEditing(true);
+        }
+        
+        setDraftDescription(resData.description);
+        
+        setTimeout(() => {
+          textareaRef.current?.focus();
+        });
+        
+        toast.success("Đã tạo mô tả bằng AI!");
+      }
+      setActiveAiTask(null);
+    },
+    onError: (error) => {
+      toast.error(error);
+      setActiveAiTask(null);
+    },
+  });
+
+  const handleGenerateAi = (task: "create_description" | "rewrite_description") => {
+    setActiveAiTask(task);
+    executeGenerateAi({
+      boardId: data.list.boardId,
+      cardId: data.id,
+      task,
+    });
+  };
+
   const reloadCard = async () => {
     setIsConflictOpen(false);
     disableEditing();
@@ -562,9 +600,45 @@ export const Description = ({
       <Popover open={isConflictOpen} onOpenChange={setIsConflictOpen}>
         <PopoverAnchor asChild>
           <div className="w-full min-w-0">
-            <p className="font-semibold text-base text-neutral-800 mb-2.5">
-              Mô tả
-            </p>
+            <div className="flex flex-wrap items-center gap-2 mb-2.5">
+              <p className="font-semibold text-base text-neutral-800">
+                Mô tả
+              </p>
+              {canEdit && (
+                <div className="flex items-center gap-x-1.5 ml-1">
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => handleGenerateAi("create_description")}
+                    disabled={isGeneratingAi || isLoading}
+                    className="h-7 rounded-lg border-sky-100 bg-sky-50/50 px-2 text-xs font-semibold text-sky-700 hover:bg-sky-100 hover:text-sky-800 transition-colors shadow-xs"
+                  >
+                    {isGeneratingAi && activeAiTask === "create_description" ? (
+                      <RefreshCw className="mr-1 h-3 w-3 animate-spin" />
+                    ) : (
+                      <Sparkles className="mr-1 h-3 w-3 text-sky-500" />
+                    )}
+                    {isGeneratingAi && activeAiTask === "create_description" ? "Đang tạo..." : "Tạo mô tả từ tiêu đề"}
+                  </Button>
+                  {hasDescription && (
+                    <Button
+                      type="button"
+                      variant="outline"
+                      onClick={() => handleGenerateAi("rewrite_description")}
+                      disabled={isGeneratingAi || isLoading}
+                      className="h-7 rounded-lg border-sky-100 bg-sky-50/50 px-2 text-xs font-semibold text-sky-700 hover:bg-sky-100 hover:text-sky-800 transition-colors shadow-xs"
+                    >
+                      {isGeneratingAi && activeAiTask === "rewrite_description" ? (
+                        <RefreshCw className="mr-1 h-3 w-3 animate-spin" />
+                      ) : (
+                        <Sparkles className="mr-1 h-3 w-3 text-sky-500" />
+                      )}
+                      {isGeneratingAi && activeAiTask === "rewrite_description" ? "Đang viết lại..." : "Viết lại mô tả"}
+                    </Button>
+                  )}
+                </div>
+              )}
+            </div>
             {isEditing ? (
               <form
                 onSubmit={(event) => {
