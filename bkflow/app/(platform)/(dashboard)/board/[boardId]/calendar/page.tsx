@@ -56,7 +56,6 @@ const BoardCalendarPage = async ({
         lists={lists}
         currentUserId={userId}
         currentBoardMemberId={currentMembership.membership.id}
-        initialNowIso={new Date().toISOString()}
       />
     </div>
   );

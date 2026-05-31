@@ -3,7 +3,6 @@
 import { BoardMemberRole, type BoardMember } from "@prisma/client";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
-import { useHasMounted } from "@/hooks/use-has-mounted";
 import {
   Popover,
   PopoverClose,
@@ -65,7 +64,6 @@ export const CommentItem = ({
   onDeleteComment: (commentId: string) => void;
   onToggleReaction: (commentId: string, emoji: ReactionEmoji) => void;
 }) => {
-  const hasMounted = useHasMounted();
   const isOwner = currentUserId === comment.userId;
   const canEditOwnComment = canWriteComments && isOwner;
   const canDeleteComment =
@@ -91,7 +89,7 @@ export const CommentItem = ({
             {comment.userName}
           </p>
           <p className="text-xs text-neutral-400">
-            {hasMounted ? getRelativeTime(comment.createdAt) : ""}
+            {getRelativeTime(comment.createdAt)}
           </p>
           {isEdited && (
             <p className="text-xs text-neutral-400">

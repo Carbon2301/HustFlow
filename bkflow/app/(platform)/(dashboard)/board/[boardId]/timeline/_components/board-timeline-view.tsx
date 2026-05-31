@@ -44,7 +44,6 @@ type BoardTimelineViewProps = {
   currentUserId: string;
   currentBoardMemberId: string;
   currentMemberRole: BoardMemberRole;
-  initialNowIso: string;
 };
 
 export const BoardTimelineView = ({
@@ -53,7 +52,6 @@ export const BoardTimelineView = ({
   lists,
   currentUserId,
   currentMemberRole,
-  initialNowIso,
 }: BoardTimelineViewProps) => {
   const [updatingCardId, setUpdatingCardId] = useState<string | null>(null);
   const [isExportingPng, setIsExportingPng] = useState(false);
@@ -74,7 +72,7 @@ export const BoardTimelineView = ({
     isUnscheduledPanelOpen,
     setIsUnscheduledPanelOpen,
     derived,
-  } = useTimelineState(lists, initialNowIso);
+  } = useTimelineState(lists);
   const { execute: executeUpdateCard } = useAction(updateCard, {
     onSuccess: (data) => {
       setDateOverrides((current) => {
