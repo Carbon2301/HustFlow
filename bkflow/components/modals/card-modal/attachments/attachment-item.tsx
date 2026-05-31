@@ -9,6 +9,7 @@ import { createPortal } from "react-dom";
 
 import type { InputType as UpdateCardAttachmentInput } from "@/actions/attachments/update-card-attachment/types";
 import { Button } from "@/components/ui/button";
+import { useHasMounted } from "@/hooks/use-has-mounted";
 import type { FieldErrors } from "@/lib/create-safe-action";
 
 import { AttachmentActionsPopover } from "./attachment-actions-popover";
@@ -50,6 +51,7 @@ export const AttachmentItem = ({
   onDelete,
   canEdit = true,
 }: AttachmentItemProps) => {
+  const hasMounted = useHasMounted();
   const Icon = getAttachmentIcon(item);
 
   if (item.type === AttachmentType.LINK) {
@@ -128,7 +130,9 @@ export const AttachmentItem = ({
   }
 
   const isImage = isImageAttachment(item);
-  const timeLabel = formatDistanceToNow(new Date(item.createdAt), { addSuffix: true, locale: vi });
+  const timeLabel = hasMounted
+    ? formatDistanceToNow(new Date(item.createdAt), { addSuffix: true, locale: vi })
+    : "";
 
   return (
     <Draggable
@@ -190,7 +194,7 @@ export const AttachmentItem = ({
                       {item.name}
                     </p>
                     <p className="mt-0.5 text-xs text-neutral-400">
-                      {`Đã thêm ${timeLabel}`}
+                      {timeLabel ? `Đã thêm ${timeLabel}` : "Đã thêm"}
                     </p>
                   </div>
                 </div>

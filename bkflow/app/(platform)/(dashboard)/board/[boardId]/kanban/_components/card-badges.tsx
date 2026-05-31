@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useSyncExternalStore } from "react";
 import { CheckSquare, LockKeyhole, MessageSquare, Paperclip } from "lucide-react";
 
 import { DueDateBadge } from "@/components/due-date-badge";
@@ -43,34 +43,39 @@ const getContrastColor = (hexColor: string): string => {
   return luminance > 0.45 ? "text-neutral-900/90" : "text-white";
 };
 
+const LABELS_EXPANDED_STORAGE_KEY = "bkflow-labels-expanded";
+const LABELS_TOGGLE_EVENT = "bkflow-labels-toggle";
+
+const subscribeToLabelsExpanded = (callback: () => void) => {
+  window.addEventListener(LABELS_TOGGLE_EVENT, callback);
+  window.addEventListener("storage", callback);
+
+  return () => {
+    window.removeEventListener(LABELS_TOGGLE_EVENT, callback);
+    window.removeEventListener("storage", callback);
+  };
+};
+
+const getLabelsExpandedSnapshot = () =>
+  window.localStorage.getItem(LABELS_EXPANDED_STORAGE_KEY) === "true";
+
+const getLabelsExpandedServerSnapshot = () => false;
+
 export const CardLabels = ({
   card,
 }: CardBadgesProps) => {
-  const [isExpanded, setIsExpanded] = useState(false);
-
-  useEffect(() => {
-    const saved = localStorage.getItem("bkflow-labels-expanded");
-    if (saved === "true") {
-      setIsExpanded(true);
-    }
-
-    const handleToggle = () => {
-      const currentSaved = localStorage.getItem("bkflow-labels-expanded");
-      setIsExpanded(currentSaved === "true");
-    };
-
-    window.addEventListener("bkflow-labels-toggle", handleToggle);
-    return () => {
-      window.removeEventListener("bkflow-labels-toggle", handleToggle);
-    };
-  }, []);
+  const isExpanded = useSyncExternalStore(
+    subscribeToLabelsExpanded,
+    getLabelsExpandedSnapshot,
+    getLabelsExpandedServerSnapshot,
+  );
 
   const onToggle = (e: React.MouseEvent) => {
     e.stopPropagation();
     e.preventDefault();
     const nextState = !isExpanded;
-    localStorage.setItem("bkflow-labels-expanded", String(nextState));
-    window.dispatchEvent(new CustomEvent("bkflow-labels-toggle"));
+    localStorage.setItem(LABELS_EXPANDED_STORAGE_KEY, String(nextState));
+    window.dispatchEvent(new CustomEvent(LABELS_TOGGLE_EVENT));
   };
 
   if (!card.labels || card.labels.length === 0) {

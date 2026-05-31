@@ -29,6 +29,7 @@ import { Button } from "@/components/ui/button";
 import { Hint } from "@/components/hint";
 import { cn, formatNotificationText } from "@/lib/utils";
 import { useCardModal } from "@/hooks/use-card-modal";
+import { useHasMounted } from "@/hooks/use-has-mounted";
 import { useNotifications } from "@/hooks/use-notifications";
 import { NotificationItem } from "@/components/notifications/types";
 import { toast } from "sonner";
@@ -66,8 +67,8 @@ const formatDueDate = (dateStr: string | null) => {
   }
 };
 
-const formatReminderStatus = (dueDateStr: string | null) => {
-  if (!dueDateStr) {
+const formatReminderStatus = (dueDateStr: string | null, canUseCurrentTime: boolean) => {
+  if (!dueDateStr || !canUseCurrentTime) {
     return { text: "", overdue: false };
   }
 
@@ -88,6 +89,7 @@ export const NotificationsPopover = () => {
   const router = useRouter();
   const cardModal = useCardModal();
   const queryClient = useQueryClient();
+  const hasMounted = useHasMounted();
   const [open, setOpen] = useState(false);
   const [onlyUnread, setOnlyUnread] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -326,6 +328,7 @@ export const NotificationsPopover = () => {
                   const isReminder = notification.type === "CARD_REMINDER";
                   const { text: reminderText, overdue } = formatReminderStatus(
                     notification.dueDate,
+                    hasMounted,
                   );
 
                   return (
@@ -368,7 +371,7 @@ export const NotificationsPopover = () => {
                                   <span>
                                     Hết hạn:{" "}
                                     <span className="font-medium text-rose-500">
-                                      {formatDueDate(notification.dueDate)}
+                                      {hasMounted ? formatDueDate(notification.dueDate) : ""}
                                     </span>
                                   </span>
                                 </div>
@@ -419,13 +422,15 @@ export const NotificationsPopover = () => {
                         </div>
                         <div className="flex flex-shrink-0 items-center gap-x-2">
                           <span className="whitespace-nowrap text-[11px] text-neutral-400">
-                            {formatDistanceToNow(
-                              new Date(notification.triggerTime || notification.createdAt),
-                              {
-                                addSuffix: true,
-                                locale: vi,
-                              },
-                            )}
+                            {hasMounted
+                              ? formatDistanceToNow(
+                                new Date(notification.triggerTime || notification.createdAt),
+                                {
+                                  addSuffix: true,
+                                  locale: vi,
+                                },
+                              )
+                              : ""}
                           </span>
                           <Hint
                             description={

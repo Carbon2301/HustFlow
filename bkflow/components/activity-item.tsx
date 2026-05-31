@@ -1,3 +1,5 @@
+"use client";
+
 import { format } from "date-fns";
 import { AuditLog } from "@prisma/client";
 import Link from "next/link";
@@ -5,6 +7,7 @@ import { Users } from "lucide-react";
 
 import { generateLogMessage } from "@/lib/generate-log-message";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { useHasMounted } from "@/hooks/use-has-mounted";
 
 interface ActivityItemProps {
   data: AuditLog;
@@ -439,6 +442,7 @@ export const ActivityItem = ({
   hideBoardContext = false,
   onNavigate,
 }: ActivityItemProps) => {
+  const hasMounted = useHasMounted();
   const initials = data.userName
     ? data.userName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : "?";
@@ -462,7 +466,7 @@ export const ActivityItem = ({
           {renderMessageWithLinks(message, data, cardTitle, boardTitle, listExists, checklistExists, checklistItemExists, memberNames, isCardModal, cardArchived, onNavigate)}
         </p>
         <p className="text-xs text-neutral-400 flex items-center gap-x-1.5 mt-0.5">
-          <span>{format(new Date(data.createdAt), "HH:mm dd 'thg' M, yyyy")}</span>
+          <span>{hasMounted ? format(new Date(data.createdAt), "HH:mm dd 'thg' M, yyyy") : ""}</span>
           {!isCardModal && !hideBoardContext && data.boardId && (
             <>
               <span className="text-neutral-300">•</span>

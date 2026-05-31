@@ -6,6 +6,7 @@ import { Clock } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Hint } from "@/components/hint";
 import { isOverdue } from "@/lib/date-utils";
+import { useHasMounted } from "@/hooks/use-has-mounted";
 
 interface DueDateBadgeProps {
   dueDate?: Date | string | null;
@@ -18,13 +19,13 @@ interface DueDateBadgeProps {
 export const getDueDateStatus = (
   dueDate: Date | string,
   isCompleted = false,
+  now = new Date(),
 ) => {
   if (isCompleted) {
     return "completed";
   }
 
   const date = new Date(dueDate);
-  const now = new Date();
   const dayFromNow = new Date(now.getTime() + 24 * 60 * 60 * 1000);
 
   if (isOverdue(date, now)) {
@@ -45,16 +46,19 @@ export const DueDateBadge = ({
   className,
   isCard = false,
 }: DueDateBadgeProps) => {
+  const hasMounted = useHasMounted();
+
   if (!startDate && !dueDate) {
     return null;
   }
 
   const hasStart = !!startDate;
   const hasDue = !!dueDate;
+  const now = hasMounted ? new Date() : null;
 
   const status = isCompleted
     ? "completed"
-    : (hasDue ? getDueDateStatus(dueDate, isCompleted) : "normal");
+    : (hasDue && now ? getDueDateStatus(dueDate, isCompleted, now) : "normal");
 
   let tooltipText = "";
   if (isCompleted) {
@@ -73,7 +77,9 @@ export const DueDateBadge = ({
 
   const formatDateValue = (d: Date | string) => {
     const dateObj = new Date(d);
-    const isCurrentYear = dateObj.getFullYear() === new Date().getFullYear();
+    const isCurrentYear = now
+      ? dateObj.getFullYear() === now.getFullYear()
+      : false;
     const formatStr = isCard
       ? (isCurrentYear ? "dd/MM HH:mm" : "dd/MM/yy HH:mm")
       : "dd/MM/yyyy HH:mm";
