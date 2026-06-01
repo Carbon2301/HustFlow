@@ -9,6 +9,12 @@ const isPublicRoute = createRouteMatcher([
   "/api/uploadthing(.*)",
 ]);
 
+const isAuthRoute = createRouteMatcher([
+  "/",
+  "/sign-in(.*)",
+  "/sign-up(.*)",
+]);
+
 const isSelectOrgRoute = createRouteMatcher(["/select-org(.*)"]);
 
 export const proxy = clerkMiddleware(async (auth, req) => {
@@ -19,7 +25,7 @@ export const proxy = clerkMiddleware(async (auth, req) => {
     return;
   }
 
-  if (userId && isPublicRoute(req)) {
+  if (userId && isAuthRoute(req)) {
     const path = orgId ? `/organization/${orgId}` : "/select-org";
     return NextResponse.redirect(new URL(path, req.url));
   }

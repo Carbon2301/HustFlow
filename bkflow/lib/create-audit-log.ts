@@ -3,6 +3,8 @@ import { ACTION, AUDIT_EVENT_TYPE, ENTITY_TYPE } from "@prisma/client";
 
 import { db } from "@/lib/db";
 
+type CurrentUser = NonNullable<Awaited<ReturnType<typeof currentUser>>>;
+
 interface Props {
   entityId: string;
   entityType: ENTITY_TYPE,
@@ -23,6 +25,29 @@ const getDefaultEventType = (action: ACTION) => {
     default:
       return AUDIT_EVENT_TYPE.UPDATE;
   }
+};
+
+const getUserDisplayName = (user: CurrentUser) => {
+  const fullName = user.fullName?.trim();
+
+  if (fullName) {
+    return fullName;
+  }
+
+  const name = [user.firstName, user.lastName]
+    .map((part) => part?.trim())
+    .filter(Boolean)
+    .join(" ");
+
+  if (name) {
+    return name;
+  }
+
+  const email =
+    user.emailAddresses.find((emailAddress) => emailAddress.id === user.primaryEmailAddressId)?.emailAddress ??
+    user.emailAddresses[0]?.emailAddress;
+
+  return email?.trim() || "Unknown user";
 };
 
 export const createAuditLog = async (props: Props) => {
@@ -48,7 +73,7 @@ export const createAuditLog = async (props: Props) => {
         eventType: eventType ?? getDefaultEventType(action),
         userId: user.id,
         userImage: user?.imageUrl,
-        userName: user?.firstName + " " + user?.lastName,
+        userName: getUserDisplayName(user),
       }
     });
   } catch (error) {

@@ -20,6 +20,16 @@ interface ActivityItemProps {
   onNavigate?: () => void;
 }
 
+const sanitizeAuditUserName = (value?: string | null) => {
+  const name = value
+    ?.trim()
+    .split(/\s+/)
+    .filter((part) => !/^(null|undefined)$/i.test(part))
+    .join(" ");
+
+  return name || "Unknown user";
+};
+
 const getCardTitleFromMessage = (message: string) => {
   const match = message.match(/(?:thẻ|vào thẻ|khỏi thẻ|trong thẻ)\s+["“]([^"”]+)["”]/);
   return match ? match[1] : null;
@@ -439,8 +449,9 @@ export const ActivityItem = ({
   hideBoardContext = false,
   onNavigate,
 }: ActivityItemProps) => {
-  const initials = data.userName
-    ? data.userName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
+  const displayUserName = sanitizeAuditUserName(data.userName);
+  const initials = displayUserName
+    ? displayUserName.split(" ").map((n) => n[0]).join("").toUpperCase().slice(0, 2)
     : "?";
 
   const boardHref = data.boardId ? `/board/${data.boardId}` : null;
@@ -449,7 +460,7 @@ export const ActivityItem = ({
   return (
     <li className="flex items-start gap-x-3.5 py-1">
       <Avatar className="h-9 w-9 flex-shrink-0 mt-0.5">
-        <AvatarImage src={data.userImage} alt={data.userName} />
+        <AvatarImage src={data.userImage} alt={displayUserName} />
         <AvatarFallback className="text-sm bg-violet-100 text-violet-700 font-medium">
           {initials}
         </AvatarFallback>
@@ -457,7 +468,7 @@ export const ActivityItem = ({
       <div className="flex flex-col gap-y-1 min-w-0">
         <p className="text-[15px] text-neutral-700 leading-relaxed">
           <span className="font-semibold text-neutral-900">
-            {data.userName}
+            {displayUserName}
           </span>{" "}
           {renderMessageWithLinks(message, data, cardTitle, boardTitle, listExists, checklistExists, checklistItemExists, memberNames, isCardModal, cardArchived, onNavigate)}
         </p>
