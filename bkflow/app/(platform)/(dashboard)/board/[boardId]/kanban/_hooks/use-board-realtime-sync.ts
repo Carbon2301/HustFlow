@@ -241,6 +241,7 @@ export const useBoardRealtimeSync = ({
   setOrderedData,
 }: UseBoardRealtimeSyncOptions) => {
   const processedCardEventIdsRef = useRef<Set<string>>(new Set());
+  const accessLossHandledRef = useRef(false);
 
   const processBoardEvent = useCallback((
     eventId: string,
@@ -726,7 +727,16 @@ export const useBoardRealtimeSync = ({
       return;
     }
 
-    toast.error("Bạn không còn quyền truy cập bảng này.");
+    if (accessLossHandledRef.current) {
+      return;
+    }
+
+    accessLossHandledRef.current = true;
+
+    if (payload.actorUserId !== currentUserId) {
+      toast.error("Bạn không còn quyền truy cập bảng này.");
+    }
+
     cardModal.onClose();
     router.push(`/organization/${payload.orgId}`);
   }, [boardId, cardModal, currentUserId, processBoardEvent, router]);
@@ -737,7 +747,16 @@ export const useBoardRealtimeSync = ({
     }
 
     if (payload.targetUserId === currentUserId) {
-      toast.error("Bạn không còn quyền truy cập bảng này.");
+      if (accessLossHandledRef.current) {
+        return;
+      }
+
+      accessLossHandledRef.current = true;
+
+      if (payload.actorUserId !== currentUserId) {
+        toast.error("Bạn không còn quyền truy cập bảng này.");
+      }
+
       cardModal.onClose();
       router.push(`/organization/${payload.orgId}`);
       return;

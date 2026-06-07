@@ -2,18 +2,18 @@
 
 import Image from "next/image";
 import { Check, Sparkles } from "lucide-react";
+import { toast } from "sonner";
 
 import { Button } from "@/components/ui/button";
 import { useProModal } from "@/hooks/use-pro-modal";
 import { Dialog, DialogContent, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { useAction } from "@/hooks/use-action";
 import { stripeRedirect } from "@/actions/billing/stripe-redirect";
-import { toast } from "sonner";
 
 const features = [
   "Không giới hạn số lượng bảng",
   "Checklist nâng cao",
-  "Quyền quản trị & Bảo mật tối ưu",
+  "Quyền quản trị & bảo mật tối ưu",
   "Hỗ trợ ưu tiên",
 ];
 
@@ -26,7 +26,7 @@ export const ProModal = () => {
     },
     onError: (error) => {
       toast.error(error);
-    }
+    },
   });
 
   const onClick = () => {
@@ -39,7 +39,6 @@ export const ProModal = () => {
       onOpenChange={proModal.onClose}
     >
       <DialogContent className="sm:max-w-md p-0 overflow-hidden rounded-2xl border border-neutral-200 shadow-2xl">
-        {/* Hero image */}
         <div className="aspect-video relative flex items-center justify-center overflow-hidden">
           <Image
             src="/hero.svg"
@@ -50,7 +49,6 @@ export const ProModal = () => {
           <div className="absolute inset-0 bg-gradient-to-b from-transparent to-black/40" />
         </div>
 
-        {/* Content */}
         <div className="p-6 space-y-5">
           <div className="space-y-1">
             <div className="flex items-center gap-x-2">
@@ -62,7 +60,7 @@ export const ProModal = () => {
               </DialogTitle>
             </div>
             <DialogDescription className="text-sm text-neutral-500 pl-9">
-              Mở khóa mọi tính năng của HustFlow
+              Mở khóa mọi tính năng của HustFlow cho tổ chức
             </DialogDescription>
           </div>
 
@@ -83,7 +81,7 @@ export const ProModal = () => {
             className="w-full bg-violet-600 hover:bg-violet-700 text-white rounded-xl h-10 font-semibold shadow-sm hover:shadow-md transition-all"
           >
             <Sparkles className="h-4 w-4 mr-2" />
-            {isLoading ? "Đang chuyển hướng…" : "Nâng cấp ngay"}
+            {isLoading ? "Đang chuyển hướng..." : "Nâng cấp ngay"}
           </Button>
           <p className="text-xs text-center text-neutral-400">
             Hủy bất kỳ lúc nào · Thanh toán an toàn qua Stripe

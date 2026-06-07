@@ -1,49 +1,463 @@
 \documentclass[../DoAn.tex]{subfiles}
 \begin{document}
-Chương này có độ dài từ 9 đến 11 trang.
 
-Với phương pháp phân tích thiết kế hướng đối tượng, sinh viên sử dụng biểu đồ use case theo hướng dẫn của template này. Với các phương pháp khác, sinh viên trao đổi với giáo viên hướng dẫn để đổi tên và sắp xếp lại đề mục cho phù hợp. Ví dụ, thay vì sử dụng biểu đồ use case, sinh viên đi theo hướng tiếp cận Agile có thể dùng User Story.
-
-
-\textbf{Lưu ý}: Mỗi chương nên có thêm 1 đoạn mở đầu chương và kết thúc chương, mở đầu giới thiệu những nội dung sẽ trình bày trong chương, kết thúc tổng kết lại các nội dung đã trình bày
+Chương 1 đã trình bày bối cảnh, mục tiêu và định hướng giải pháp của đề tài xây dựng hệ thống HustFlow. Trên cơ sở đó, chương này tập trung khảo sát các công cụ quản lý công việc phổ biến, chỉ ra các khoảng trống cần giải quyết và phân tích yêu cầu nghiệp vụ cho hệ thống. Nội dung chương gồm bốn phần chính: khảo sát hiện trạng tại phần \ref{section:2.1}, tổng quan chức năng và quy trình nghiệp vụ tại phần \ref{section:2.2}, đặc tả các use case cốt lõi tại phần \ref{section:2.3}, và yêu cầu phi chức năng tại phần \ref{section:2.4}.
 
 \section{Khảo sát hiện trạng}
 \label{section:2.1}
-Thông thường, khảo sát chi tiết về hiện trạng và yêu cầu của phần mềm sẽ được lấy từ ba nguồn chính, đó là (i) người dùng/khách hàng, (ii) các hệ thống đã có, (iii) và các ứng dụng tương tự.
-Sinh viên cần tiến hành phân tích, so sánh, đánh giá chi tiết ưu nhược điểm của các sản phẩm/nghiên cứu hiện có. Sinh viên có thể lập bảng so sánh nếu cần thiết. Kết hợp với khảo sát người dùng/khách hàng (nếu có), sinh viên nêu và mô tả sơ lược các tính năng phần mềm quan trọng cần phát triển.
+
+Các công cụ quản lý công việc trực tuyến như Trello, Jira và Asana đã được sử dụng rộng rãi trong nhiều nhóm phát triển phần mềm, nhóm nghiên cứu và tổ chức vừa và nhỏ. Những công cụ này cung cấp nhiều cách tiếp cận khác nhau để tổ chức nhiệm vụ, theo dõi tiến độ và phối hợp giữa các thành viên. Việc khảo sát các hệ thống hiện có giúp xác định những chức năng nền tảng cần có của HustFlow, đồng thời làm rõ các điểm khác biệt mà hệ thống hướng tới.
+
+Trello là công cụ tiêu biểu cho mô hình quản lý công việc bằng bảng Kanban. Người dùng có thể tạo bảng, danh sách và thẻ công việc, sau đó kéo thả thẻ giữa các danh sách để phản ánh trạng thái thực hiện. Ưu điểm lớn nhất của Trello là giao diện đơn giản, dễ học và phù hợp với các nhóm nhỏ hoặc quy trình công việc không quá phức tạp. Tuy nhiên, khi nhu cầu quản lý tăng lên, người dùng thường cần thêm các tiện ích mở rộng hoặc gói trả phí để có các góc nhìn nâng cao như lịch, dòng thời gian, báo cáo hoặc tự động hóa. Khả năng quản lý quan hệ phụ thuộc giữa các thẻ và kiểm soát tiến độ tổng thể cũng chưa phải trọng tâm chính của Trello.
+
+Jira là nền tảng mạnh cho các nhóm phát triển phần mềm chuyên nghiệp, đặc biệt trong quy trình phát triển linh hoạt hoặc quy trình phát triển lặp. Jira hỗ trợ quản lý vấn đề, chu kỳ phát triển, danh sách công việc tồn đọng, luồng xử lý, phân quyền và báo cáo ở mức chi tiết. Đây là lựa chọn phù hợp cho các tổ chức có quy trình chặt chẽ và cần khả năng cấu hình sâu. Dù vậy, với các nhóm nhỏ, nhóm sinh viên hoặc nhóm nghiên cứu học thuật, Jira có thể tạo cảm giác phức tạp do nhiều khái niệm, nhiều bước cấu hình và chi phí vận hành cao hơn nhu cầu thực tế. Các tính năng nâng cao của Jira rất mạnh, nhưng không phải lúc nào cũng phù hợp với nhóm cần một công cụ gọn nhẹ, trực quan và triển khai nhanh.
+
+Asana cung cấp cách tiếp cận cân bằng hơn giữa sự đơn giản và khả năng theo dõi tiến độ. Hệ thống hỗ trợ nhiều chế độ xem như danh sách, bảng, lịch và dòng thời gian, đồng thời cho phép gán người phụ trách, đặt hạn chót và theo dõi quan hệ công việc. Asana phù hợp với nhiều nhóm làm việc phi kỹ thuật lẫn kỹ thuật. Tuy nhiên, một số tính năng quan trọng về báo cáo nâng cao, tự động hóa, quản lý phụ thuộc chi tiết hoặc mở rộng số lượng người dùng thường bị giới hạn theo gói dịch vụ. Ngoài ra, khả năng tùy biến sâu cho quy trình phát triển phần mềm và khả năng tích hợp trợ lý trí tuệ nhân tạo theo ngữ cảnh cụ thể của từng bảng công việc vẫn còn là không gian để cải tiến.
+
+Từ việc khảo sát các công cụ trên, HustFlow được định hướng tập trung giải quyết bài toán quản lý cho các nhóm vừa và nhỏ. Hệ thống sẽ ưu tiên các giá trị cốt lõi bao gồm: giao diện trực quan với thao tác bảng Kanban nhanh, khả năng cộng tác thời gian thực mượt mà, hỗ trợ nhiều chế độ xem tiến độ như bảng Kanban, lịch, biểu đồ Gantt và thống kê, cơ chế kiểm soát phụ thuộc công việc và ngăn ngừa vòng lặp phụ thuộc, tích hợp trợ lý trí tuệ nhân tạo để giảm thao tác nhập liệu thủ công, cùng mô hình gói cước đơn giản. Đây là cơ sở khoa học và thực tiễn vững chắc để xác định các nhóm chức năng và xây dựng các use case chi tiết của hệ thống trong các phần tiếp theo.
+
 
 \section{Tổng quan chức năng}
 \label{section:2.2}
-Phần \ref{section:2.2} này có nhiệm vụ tóm tắt các chức năng của phần mềm. Trong phần này, sinh viên lưu ý chỉ mô tả chức năng mức cao (tổng quan) mà không đặc tả chi tiết cho từng chức năng. Đặc tả chi tiết được trình bày trong phần \ref{section:2.3}.
+
+HustFlow tổ chức dữ liệu theo mô hình nhiều tổ chức làm việc. Trong mỗi tổ chức, người dùng có thể tạo các bảng công việc, mời thành viên vào bảng, phân quyền truy cập và quản lý công việc thông qua các thẻ tác vụ. Hệ thống không chỉ hỗ trợ thao tác bảng Kanban cơ bản mà còn cung cấp các chế độ xem lịch, tiến độ, thống kê, cùng các công cụ cộng tác như bình luận, thông báo, tệp đính kèm và trợ lý trí tuệ nhân tạo.
 
 \subsection{Biểu đồ use case tổng quát}
 \label{subsection:2.2.1}
-Sinh viên vẽ biểu đồ use case tổng quan và giải thích các tác nhân tham gia là gì, nêu vai trò của từng tác nhân, và mô tả ngắn gọn các use case chính.
 
-\subsection{Biểu đồ use case phân rã XYZ}
+Để mô hình hóa toàn diện các yêu cầu chức năng của hệ thống HustFlow, biểu đồ use case tổng quát được xây dựng với sự phân cấp rõ ràng giữa các vai trò người dùng và phân định phạm vi hoạt động của họ theo hai cấp độ: cấp tổ chức và cấp bảng.
+
+Biểu đồ use case tổng quát của HustFlow được trình bày trong Hình \ref{fig:usecase_tongquan}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\linewidth]{Hinhve/usecase_tongquan.png}
+\caption{Biểu đồ use case tổng quát của hệ thống HustFlow}
+\label{fig:usecase_tongquan}
+\end{figure}
+
+Hình \ref{fig:usecase_tongquan} cho thấy hệ thống được thiết kế với các tác nhân chính tương ứng với hai phạm vi nghiệp vụ của HustFlow. Ở cấp tổ chức, thành viên tổ chức là người dùng đã thuộc một tổ chức làm việc và có quyền thực hiện các thao tác cơ bản như tạo bảng công việc, truy cập các bảng được phép tham gia và quản lý công việc trong phạm vi quyền hạn của mình. Quản trị viên tổ chức là vai trò có quyền hạn cao hơn, kế thừa các chức năng của thành viên tổ chức và chịu trách nhiệm quản lý các tài nguyên chung ở cấp tổ chức. Vai trò này có thể cập nhật thông tin tổ chức, kiểm soát gói dịch vụ, theo dõi giới hạn sử dụng và thực hiện thanh toán thông qua Stripe khi tổ chức cần nâng cấp lên gói trả phí.
+
+Ở cấp bảng, thành viên bảng là tác nhân trực tiếp tham gia vào quá trình vận hành công việc hằng ngày. Người dùng thuộc vai trò này có thể tạo và cập nhật thẻ công việc, kéo thả thẻ giữa các danh sách, trao đổi trong thẻ, đính kèm tài liệu, theo dõi tiến độ qua nhiều chế độ xem và sử dụng các chức năng hỗ trợ bởi trợ lý trí tuệ nhân tạo. Quản trị viên bảng kế thừa quyền của thành viên bảng, đồng thời được bổ sung quyền quản lý thành viên và phân quyền truy cập trong phạm vi bảng. Bên cạnh đó, người xem bảng chỉ được theo dõi tiến độ và xem các báo cáo liên quan, không có quyền thay đổi dữ liệu hay thực hiện các thao tác chỉnh sửa. Cách phân chia này giúp hệ thống kiểm soát rõ ràng trách nhiệm của từng người dùng, đồng thời hạn chế rủi ro thay đổi dữ liệu ngoài phạm vi được phép.
+
+Ngoài các tác nhân là người dùng trực tiếp, HustFlow còn tương tác với một số tác nhân hỗ trợ bên ngoài. Trợ lý trí tuệ nhân tạo đóng vai trò xử lý ngôn ngữ tự nhiên và hỗ trợ tự động hóa một số thao tác liên quan đến thẻ công việc, chẳng hạn như trích xuất công việc từ nội dung thô, đề xuất danh sách kiểm tra hoặc tóm tắt nội dung. Stripe được sử dụng như cổng thanh toán trực tuyến, chịu trách nhiệm xử lý các giao dịch nâng cấp gói dịch vụ của tổ chức. Hai tác nhân này không thay thế vai trò của người dùng trong hệ thống, mà cung cấp các dịch vụ bổ trợ để hoàn thiện luồng nghiệp vụ chính.
+
+Từ các tác nhân trên, các use case cốt lõi của HustFlow tập trung vào những nhóm chức năng phục vụ trực tiếp quá trình quản lý công việc theo mô hình bảng. Trước hết, Quản lý tổ chức cho phép quản trị viên tổ chức thiết lập và cập nhật thông tin tổ chức, làm nền tảng cho việc quản lý tài nguyên dùng chung. Quản lý bảng hỗ trợ người dùng tạo và quản lý các bảng Kanban trong không gian làm việc, bao gồm việc cấu hình các chế độ xem và truy cập các bảng mà người dùng có quyền tham gia. Trên từng bảng cụ thể, Quản lý thành viên và phân quyền bảng cho phép quản trị viên bảng thêm hoặc loại bỏ thành viên, đồng thời gán các vai trò quản trị viên, thành viên hoặc người xem để kiểm soát mức độ truy cập.
+
+Các nghiệp vụ xử lý công việc được thể hiện chủ yếu qua Quản lý danh sách và thẻ công việc, trong đó thành viên bảng có thể tạo danh sách, tạo thẻ, cập nhật tiêu đề, mô tả, thời gian, trạng thái, tệp đính kèm và di chuyển thẻ giữa các danh sách để phản ánh tiến độ thực hiện. Song song với đó, Cộng tác thời gian thực hỗ trợ quá trình phối hợp thông qua bình luận, biểu cảm, thông báo và các tương tác trực tiếp trong thẻ. Theo dõi tiến độ và báo cáo cung cấp khả năng theo dõi dữ liệu bảng qua các góc nhìn bảng Kanban, lịch, biểu đồ Gantt và thống kê, giúp cả thành viên bảng và người xem bảng nắm được tình trạng thực hiện công việc. Ngoài ra, Sử dụng trợ lý AI cho phép người dùng gọi các chức năng thông minh như tạo thẻ tự động từ nội dung thô, đề xuất danh sách kiểm tra và tóm tắt nội dung; trong khi Quản lý gói dịch vụ và thanh toán phục vụ việc kiểm tra hạn mức, quản lý gói dịch vụ và nâng cấp gói trả phí thông qua Stripe. Tổng thể các use case này tạo thành phạm vi chức năng chính của HustFlow và là cơ sở cho phần phân rã use case ở các mục tiếp theo.
+
+\subsection{Biểu đồ use case phân rã}
 \label{subsection:2.2.2}
-Với mỗi use case mức cao trong biểu đồ use case tổng quan, sinh viên tạo một mục riêng như mục \ref{subsection:2.2.2} và tiến hành phân rã use case đó. Lưu ý tên use case cần phân rã trong biểu đồ use case tổng quan phải khớp với tên đề mục.
 
-Trong mỗi mục như vậy, sinh viên vẽ và giải thích ngắn gọn các use case phân rã.
+\subsubsection*{a, Biểu đồ use case phân rã Quản lý tổ chức}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{Hinhve/usecase_organization.png}
+\caption{Biểu đồ use case phân rã Quản lý tổ chức}
+\label{fig:usecase_organization}
+\end{figure}
+Hình \ref{fig:usecase_organization} mô tả chi tiết biểu đồ use case phân rã Quản lý tổ chức, được tổ chức thành ba nhóm nghiệp vụ chính: quản lý thông tin tổ chức, quản lý thành viên và quản lý lời mời. Đối với quản lý thông tin tổ chức, thành viên tổ chức có thể xem thông tin tổ chức và thực hiện rời khỏi tổ chức, trong khi quản trị viên tổ chức có quyền cao hơn để cập nhật thông tin tổ chức (như tên và logo/ảnh đại diện) cũng như thực hiện xóa tổ chức. Đối với quản lý thành viên, thành viên tổ chức được quyền xem danh sách thành viên, còn quản trị viên tổ chức có quyền thay đổi vai trò thành viên (giữa quản trị viên và thành viên) hoặc xóa thành viên khỏi tổ chức. Đối với quản lý lời mời, các chức năng gửi lời mời tham gia qua email (có gán kèm vai trò ban đầu) và thu hồi lời mời đang chờ xử lý chỉ dành riêng cho quản trị viên tổ chức.
+
+Cách tách biệt chi tiết này giúp làm rõ ranh giới quyền hạn giữa các vai trò ở cấp tổ chức. Việc phân cấp bảo vệ tính toàn vẹn dữ liệu dùng chung, ngăn chặn các thao tác thay đổi cấu hình trái phép từ người dùng thông thường, đồng thời giúp định hình cấu trúc giao diện cài đặt tổ chức một cách trực quan và mạch lạc.
+
+\subsubsection*{b, Biểu đồ use case phân rã Quản lý bảng}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{Hinhve/usecase_workspace.png}
+\caption{Biểu đồ use case phân rã Quản lý bảng}
+\label{fig:usecase_workspace}
+\end{figure}
+Hình \ref{fig:usecase_workspace} cho thấy use case Quản lý bảng do thành viên tổ chức kích hoạt, phản ánh quá trình tạo và truy cập các bảng công việc trong một tổ chức. Người dùng có thể tạo bảng mới khi tổ chức còn trong hạn mức cho phép, xem danh sách các bảng mà mình tham gia, mở bảng đang làm việc và cập nhật một số thông tin cơ bản của bảng nếu có quyền phù hợp. Đây là cầu nối giữa phạm vi tổ chức và phạm vi xử lý công việc hằng ngày.
+
+Trong phần phân rã, Quản lý bảng cần được tách khỏi Quản lý thành viên và phân quyền bảng. Quản lý bảng tập trung vào vòng đời của bảng, còn việc thêm thành viên hoặc gán vai trò cho từng người dùng thuộc về use case riêng của quản trị viên bảng. Sự phân tách này phù hợp với biểu đồ tổng quát, trong đó tác nhân thành viên tổ chức liên kết với Quản lý bảng, còn quản trị viên bảng liên kết với Quản lý thành viên và phân quyền bảng.
+
+\subsubsection*{c, Biểu đồ use case phân rã Quản lý thành viên và phân quyền bảng}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{Hinhve/usecase_members.png}
+\caption{Biểu đồ use case phân rã Quản lý thành viên và phân quyền bảng}
+\label{fig:usecase_members}
+\end{figure}
+Hình \ref{fig:usecase_members} cho thấy use case Quản lý thành viên và phân quyền bảng trong phạm vi một bảng công việc. Nhóm chức năng này bao gồm xem danh sách thành viên hiện có, rời khỏi bảng, thêm thành viên từ tổ chức vào bảng, thay đổi vai trò trong bảng và thu hồi quyền truy cập khi cần thiết. Các vai trò được sử dụng trong phạm vi bảng gồm quản trị viên bảng, thành viên bảng và người xem bảng.
+
+Việc phân rã use case này cần nhấn mạnh rằng quyền quản trị bảng không đồng nhất với quyền quản trị tổ chức. Một người dùng có thể là thành viên tổ chức nhưng chỉ là người xem ở một bảng cụ thể, hoặc có thể là quản trị viên của một bảng nhưng không có quyền thay đổi thiết lập chung của tổ chức. Khi một thành viên rời khỏi bảng, hệ thống xóa tư cách thành viên trong phạm vi bảng, gỡ các phân công thẻ và mục checklist liên quan khỏi giao diện, đồng thời ghi nhận một nhật ký hoạt động cấp bảng. Trường hợp người rời là quản trị viên cuối cùng của bảng, hệ thống không cho phép rời và yêu cầu chuyển quyền quản trị cho người khác trước để bảo đảm bảng luôn còn người chịu trách nhiệm quản trị.
+
+\subsubsection*{d, Biểu đồ use case phân rã Quản lý danh sách và thẻ công việc}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{Hinhve/usecase_cards.png}
+\caption{Biểu đồ use case phân rã Quản lý danh sách và thẻ công việc}
+\label{fig:usecase_cards}
+\end{figure}
+Hình \ref{fig:usecase_cards} cho thấy use case Quản lý danh sách và thẻ công việc do thành viên bảng kích hoạt và là nhóm chức năng cốt lõi trong HustFlow. Người dùng có thể tạo danh sách, đổi tên danh sách, sắp xếp danh sách, tạo thẻ công việc, cập nhật nội dung thẻ và di chuyển thẻ giữa các danh sách để phản ánh trạng thái thực hiện. Thẻ công việc lưu trữ các thông tin chi tiết như tiêu đề, mô tả, người phụ trách, nhãn, ngày bắt đầu, hạn chót, nhắc việc, danh sách kiểm tra, tệp đính kèm và trạng thái hoàn thành.
+
+Khi phân rã sâu hơn, nhóm chức năng này cũng bao gồm thao tác thiết lập quan hệ phụ thuộc giữa các thẻ. Trước khi lưu một quan hệ phụ thuộc mới, hệ thống cần kiểm tra để tránh vòng lặp phụ thuộc, bởi vòng lặp có thể làm sai lệch logic tiến độ và khiến các thẻ chặn lẫn nhau. Nhóm use case này vì vậy không chỉ xử lý thao tác nhập liệu, mà còn đảm bảo tính nhất quán nghiệp vụ của bảng công việc.
+
+\subsubsection*{e, Biểu đồ use case phân rã Cộng tác thời gian thực}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{Hinhve/usecase_collab.png}
+\caption{Biểu đồ use case phân rã Cộng tác thời gian thực}
+\label{fig:usecase_collab}
+\end{figure}
+Hình \ref{fig:usecase_collab} cho thấy use case Cộng tác thời gian thực do thành viên bảng kích hoạt, phục vụ quá trình phối hợp giữa nhiều người dùng trên cùng một bảng hoặc cùng một thẻ. Các chức năng phân rã gồm bình luận trong thẻ, trả lời bình luận, bày tỏ biểu cảm, nhắc đến thành viên khác, nhận thông báo và đồng bộ thay đổi tới các giao diện đang mở. Nhờ đó, người dùng có thể theo dõi diễn biến công việc mà không cần tải lại trang hoặc trao đổi qua công cụ bên ngoài.
+
+Nhóm chức năng này gắn chặt với Quản lý danh sách và thẻ công việc nhưng vẫn cần được tách thành use case riêng vì mục tiêu nghiệp vụ khác nhau. Quản lý danh sách và thẻ tập trung vào dữ liệu công việc, còn Cộng tác thời gian thực tập trung vào tương tác giữa các thành viên và khả năng đồng bộ trạng thái. Việc tách riêng giúp phần thiết kế hệ thống sau này làm rõ các cơ chế thông báo, nhật ký hoạt động và cập nhật thời gian thực.
+
+\subsubsection*{f, Biểu đồ use case phân rã Theo dõi tiến độ và báo cáo}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{Hinhve/usecase_reports.png}
+\caption{Biểu đồ use case phân rã Theo dõi tiến độ và báo cáo}
+\label{fig:usecase_reports}
+\end{figure}
+Hình \ref{fig:usecase_reports} cho thấy use case Theo dõi tiến độ và báo cáo được kích hoạt bởi thành viên bảng và người xem bảng. Nhóm chức năng này cho phép người dùng quan sát dữ liệu bảng qua nhiều góc nhìn như bảng Kanban, lịch, biểu đồ Gantt và thống kê. Người dùng có thể theo dõi số lượng thẻ theo trạng thái, các thẻ đến hạn, tiến độ hoàn thành danh sách kiểm tra, phân bố công việc theo thành viên và các thông tin tổng hợp phục vụ đánh giá tình trạng bảng.
+
+Điểm cần lưu ý trong phân rã là người xem bảng chỉ có quyền khai thác thông tin, không có quyền chỉnh sửa dữ liệu công việc. Trong khi đó, thành viên bảng vừa có thể theo dõi tiến độ vừa có thể quay lại thao tác cập nhật thẻ nếu phát hiện vấn đề trong quá trình làm việc. Nhóm use case này vì vậy đóng vai trò hỗ trợ ra quyết định và giúp các thành viên nắm được bức tranh tổng quan của bảng.
+
+\subsubsection*{g, Biểu đồ use case phân rã Sử dụng trợ lý AI}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{Hinhve/usecase_ai.png}
+\caption{Biểu đồ use case phân rã Sử dụng trợ lý AI}
+\label{fig:usecase_ai}
+\end{figure}
+Hình \ref{fig:usecase_ai} cho thấy use case Sử dụng trợ lý AI do thành viên bảng kích hoạt và có liên kết với tác nhân hỗ trợ bên ngoài là Trợ lý AI. Các chức năng phân rã gồm tạo thẻ tự động từ nội dung thô, gợi ý danh sách kiểm tra, hỗ trợ viết hoặc cải thiện mô tả thẻ và tạo báo cáo bảng dựa trên dữ liệu thống kê. Người dùng cung cấp dữ liệu đầu vào hoặc chọn phạm vi dữ liệu cần phân tích, sau đó hệ thống gửi ngữ cảnh phù hợp tới trợ lý.
+
+Kết quả do trợ lý tạo ra được hiển thị dưới dạng bản nháp hoặc gợi ý để người dùng rà soát trước khi lưu. Cách thiết kế này giúp tận dụng khả năng hỗ trợ của trí tuệ nhân tạo nhưng vẫn giữ quyền quyết định cuối cùng cho người dùng. Use case này cũng cần được kiểm soát bởi quyền truy cập bảng, nhằm bảo đảm trợ lý chỉ xử lý dữ liệu mà người dùng hiện tại được phép xem hoặc chỉnh sửa.
+
+\subsubsection*{h, Biểu đồ use case phân rã Quản lý gói dịch vụ và thanh toán}
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.75\linewidth]{Hinhve/usecase_billing.png}
+\caption{Biểu đồ use case phân rã Quản lý gói dịch vụ và thanh toán}
+\label{fig:usecase_billing}
+\end{figure}
+Hình \ref{fig:usecase_billing} cho thấy use case Quản lý gói dịch vụ và thanh toán do quản trị viên tổ chức kích hoạt và có liên kết với tác nhân hỗ trợ bên ngoài là Stripe. Nhóm chức năng này bao gồm xem trạng thái gói dịch vụ, kiểm tra hạn mức tạo bảng, tạo phiên thanh toán, chuyển người dùng sang Stripe để hoàn tất giao dịch và xử lý kết quả thanh toán trả về. Thành viên tổ chức không có quyền thanh toán chỉ được xem trạng thái gói hoặc nhận thông báo khi tổ chức đạt giới hạn tài nguyên.
+
+Khi phân rã, use case này cần thể hiện rõ bước xác thực quyền quản trị viên tổ chức trước khi tạo phiên thanh toán. Sau khi Stripe gửi sự kiện xác nhận giao dịch, HustFlow kiểm tra tính hợp lệ của sự kiện rồi mới cập nhật trạng thái thuê bao và mở rộng hạn mức tạo bảng. Việc tách riêng use case thanh toán khỏi các nghiệp vụ quản lý công việc giúp hệ thống giảm phụ thuộc giữa logic tài chính và logic vận hành bảng.
 
 \subsection{Quy trình nghiệp vụ}
 \label{subsection:2.2.3}
-Nếu sản phẩm/hệ thống cần xây dựng có quy trình nghiệp vụ quan trọng/đáng chú ý, sinh viên cần mô tả và vẽ biểu đồ hoạt động minh họa quy trình nghiệp vụ đó. Sinh viên lưu ý đây không phải là luồng sự kiện của từng use case, mà là luồng hoạt động kết hợp nhiều use case để thực hiện một nghiệp vụ nào đó.
 
-Ví dụ, một hệ thống quản lý thư viện có quy trình nghiệp vụ mượn trả với mô tả sơ bộ như sau: Sinh viên làm thẻ mượn, sau đó sinh viên đăng ký mượn sách, thủ thư cho mượn, và cuối cùng sinh viên trả lại sách cho thư viện. Một hệ thống có thể có một vài quy trình nghiệp vụ quan trọng như vậy.
+Trong các nghiệp vụ của HustFlow, quy trình nổi bật và quan trọng nhất là quy trình quản lý thẻ công việc kết hợp kiểm tra phụ thuộc và đồng bộ thời gian thực. Đây không phải là luồng sự kiện của một use case đơn lẻ, mà là quy trình phối hợp nhiều nhóm chức năng như quản lý danh sách và thẻ công việc, phân quyền bảng, kiểm soát quan hệ phụ thuộc, ghi nhận hoạt động, thông báo và cộng tác thời gian thực. Quy trình này được chọn để mô hình hóa vì nó phản ánh trực tiếp giá trị cốt lõi của hệ thống: hỗ trợ người dùng quản lý tiến độ công việc trên bảng Kanban một cách nhất quán, an toàn và cập nhật tức thời cho nhiều thành viên cùng làm việc.
+
+Biểu đồ hoạt động của quy trình được trình bày trong Hình \ref{fig:activity_task_workflow}.
+
+\begin{figure}[H]
+\centering
+\includegraphics[width=0.85\linewidth]{Hinhve/activity_task_workflow.png}
+\caption{Biểu đồ hoạt động quy trình quản lý thẻ công việc, kiểm tra phụ thuộc và đồng bộ thời gian thực}
+\label{fig:activity_task_workflow}
+\end{figure}
+
+Dựa trên Hình \ref{fig:activity_task_workflow}, quy trình bắt đầu khi thành viên bảng mở một bảng công việc và thực hiện thao tác với thẻ, chẳng hạn tạo thẻ mới, cập nhật nội dung, di chuyển thẻ giữa các danh sách, sắp xếp thứ tự thẻ hoặc thiết lập quan hệ phụ thuộc giữa các thẻ. Trước khi ghi nhận thay đổi, hệ thống kiểm tra quyền truy cập của người dùng trong phạm vi bảng và kiểm tra tính hợp lệ của dữ liệu đầu vào. Nếu người dùng không có quyền phù hợp hoặc dữ liệu không hợp lệ, thao tác bị từ chối và hệ thống hiển thị thông báo tương ứng.
+
+Với các thao tác có liên quan đến quan hệ phụ thuộc, HustFlow thực hiện thêm bước kiểm tra vòng lặp phụ thuộc. Nếu quan hệ mới làm phát sinh vòng lặp, hệ thống không lưu thay đổi và cảnh báo để người dùng điều chỉnh lại thao tác. Ngược lại, nếu dữ liệu hợp lệ và không tạo vòng lặp, hệ thống lưu thay đổi vào cơ sở dữ liệu, ghi nhật ký hoạt động và phát sự kiện đồng bộ thời gian thực tới các thành viên khác đang mở cùng bảng. Nhờ đó, trạng thái bảng được cập nhật đồng nhất trên nhiều giao diện, đồng thời các thông báo cần thiết cũng được tạo ra để người dùng theo dõi diễn biến công việc.
+
+Bên cạnh quy trình trên, hệ thống còn có một số quy trình nghiệp vụ đáng chú ý khác như kiểm tra giới hạn số bảng và nâng cấp gói trả phí, hoặc sử dụng trợ lý trí tuệ nhân tạo để hỗ trợ khởi tạo và phân tích công việc. Tuy nhiên, các quy trình này có phạm vi hẹp hơn hoặc phụ thuộc nhiều vào dịch vụ bên ngoài. Vì vậy, trong phạm vi khảo sát và phân tích yêu cầu, quy trình quản lý thẻ công việc được ưu tiên mô hình hóa do liên quan trực tiếp đến hoạt động thường xuyên nhất của người dùng và tác động đến nhiều thành phần chức năng cốt lõi của HustFlow.
+
 \section{Đặc tả chức năng}
 \label{section:2.3}
-Sinh viên lựa chọn từ 4 đến 7 use case quan trọng nhất của đồ án để đặc tả chi tiết. Mỗi đặc tả bao gồm ít nhất các thông tin sau: (i) Tên use case, (ii) Luồng sự kiện (chính và phát sinh), (iii) Tiền điều kiện, và (iv) Hậu điều kiện. Sinh viên chỉ vẽ bổ sung biểu đồ hoạt động khi đặc tả use case phức tạp.
-\subsection{Đặc tả use case A}
-\hfill
-\subsection{Đặc tả use case B}
-\hfill
+Phần này đặc tả bảy use case cốt lõi của HustFlow được lựa chọn dựa trên mức độ quan trọng và độ phức tạp của quy trình nghiệp vụ, bao gồm: tạo bảng mới, xem và cập nhật chi tiết thẻ, kéo thả và di chuyển thẻ, thiết lập quan hệ phụ thuộc giữa các thẻ, bình luận trong thẻ, theo dõi tiến độ và báo cáo, cùng với việc tạo thẻ tự động từ văn bản thô.
+
+\definecolor{ucBlue}{HTML}{8ED6D1}
+\definecolor{ucBlueDark}{HTML}{2A7772}
+\definecolor{ucOrange}{HTML}{F6B26B}
+\definecolor{ucOrangeLight}{HTML}{FCE5CD}
+\definecolor{ucLine}{HTML}{4F4F4F}
+\newcommand{\ucfield}[1]{\cellcolor{ucBlue!85}\rule{0pt}{3.1ex}\textbf{#1}}
+\newcommand{\ucfieldalt}[1]{\cellcolor{ucOrange!70}\rule{0pt}{3.1ex}\textbf{#1}}
+\newcommand{\uccell}[1]{\begin{minipage}[t]{\linewidth}#1\par\vspace{3pt}\end{minipage}}
+
+\subsection{Đặc tả use case 1: Tạo bảng mới}
+\label{subsection:2.3.1}
+
+\begingroup
+\small
+\setlength{\tabcolsep}{8pt}
+\renewcommand{\arraystretch}{1.35}
+\arrayrulecolor{ucLine}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{0.27\textwidth}|>{\raggedright\arraybackslash}p{0.64\textwidth}|}
+\caption{Đặc tả use case Tạo bảng mới}
+\label{table:uc_create_board}\\
+\hline
+\ucfield{Mã use case} & UC001 \\ \hline
+\ucfield{Tên use case} & Tạo bảng mới \\ \hline
+\ucfield{Tác nhân} & Thành viên tổ chức, quản trị viên tổ chức \\ \hline
+\ucfieldalt{Tiền điều kiện} & Người dùng đã đăng nhập và là thành viên của tổ chức tương ứng. \\ \hline
+\ucfield{Luồng sự kiện chính} & \uccell{\begin{enumerate}[leftmargin=*, nosep, itemsep=1pt]
+  \item Người dùng chọn chức năng tạo bảng mới trên giao diện không gian làm việc của tổ chức.
+  \item Hệ thống hiển thị hộp thoại yêu cầu nhập tiêu đề bảng và chọn hình nền hoặc màu nền đại diện.
+  \item Người dùng nhập tiêu đề bảng, chọn hình nền hoặc màu nền và xác nhận gửi yêu cầu.
+  \item Hệ thống kiểm tra quyền hạn của người dùng trong tổ chức và truy xuất thông tin gói dịch vụ hiện tại.
+  \item Hệ thống kiểm tra hạn mức số lượng bảng tối đa được phép tạo của gói dịch vụ.
+  \item Nếu dữ liệu hợp lệ và tổ chức còn hạn mức, hệ thống tạo bảng trong cơ sở dữ liệu, gán người tạo làm quản trị viên bảng và liên kết bảng với tổ chức hiện tại.
+  \item Hệ thống thông báo tạo bảng thành công và chuyển hướng người dùng vào giao diện làm việc của bảng mới.
+\end{enumerate}} \\ \hline
+\ucfieldalt{Luồng sự kiện thay thế} & \uccell{\begin{enumerate}[leftmargin=*, nosep, itemsep=1pt]
+  \item[5a.] Nếu tổ chức đã đạt giới hạn bảng của gói hiện tại, hệ thống không tạo bảng và hiển thị thông báo yêu cầu nâng cấp gói dịch vụ.
+  \item[3a.] Nếu tiêu đề bảng bị bỏ trống hoặc không hợp lệ, hệ thống hiển thị lỗi tại trường nhập liệu và yêu cầu người dùng nhập lại.
+\end{enumerate}} \\ \hline
+\ucfield{Hậu điều kiện} & Bảng mới được khởi tạo thành công trong tổ chức, người tạo được gán vai trò quản trị viên bảng và danh sách bảng hiển thị được cập nhật. \\ \hline
+\end{longtable}
+\endgroup
+
+\subsection{Đặc tả use case 2: Xem và cập nhật chi tiết thẻ}
+\label{subsection:2.3.2}
+
+\begingroup
+\small
+\setlength{\tabcolsep}{8pt}
+\renewcommand{\arraystretch}{1.35}
+\arrayrulecolor{ucLine}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{0.27\textwidth}|>{\raggedright\arraybackslash}p{0.64\textwidth}|}
+\caption{Đặc tả use case Xem và cập nhật chi tiết thẻ}
+\label{table:uc_update_card_detail}\\
+\hline
+\ucfield{Mã use case} & UC002 \\ \hline
+\ucfield{Tên use case} & Xem và cập nhật chi tiết thẻ \\ \hline
+\ucfield{Tác nhân} & Thành viên bảng, quản trị viên bảng \\ \hline
+\ucfieldalt{Tiền điều kiện} & Người dùng đã truy cập vào bảng công việc với vai trò thành viên bảng hoặc quản trị viên bảng. \\ \hline
+\ucfield{Luồng sự kiện chính} & \uccell{\begin{enumerate}[leftmargin=*, nosep, itemsep=1pt]
+  \item Người dùng chọn một thẻ công việc trên bảng Kanban.
+  \item Hệ thống hiển thị hộp thoại chi tiết thẻ với các thông tin hiện có.
+  \item Người dùng cập nhật các thông tin cần thiết như mô tả, thành viên phụ trách, nhãn, ngày bắt đầu, hạn chót, nhắc việc, checklist hoặc tệp đính kèm.
+  \item Hệ thống kiểm tra quyền chỉnh sửa và tính hợp lệ của dữ liệu đầu vào.
+  \item Hệ thống lưu thay đổi vào cơ sở dữ liệu và cập nhật nhật ký hoạt động của bảng.
+  \item Hệ thống phát sự kiện đồng bộ thời gian thực tới các thành viên khác đang cùng truy cập bảng.
+\end{enumerate}} \\ \hline
+\ucfieldalt{Luồng sự kiện thay thế} & \uccell{\begin{enumerate}[leftmargin=*, nosep, itemsep=1pt]
+  \item[4a.] Nếu người dùng có vai trò người xem bảng, hệ thống chỉ cho phép xem và vô hiệu hóa các khả năng sửa đổi.
+  \item[3a.] Nếu tệp đính kèm vượt quá giới hạn dung lượng hoặc sai định dạng, hệ thống chặn tải lên, hiển thị lỗi và giữ nguyên dữ liệu cũ.
+  \item[4b.] Nếu dữ liệu nhập không hợp lệ, hệ thống hiển thị lỗi tại trường tương ứng và không lưu thay đổi.
+\end{enumerate}} \\ \hline
+\ucfield{Hậu điều kiện} & Thẻ công việc được lưu với thông tin mới nhất, lịch sử hoạt động được ghi nhận và trạng thái thẻ được đồng bộ tới các thành viên liên quan. \\ \hline
+\end{longtable}
+\endgroup
+
+\subsection{Đặc tả use case 3: Kéo thả và di chuyển thẻ}
+\label{subsection:2.3.3}
+
+\begingroup
+\small
+\setlength{\tabcolsep}{8pt}
+\renewcommand{\arraystretch}{1.35}
+\arrayrulecolor{ucLine}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{0.27\textwidth}|>{\raggedright\arraybackslash}p{0.64\textwidth}|}
+\caption{Đặc tả use case Kéo thả và di chuyển thẻ}
+\label{table:uc_drag_card}\\
+\hline
+\ucfield{Mã use case} & UC003 \\ \hline
+\ucfield{Tên use case} & Kéo thả và di chuyển thẻ \\ \hline
+\ucfield{Tác nhân} & Thành viên bảng, quản trị viên bảng \\ \hline
+\ucfieldalt{Tiền điều kiện} & Người dùng đang mở giao diện bảng ở chế độ Kanban và có quyền chỉnh sửa trên bảng. \\ \hline
+\ucfield{Luồng sự kiện chính} & \uccell{\begin{enumerate}[leftmargin=*, nosep, itemsep=1pt]
+  \item Người dùng nhấn giữ một thẻ công việc trên bảng Kanban.
+  \item Người dùng kéo thẻ đến vị trí mới trong cùng danh sách hoặc sang một danh sách khác rồi thả thẻ.
+  \item Giao diện áp dụng hiển thị lạc quan để di chuyển thẻ ngay lập tức.
+  \item Hệ thống gửi yêu cầu cập nhật vị trí thẻ, danh sách nguồn, danh sách đích và thứ tự mới về máy chủ.
+  \item Máy chủ kiểm tra quyền chỉnh sửa của người dùng đối với bảng.
+  \item Hệ thống cập nhật thứ tự sắp xếp và danh sách sở hữu của thẻ trong cơ sở dữ liệu.
+  \item Hệ thống phát sự kiện đồng bộ thời gian thực tới các thành viên khác đang mở bảng.
+\end{enumerate}} \\ \hline
+\ucfieldalt{Luồng sự kiện thay thế} & \uccell{\begin{enumerate}[leftmargin=*, nosep, itemsep=1pt]
+  \item[5a.] Nếu người dùng chỉ có quyền xem bảng, máy chủ từ chối lưu thay đổi và giao diện trả thẻ về vị trí ban đầu.
+  \item[6a.] Nếu kết nối mạng hoặc máy chủ bị gián đoạn, hệ thống khôi phục vị trí cũ của thẻ và hiển thị thông báo lỗi.
+\end{enumerate}} \\ \hline
+\ucfield{Hậu điều kiện} & Thứ tự sắp xếp và danh sách sở hữu thẻ được cập nhật chính xác; giao diện của các thành viên đang mở bảng được đồng bộ tức thời. \\ \hline
+\end{longtable}
+\endgroup
+
+\subsection{Đặc tả use case 4: Thiết lập quan hệ phụ thuộc giữa các thẻ}
+\label{subsection:2.3.4}
+
+\begingroup
+\small
+\setlength{\tabcolsep}{8pt}
+\renewcommand{\arraystretch}{1.35}
+\arrayrulecolor{ucLine}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{0.27\textwidth}|>{\raggedright\arraybackslash}p{0.64\textwidth}|}
+\caption{Đặc tả use case Thiết lập quan hệ phụ thuộc giữa các thẻ}
+\label{table:uc_card_dependency}\\
+\hline
+\ucfield{Mã use case} & UC004 \\ \hline
+\ucfield{Tên use case} & Thiết lập quan hệ phụ thuộc giữa các thẻ \\ \hline
+\ucfield{Tác nhân} & Thành viên bảng, quản trị viên bảng \\ \hline
+\ucfieldalt{Tiền điều kiện} & Bảng công việc hiện tại có ít nhất hai thẻ công việc hợp lệ đang hoạt động và người dùng có quyền chỉnh sửa bảng. \\ \hline
+\ucfield{Luồng sự kiện chính} & \uccell{\begin{enumerate}[leftmargin=*, nosep, itemsep=1pt]
+  \item Người dùng mở hộp thoại chi tiết của thẻ đích.
+  \item Người dùng chọn chức năng thêm quan hệ phụ thuộc.
+  \item Hệ thống hiển thị danh sách các thẻ công việc khác trong cùng bảng để người dùng chọn làm thẻ tiền đề.
+  \item Người dùng chọn thẻ tiền đề và xác nhận.
+  \item Hệ thống duyệt đồ thị phụ thuộc hiện tại để kiểm tra liên kết mới có tạo chu trình hay không.
+  \item Nếu không phát hiện vòng lặp, hệ thống lưu quan hệ phụ thuộc vào cơ sở dữ liệu.
+  \item Hệ thống ghi nhật ký hoạt động và gửi cập nhật thời gian thực đến các thành viên đang mở bảng.
+\end{enumerate}} \\ \hline
+\ucfieldalt{Luồng sự kiện thay thế} & \uccell{\begin{enumerate}[leftmargin=*, nosep, itemsep=1pt]
+  \item[5a.] Nếu liên kết mới tạo vòng lặp phụ thuộc, hệ thống từ chối lưu và hiển thị cảnh báo để người dùng cấu hình lại.
+  \item[4a.] Nếu thẻ tiền đề vừa bị xóa hoặc lưu trữ, hệ thống báo lỗi dữ liệu không tồn tại và yêu cầu tải lại danh sách thẻ.
+  \item[4b.] Nếu người dùng chọn chính thẻ hiện tại làm thẻ tiền đề, hệ thống từ chối thao tác.
+\end{enumerate}} \\ \hline
+\ucfield{Hậu điều kiện} & Quan hệ phụ thuộc được ghi nhận thành công, trạng thái phụ thuộc được cập nhật trên giao diện thẻ và đồng bộ theo thời gian thực. \\ \hline
+\end{longtable}
+\endgroup
+
+\subsection{Đặc tả use case 5: Bình luận trong thẻ}
+\label{subsection:2.3.5}
+
+\begingroup
+\small
+\setlength{\tabcolsep}{8pt}
+\renewcommand{\arraystretch}{1.35}
+\arrayrulecolor{ucLine}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{0.27\textwidth}|>{\raggedright\arraybackslash}p{0.64\textwidth}|}
+\caption{Đặc tả use case Bình luận trong thẻ}
+\label{table:uc_comment_card}\\
+\hline
+\ucfield{Mã use case} & UC005 \\ \hline
+\ucfield{Tên use case} & Bình luận trong thẻ \\ \hline
+\ucfield{Tác nhân} & Thành viên bảng, quản trị viên bảng \\ \hline
+\ucfieldalt{Tiền điều kiện} & Người dùng có quyền truy cập vào thẻ công việc tương ứng. \\ \hline
+\ucfield{Luồng sự kiện chính} & \uccell{\begin{enumerate}[leftmargin=*, nosep, itemsep=1pt]
+  \item Người dùng mở hộp thoại chi tiết thẻ và di chuyển đến khu vực thảo luận.
+  \item Người dùng nhập nội dung bình luận vào ô soạn thảo.
+  \item Người dùng có thể gõ ký tự \texttt{@} kèm tên thành viên để nhắc tên trong bình luận.
+  \item Hệ thống hiển thị danh sách gợi ý thành viên phù hợp; người dùng chọn thành viên cần nhắc tên.
+  \item Người dùng gửi bình luận.
+  \item Hệ thống kiểm tra quyền gửi bình luận và phân tích nội dung để trích xuất các thành viên được nhắc tên.
+  \item Hệ thống lưu bình luận, tạo thông báo cho các thành viên được nhắc tên và ghi nhận hoạt động liên quan.
+  \item Hệ thống phát sự kiện thời gian thực để hiển thị bình luận mới trên giao diện của người dùng khác đang mở thẻ.
+\end{enumerate}} \\ \hline
+\ucfieldalt{Luồng sự kiện thay thế} & \uccell{\begin{enumerate}[leftmargin=*, nosep, itemsep=1pt]
+  \item[5a.] Nếu nội dung bình luận trống hoặc vượt quá giới hạn ký tự, hệ thống chặn gửi và yêu cầu người dùng chỉnh sửa.
+  \item[7a.] Nếu thành viên được nhắc tên không còn quyền truy cập thẻ, hệ thống vẫn lưu bình luận nhưng không tạo thông báo nhắc tên cho thành viên đó.
+\end{enumerate}} \\ \hline
+\ucfield{Hậu điều kiện} & Bình luận được hiển thị trong lịch sử thảo luận của thẻ, thông báo được gửi tới thành viên được nhắc tên và giao diện thảo luận được cập nhật thời gian thực. \\ \hline
+\end{longtable}
+\endgroup
+
+\subsection{Đặc tả use case 6: Theo dõi tiến độ và báo cáo}
+\label{subsection:2.3.6}
+
+\begingroup
+\small
+\setlength{\tabcolsep}{8pt}
+\renewcommand{\arraystretch}{1.35}
+\arrayrulecolor{ucLine}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{0.27\textwidth}|>{\raggedright\arraybackslash}p{0.64\textwidth}|}
+\caption{Đặc tả use case Theo dõi tiến độ và báo cáo}
+\label{table:uc_report_progress}\\
+\hline
+\ucfield{Mã use case} & UC006 \\ \hline
+\ucfield{Tên use case} & Theo dõi tiến độ và báo cáo \\ \hline
+\ucfield{Tác nhân} & Thành viên bảng, quản trị viên bảng, người xem bảng \\ \hline
+\ucfieldalt{Tiền điều kiện} & Người dùng có quyền truy cập vào bảng công việc tương ứng. \\ \hline
+\ucfield{Luồng sự kiện chính} & \uccell{\begin{enumerate}[leftmargin=*, nosep, itemsep=1pt]
+  \item Người dùng chọn chế độ hiển thị như lịch, biểu đồ Gantt hoặc thống kê/báo cáo từ thanh công cụ của bảng.
+  \item Hệ thống truy xuất dữ liệu thẻ, danh sách, thành viên và quan hệ phụ thuộc trong bảng.
+  \item Hệ thống tính toán và định dạng dữ liệu theo chế độ xem được chọn.
+  \item Với chế độ lịch, hệ thống sắp xếp thẻ theo ngày bắt đầu và hạn chót.
+  \item Với chế độ Gantt, hệ thống biểu diễn thẻ trên dòng thời gian và thể hiện quan hệ phụ thuộc giữa các thẻ.
+  \item Với chế độ thống kê, hệ thống tổng hợp số thẻ theo trạng thái, số thẻ quá hạn, số thẻ hoàn thành và phân bố công việc theo thành viên.
+  \item Hệ thống hiển thị giao diện báo cáo hoặc tiến độ trực quan để người dùng khai thác thông tin.
+  \item Người dùng có thể lọc dữ liệu theo nhãn, thành viên hoặc khoảng thời gian.
+\end{enumerate}} \\ \hline
+\ucfieldalt{Luồng sự kiện thay thế} & \uccell{\begin{enumerate}[leftmargin=*, nosep, itemsep=1pt]
+  \item[2a.] Nếu bảng chưa có danh sách hoặc thẻ công việc, hệ thống hiển thị trạng thái trống và hướng dẫn người dùng tạo dữ liệu trước.
+  \item[7a.] Nếu người dùng có vai trò người xem bảng, hệ thống vẫn hiển thị báo cáo nhưng khóa các thao tác chỉnh sửa trực tiếp trên lịch hoặc dòng thời gian.
+\end{enumerate}} \\ \hline
+\ucfield{Hậu điều kiện} & Báo cáo, biểu đồ, giao diện Gantt và lịch hiển thị thông tin phản ánh dữ liệu hiện tại của bảng công việc. \\ \hline
+\end{longtable}
+\endgroup
+
+\subsection{Đặc tả use case 7: Tạo thẻ tự động từ văn bản thô}
+\label{subsection:2.3.7}
+
+\begingroup
+\small
+\setlength{\tabcolsep}{8pt}
+\renewcommand{\arraystretch}{1.35}
+\arrayrulecolor{ucLine}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{0.27\textwidth}|>{\raggedright\arraybackslash}p{0.64\textwidth}|}
+\caption{Đặc tả use case Tạo thẻ tự động từ văn bản thô}
+\label{table:uc_ai_create_card}\\
+\hline
+\ucfield{Mã use case} & UC007 \\ \hline
+\ucfield{Tên use case} & Tạo thẻ tự động từ văn bản thô \\ \hline
+\ucfield{Tác nhân} & Thành viên bảng, quản trị viên bảng, trợ lý AI \\ \hline
+\ucfieldalt{Tiền điều kiện} & Hệ thống kết nối bình thường với dịch vụ API trí tuệ nhân tạo và người dùng có quyền chỉnh sửa trên bảng. \\ \hline
+\ucfield{Luồng sự kiện chính} & \uccell{\begin{enumerate}[leftmargin=*, nosep, itemsep=1pt]
+  \item Người dùng chọn chức năng tạo thẻ bằng AI tại một danh sách trong bảng.
+  \item Hệ thống hiển thị hộp thoại yêu cầu nhập văn bản mô tả công việc tự do.
+  \item Người dùng nhập văn bản mô tả và yêu cầu AI phân tích.
+  \item Hệ thống đóng gói yêu cầu cùng ngữ cảnh bảng hiện tại và gửi tới dịch vụ trợ lý AI.
+  \item Trợ lý AI phân tích nội dung và trả về dữ liệu có cấu trúc gồm tiêu đề đề xuất, mô tả chuẩn hóa và danh sách checklist gợi ý.
+  \item Hệ thống kiểm tra định dạng dữ liệu trả về và hiển thị bản nháp thẻ cho người dùng xem trước.
+  \item Người dùng rà soát, chỉnh sửa bản nháp nếu cần, chọn danh sách đích và xác nhận tạo thẻ.
+  \item Hệ thống lưu thẻ công việc và các mục checklist mới vào cơ sở dữ liệu, ghi nhật ký hoạt động và thông báo thành công.
+\end{enumerate}} \\ \hline
+\ucfieldalt{Luồng sự kiện thay thế} & \uccell{\begin{enumerate}[leftmargin=*, nosep, itemsep=1pt]
+  \item[4a.] Nếu dịch vụ AI lỗi, quá tải hoặc quá thời gian phản hồi, hệ thống thông báo dịch vụ bận và cho phép người dùng thử lại hoặc tạo thẻ thủ công.
+  \item[5a.] Nếu kết quả trả về không đúng cấu trúc yêu cầu, hệ thống báo lỗi xử lý và cho phép gửi lại yêu cầu phân tích.
+  \item[7a.] Nếu người dùng hủy bản nháp, hệ thống không tạo thẻ mới.
+\end{enumerate}} \\ \hline
+\ucfield{Hậu điều kiện} & Thẻ công việc và các mục checklist tương ứng được tạo trong danh sách của bảng sau khi người dùng phê duyệt bản nháp do AI tạo ra. \\ \hline
+\end{longtable}
+\endgroup
+\arrayrulecolor{black}
+
 
 \section{Yêu cầu phi chức năng}
 \label{section:2.4}
-Trong phần này, sinh viên đưa ra các yêu cầu khác nếu có, bao gồm các yêu cầu phi chức năng như hiệu năng, độ tin cậy, tính dễ dùng, tính dễ bảo trì, hoặc các yêu cầu về mặt kỹ thuật như về CSDL, công nghệ sử dụng, v.v.
 
+Bên cạnh các yêu cầu chức năng đã được mô tả thông qua các use case, HustFlow cần đáp ứng một số yêu cầu phi chức năng để hệ thống có thể vận hành ổn định trong môi trường cộng tác nhóm. Các yêu cầu này tập trung vào năm khía cạnh chính: (i) hiệu năng, (ii) bảo mật và phân quyền, (iii) độ tin cậy và tính toàn vẹn dữ liệu, (iv) tính dễ dùng, cùng (v) khả năng bảo trì và mở rộng. Việc xác định rõ các yêu cầu phi chức năng giúp quá trình lựa chọn công nghệ, thiết kế kiến trúc và kiểm thử hệ thống ở các chương sau có cơ sở cụ thể hơn.
+
+\subsection{Tính hiệu năng}
+\label{subsection:2.4.1}
+
+HustFlow là hệ thống làm việc cộng tác, do đó hiệu năng cần được đánh giá trước hết ở các thao tác được sử dụng thường xuyên. Các thao tác như mở bảng, mở chi tiết thẻ, tạo thẻ mới, kéo thả thẻ giữa các danh sách, cập nhật danh sách kiểm tra và gửi bình luận phải có thời gian phản hồi đủ ngắn để không làm gián đoạn luồng làm việc của người dùng. Trong điều kiện mạng ổn định, các thay đổi quan trọng trên bảng cần được đồng bộ tới những thành viên liên quan gần như theo thời gian thực (near real-time), đặc biệt đối với các thao tác ảnh hưởng trực tiếp đến trạng thái công việc.
+
+Đối với các màn hình có lượng dữ liệu lớn như bảng Kanban, lịch, biểu đồ Gantt và thống kê, hệ thống cần hạn chế tải lại toàn bộ dữ liệu khi không cần thiết, đồng thời chỉ hiển thị hoặc tính toán những thông tin phục vụ trực tiếp cho chế độ xem hiện tại. Các thao tác sử dụng trợ lý trí tuệ nhân tạo có thể có thời gian xử lý dài hơn thao tác thông thường, nhưng giao diện phải thể hiện rõ trạng thái đang xử lý, có cơ chế giới hạn thời gian chờ và trả về thông báo phù hợp khi dịch vụ bên ngoài không phản hồi.
+
+\subsection{Bảo mật và phân quyền}
+\label{subsection:2.4.2}
+
+Hệ thống phải yêu cầu người dùng xác thực trước khi truy cập các tài nguyên thuộc không gian làm việc, bảng và thẻ công việc. Mọi yêu cầu đọc hoặc ghi dữ liệu cần được kiểm tra theo ngữ cảnh tổ chức, bảng và vai trò của người dùng, tránh trường hợp người dùng truy cập vào tài nguyên không thuộc phạm vi được cấp quyền. Cơ chế phân quyền phải được áp dụng nhất quán cho các vai trò quản trị viên, thành viên và người xem trong các nghiệp vụ như tạo bảng, cập nhật thẻ, mời thành viên, bình luận, quản lý tệp đính kèm, sử dụng trợ lý trí tuệ nhân tạo và xem báo cáo.
+
+Đối với dữ liệu nhạy cảm, hệ thống không được hiển thị thông tin nội bộ của máy chủ, câu lệnh truy vấn hoặc dấu vết lỗi kỹ thuật cho người dùng cuối. Các chức năng thanh toán phải được thực hiện thông qua cổng thanh toán Stripe; chỉ quản trị viên tổ chức mới có quyền tạo phiên thanh toán hoặc quản lý thuê bao. Trạng thái gói dịch vụ chỉ được cập nhật khi hệ thống nhận được sự kiện hợp lệ từ Stripe, nhằm hạn chế rủi ro thay đổi trái phép thông tin thanh toán.
+
+\subsection{Độ tin cậy và tính toàn vẹn dữ liệu}
+\label{subsection:2.4.3}
+
+Các thao tác cập nhật dữ liệu cần bảo đảm tính nhất quán giữa giao diện người dùng và cơ sở dữ liệu. Khi người dùng thay đổi thứ tự thẻ, cập nhật danh sách kiểm tra, thiết lập quan hệ phụ thuộc, thêm thành viên hoặc thay đổi vai trò, hệ thống phải kiểm tra dữ liệu đầu vào và chỉ ghi nhận thay đổi hợp lệ. Trong trường hợp thao tác thất bại, giao diện cần thông báo lỗi rõ ràng và khôi phục trạng thái phù hợp, tránh để người dùng tiếp tục làm việc trên dữ liệu hiển thị sai.
+
+HustFlow cũng cần duy trì ranh giới rõ ràng giữa dữ liệu đang hoạt động và dữ liệu đã lưu trữ. Các thẻ hoặc danh sách đã lưu trữ không được xuất hiện trong các thao tác chỉnh sửa thông thường, nhưng vẫn có thể được khôi phục hoặc xóa vĩnh viễn bởi người dùng có quyền phù hợp. Những thay đổi quan trọng như tạo, cập nhật, xóa, lưu trữ, khôi phục thẻ hoặc thay đổi thành viên cần được ghi vào nhật ký hoạt động để phục vụ theo dõi lịch sử và hỗ trợ kiểm tra khi có sự cố.
+
+\subsection{Tính dễ dùng}
+\label{subsection:2.4.4}
+
+Giao diện của HustFlow cần trực quan đối với nhóm người dùng phổ thông, bao gồm sinh viên, nhóm nghiên cứu và nhóm phát triển nhỏ. Các thao tác chính như kéo thả thẻ, tạo danh sách, gán thành viên, thêm nhãn, đặt hạn chót, bình luận và xem báo cáo cần được bố trí dễ nhận biết. Hệ thống phải có phản hồi rõ ràng cho các trạng thái đang tải, thành công, thất bại hoặc không đủ quyền, giúp người dùng hiểu được kết quả của thao tác mà không cần diễn giải kỹ thuật.
+
+Do hệ thống hỗ trợ nhiều góc nhìn công việc, hệ thống cần hỗ trợ người dùng chuyển đổi linh hoạt giữa các chế độ xem: bảng Kanban, lịch, biểu đồ Gantt, chế độ xem chia đôi (bảng kết hợp lịch) và thống kê mà vẫn giữ được ngữ cảnh của bảng hiện tại. Các thông báo lỗi liên quan đến phân quyền, dữ liệu không hợp lệ, thanh toán hoặc trợ lý trí tuệ nhân tạo cần được trình bày bằng tiếng Việt rõ ràng. Giao diện cũng cần thích ứng với các kích thước màn hình phổ biến, đặc biệt tại những khu vực có mật độ thông tin cao như bảng Kanban, lịch và biểu đồ Gantt.
+
+\subsection{Tính bảo trì và mở rộng}
+\label{subsection:2.4.5}
+
+Hệ thống cần được tổ chức theo hướng tách biệt rõ giữa các nhóm nghiệp vụ như quản lý bảng, quản lý thẻ, danh sách kiểm tra, bình luận, thông báo, quan hệ phụ thuộc, trợ lý trí tuệ nhân tạo và thanh toán. Ranh giới xử lý rõ ràng giúp giảm phụ thuộc giữa các phần của hệ thống, đồng thời tạo điều kiện bổ sung chức năng mới như bộ lọc nâng cao, loại báo cáo mới, hình thức thông báo mới hoặc tác vụ trí tuệ nhân tạo mới mà không ảnh hưởng lớn đến những chức năng đã ổn định.
+
+Ở mức kỹ thuật, hệ thống cần duy trì cơ chế kiểm tra dữ liệu đầu vào trước khi ghi vào cơ sở dữ liệu, bao gồm cả dữ liệu do người dùng nhập và dữ liệu do dịch vụ trí tuệ nhân tạo trả về. Việc sử dụng cơ sở dữ liệu quan hệ thông qua Prisma và MySQL đòi hỏi mô hình dữ liệu phải phản ánh đúng quan hệ giữa tổ chức, bảng, thành viên, danh sách, thẻ, bình luận, tệp đính kèm và thanh toán. Các lỗi phía máy chủ cần được ghi nhận ở mức phù hợp để hỗ trợ kiểm tra, bảo trì và cải tiến hệ thống trong quá trình phát triển lâu dài.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Chương 2 đã khảo sát một số công cụ quản lý công việc phổ biến, từ đó xác định những yêu cầu nghiệp vụ cần thiết cho HustFlow trong phạm vi nhóm làm việc vừa và nhỏ. Trên cơ sở kết quả khảo sát, chương này đã trình bày mô hình use case tổng quát, các nhóm use case phân rã và bảy use case cốt lõi được đặc tả chi tiết của hệ thống, bao gồm: (i) tạo bảng mới, (ii) xem và cập nhật chi tiết thẻ, (iii) kéo thả và di chuyển thẻ, (iv) thiết lập quan hệ phụ thuộc giữa các thẻ, (v) bình luận trong thẻ, (vi) theo dõi tiến độ và báo cáo, cùng với (vii) tạo thẻ tự động từ văn bản thô. Bên cạnh đó, các yêu cầu phi chức năng về hiệu năng, bảo mật, độ tin cậy dữ liệu, tính dễ dùng và khả năng bảo trì cũng được xác định để làm rõ các ràng buộc khi triển khai hệ thống. Những kết quả phân tích trong chương này là cơ sở để lựa chọn nền tảng lý thuyết và công nghệ sử dụng, nội dung sẽ được trình bày trong Chương 3.
 
 \end{document}

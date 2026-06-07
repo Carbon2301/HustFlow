@@ -10,11 +10,12 @@ import { InputType, ReturnType } from "./types";
 import { CreateBoard } from "./schema";
 import { createAuditLog } from "@/lib/create-audit-log";
 import { ACTION, BoardMemberRole, ENTITY_TYPE } from "@prisma/client";
-import { 
-  incrementAvailableCount, 
-  hasAvailableCount
+import {
+  incrementAvailableCount,
+  hasAvailableCount,
 } from "@/lib/org-limit";
 import { checkSubscription } from "@/lib/billing/subscription";
+import { isOrganizationAdmin } from "@/lib/organization-permissions";
 
 const handler = async (data: InputType): Promise<ReturnType> => {
   const { userId, orgId } = await auth();
@@ -30,9 +31,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
   const isPro = await checkSubscription();
 
   if (!canCreate && !isPro) {
+    const isOrgAdmin = await isOrganizationAdmin(orgId, userId);
+
     return {
-      error: "Bạn đã đạt giới hạn số lượng bảng miễn phí. Vui lòng nâng cấp tài khoản để tạo thêm."
-    }
+      error: isOrgAdmin
+        ? "Tổ chức đã đạt giới hạn số lượng bảng miễn phí. Vui lòng nâng cấp lên Pro để tạo thêm."
+        : "Tổ chức đã đạt giới hạn 5 bảng. Vui lòng liên hệ quản trị viên tổ chức để nâng cấp.",
+    };
   }
 
   const { title, image } = data;
@@ -42,12 +47,12 @@ const handler = async (data: InputType): Promise<ReturnType> => {
     imageThumbUrl,
     imageFullUrl,
     imageLinkHTML,
-    imageUserName
+    imageUserName,
   ] = image.split("|");
 
   if (!imageId || !imageThumbUrl || !imageFullUrl || !imageUserName || !imageLinkHTML) {
     return {
-      error: "Thiếu thông tin trường dữ liệu. Tạo bảng thất bại."
+      error: "Thiếu thông tin trường dữ liệu. Tạo bảng thất bại.",
     };
   }
 
@@ -87,14 +92,14 @@ const handler = async (data: InputType): Promise<ReturnType> => {
               { color: "#f87171", title: "" },
               { color: "#c084fc", title: "" },
               { color: "#60a5fa", title: "" },
-            ]
-          }
+            ],
+          },
         },
-      }
+      },
     });
 
     if (!isPro) {
-     await incrementAvailableCount();
+      await incrementAvailableCount();
     }
 
     await createAuditLog({
@@ -103,11 +108,11 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       entityType: ENTITY_TYPE.BOARD,
       action: ACTION.CREATE,
       boardId: board.id,
-    })
+    });
   } catch {
     return {
-      error: "Tạo bảng thất bại."
-    }
+      error: "Tạo bảng thất bại.",
+    };
   }
 
   revalidatePath(`/board/${board.id}`);

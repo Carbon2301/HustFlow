@@ -14,6 +14,9 @@
 \usepackage{amsbsy} % Hỗ trợ các kí hiệu in đậm
 \usepackage{times} % Chọn font Time New Romans
 \usepackage{array} % Tạo bảng array
+\usepackage[table]{xcolor} % Tô màu cho bảng biểu
+\usepackage{tabularx} % Tạo bảng tự co giãn theo chiều rộng trang
+\usepackage{longtable} % Tạo bảng dài có thể ngắt qua nhiều trang
 \usepackage{enumitem} % Cho phép thay đổi kí hiệu của list
 \usepackage{outlines} % Hỗ trợ môi trường outline
 \usepackage{subfiles} % Chèn các file nhỏ, giúp chia các chapter ra nhiều file hơn
@@ -144,6 +147,7 @@
 \graphicspath{{figures/}{../figures/}} % Thư mục chứa các hình ảnh
 
 \counterwithin{figure}{chapter} % Đánh số hình ảnh kèm theo chapter. Ví dụ: Hình 1.1, 1.2,..
+\counterwithin{table}{chapter} % Đánh số bảng biểu kèm theo chapter. Ví dụ: Bảng 2.1, 2.2,..
 
 \title{\bf \TITLE}
 \author{\AUTHOR}
@@ -155,10 +159,15 @@
 \newtheorem{example}{Ví dụ}[chapter] % Định nghĩa môi trường ví dụ
 
 \onehalfspacing
+\raggedbottom
 %Khoảng cách xuống dòng
 \setlength{\parskip}{6pt}
 %Lùi đầu dòng
 \setlength{\parindent}{15pt}
+\setlength{\intextsep}{8pt plus 2pt minus 2pt}
+\setlength{\textfloatsep}{10pt plus 2pt minus 2pt}
+\setlength{\floatsep}{10pt plus 2pt minus 2pt}
+\captionsetup{skip=6pt}
 
 
 

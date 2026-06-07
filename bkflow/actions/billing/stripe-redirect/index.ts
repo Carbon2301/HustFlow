@@ -11,6 +11,7 @@ import { ReturnType } from "./types";
 
 import { absoluteUrl } from "@/lib/utils";
 import { stripe } from "@/lib/billing/stripe";
+import { requireOrganizationAdmin } from "@/lib/organization-permissions";
 
 const handler = async (): Promise<ReturnType> => {
   const { userId, orgId } = await auth();
@@ -22,6 +23,14 @@ const handler = async (): Promise<ReturnType> => {
     };
   }
 
+  const adminResult = await requireOrganizationAdmin();
+
+  if (adminResult.error) {
+    return {
+      error: adminResult.error,
+    };
+  }
+
   const settingsUrl = absoluteUrl(`/organization/${orgId}`);
 
   let url = "";
@@ -30,7 +39,7 @@ const handler = async (): Promise<ReturnType> => {
     const orgSubscription = await db.orgSubscription.findUnique({
       where: {
         orgId,
-      }
+      },
     });
 
     if (orgSubscription && orgSubscription.stripeCustomerId) {
@@ -53,11 +62,11 @@ const handler = async (): Promise<ReturnType> => {
               currency: "USD",
               product_data: {
                 name: "HustFlow Pro",
-                description: "Không giới hạn số lượng bảng cho tổ chức của bạn"
+                description: "Không giới hạn số lượng bảng cho tổ chức của bạn",
               },
               unit_amount: 2000,
               recurring: {
-                interval: "month"
+                interval: "month",
               },
             },
             quantity: 1,
@@ -72,9 +81,9 @@ const handler = async (): Promise<ReturnType> => {
     }
   } catch {
     return {
-      error: "Đã xảy ra lỗi!"
-    }
-  };
+      error: "Đã xảy ra lỗi!",
+    };
+  }
 
   revalidatePath(`/organization/${orgId}`);
   return { data: url };

@@ -1,13 +1,16 @@
 "use client";
 
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { toast } from "sonner";
-import { Activity, Archive, Download, MoreHorizontal, Sparkles, Trash2, X } from "lucide-react";
-import type { BoardMember, Label, List } from "@prisma/client";
+import { Activity, Archive, Download, LogOut, MoreHorizontal, Sparkles, Trash2, X } from "lucide-react";
+import { BoardMemberRole, type BoardMember, type Label, type List } from "@prisma/client";
 
 import { deleteBoard } from "@/actions/boards/delete-board";
+import { leaveBoard } from "@/actions/boards/leave-board";
 import { useAction } from "@/hooks/use-action";
 import { Button } from "@/components/ui/button";
+import { Hint } from "@/components/hint";
 import {
   Popover,
   PopoverClose,
@@ -24,36 +27,62 @@ import { SmartCaptureDialog } from "./smart-capture-dialog";
 interface BoardOptionsProps {
   id: string;
   title: string;
+  orgId: string;
+  currentUserId: string;
+  currentMemberRole: BoardMemberRole;
   canDelete?: boolean;
   canEdit?: boolean;
   lists: Pick<List, "id" | "title">[];
-  members: Pick<BoardMember, "id" | "userName" | "userEmail" | "role">[];
+  members: Pick<BoardMember, "id" | "userId" | "userName" | "userEmail" | "role">[];
   labels: Pick<Label, "id" | "title" | "color">[];
 };
 
 export const BoardOptions = ({
   id,
   title,
+  orgId,
+  currentUserId,
+  currentMemberRole,
   canDelete = false,
   canEdit = false,
   lists,
   members,
   labels,
 }: BoardOptionsProps) => {
+  const router = useRouter();
   const [isPopoverOpen, setIsPopoverOpen] = useState(false);
   const [view, setView] = useState<"menu" | "activity">("menu");
   const [isArchivedModalOpen, setIsArchivedModalOpen] = useState(false);
   const [isExportDialogOpen, setIsExportDialogOpen] = useState(false);
   const [isSmartCaptureOpen, setIsSmartCaptureOpen] = useState(false);
+  const currentBoardMember = members.find((member) => member.userId === currentUserId);
+  const adminCount = members.filter((member) => member.role === BoardMemberRole.ADMIN).length;
+  const isLastAdmin =
+    (currentBoardMember?.role ?? currentMemberRole) === BoardMemberRole.ADMIN && adminCount <= 1;
 
-  const { execute, isLoading } = useAction(deleteBoard, {
+  const { execute: executeDeleteBoard, isLoading: isDeleting } = useAction(deleteBoard, {
+    onError: (error) => {
+      toast.error(error);
+    },
+  });
+
+  const { execute: executeLeaveBoard, isLoading: isLeaving } = useAction(leaveBoard, {
+    onSuccess: () => {
+      toast.success("Đã rời khỏi bảng này.");
+      router.push(`/organization/${orgId}`);
+      router.refresh();
+    },
     onError: (error) => {
       toast.error(error);
     },
   });
 
   const onDelete = () => {
-    execute({ id });
+    executeDeleteBoard({ id });
+  };
+
+  const onLeave = () => {
+    executeLeaveBoard({ boardId: id });
   };
 
   const onPopoverOpenChange = (open: boolean) => {
@@ -148,19 +177,45 @@ export const BoardOptions = ({
                   Mục đã lưu trữ
                 </Button>
               </PopoverClose>
+              <Hint
+                description={
+                  isLastAdmin
+                    ? "Bảng phải có ít nhất một quản trị viên. Vui lòng chuyển quyền quản trị cho người khác trước khi rời bảng."
+                    : "Rời khỏi bảng này"
+                }
+                side="right"
+              >
+                <span className="block">
+                  <ConfirmModal
+                    onConfirm={onLeave}
+                    title="Rời khỏi bảng này?"
+                    description="Bạn sẽ bị gỡ khỏi bảng này. Các phân công thẻ và checklist liên quan sẽ không còn hiển thị bạn là người phụ trách."
+                    disabled={isLeaving || isLastAdmin}
+                  >
+                    <Button
+                      variant="ghost"
+                      disabled={isLeaving || isLastAdmin}
+                      className="w-full h-9 px-4 justify-start font-normal text-sm text-amber-600 hover:bg-amber-50 hover:text-amber-700 gap-x-2 rounded-none cursor-pointer disabled:cursor-not-allowed disabled:opacity-50"
+                    >
+                      <LogOut className="h-4 w-4" />
+                      {isLeaving ? "Đang rời..." : "Rời khỏi bảng"}
+                    </Button>
+                  </ConfirmModal>
+                </span>
+              </Hint>
               {canDelete && (
                 <ConfirmModal
                   onConfirm={onDelete}
                   title="Xóa bảng này?"
                   description="Bạn có chắc chắn muốn xóa bảng này? Mọi danh sách và thẻ bên trong bảng sẽ bị xóa vĩnh viễn và không thể khôi phục."
-                  disabled={isLoading}
+                  disabled={isDeleting}
                 >
                   <Button
                     variant="ghost"
                     className="w-full h-9 px-4 justify-start font-normal text-sm text-red-500 hover:bg-red-50 hover:text-red-600 gap-x-2 rounded-none cursor-pointer"
                   >
                     <Trash2 className="h-4 w-4" />
-                    {isLoading ? "Đang xóa..." : "Xóa bảng này"}
+                    {isDeleting ? "Đang xóa..." : "Xóa bảng này"}
                   </Button>
                 </ConfirmModal>
               )}

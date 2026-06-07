@@ -1,7 +1,7 @@
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { HelpCircle, LayoutGrid, Plus } from "lucide-react";
+import { HelpCircle, LayoutGrid, Lock, Plus } from "lucide-react";
 
 import { db } from "@/lib/db";
 import { Hint } from "@/components/hint";
@@ -11,6 +11,9 @@ import { MAX_FREE_BOARDS } from "@/constants/boards";
 import { getAvailableCount } from "@/lib/org-limit";
 import { measureDev } from "@/lib/perf";
 import { checkSubscription } from "@/lib/billing/subscription";
+import { isOrganizationAdmin } from "@/lib/organization-permissions";
+
+import { UpgradeBillingTile } from "./upgrade-billing-tile";
 
 type BoardListProps = {
   isPro?: boolean;
@@ -25,23 +28,30 @@ export const BoardList = async ({
     return redirect("/select-org");
   }
 
-  const [boards, availableCount, isPro] = await measureDev(`organization:${orgId}:board-list`, () => Promise.all([
-    db.board.findMany({
-      where: {
-        orgId,
-        members: {
-          some: {
-            userId,
+  const [boards, availableCount, isPro, isOrgAdmin] = await measureDev(
+    `organization:${orgId}:board-list`,
+    () => Promise.all([
+      db.board.findMany({
+        where: {
+          orgId,
+          members: {
+            some: {
+              userId,
+            },
           },
         },
-      },
-      orderBy: {
-        createdAt: "desc"
-      }
-    }),
-    getAvailableCount(),
-    isProProp === undefined ? checkSubscription() : Promise.resolve(isProProp),
-  ]));
+        orderBy: {
+          createdAt: "desc",
+        },
+      }),
+      getAvailableCount(),
+      isProProp === undefined ? checkSubscription() : Promise.resolve(isProProp),
+      isOrganizationAdmin(orgId, userId),
+    ]),
+  );
+
+  const remainingBoards = Math.max(MAX_FREE_BOARDS - availableCount, 0);
+  const hasReachedFreeLimit = !isPro && remainingBoards <= 0;
 
   return (
     <div className="space-y-5">
@@ -68,28 +78,42 @@ export const BoardList = async ({
             </div>
           </Link>
         ))}
-        <FormPopover sideOffset={10} side="right">
-          <div
-            role="button"
-            className="group aspect-video relative h-full w-full bg-neutral-100 border-2 border-dashed border-neutral-200 rounded-xl flex flex-col gap-y-1.5 items-center justify-center hover:bg-violet-50 hover:border-violet-300 transition-all duration-200 cursor-pointer"
-          >
-            <Plus className="h-5 w-5 text-neutral-400 group-hover:text-violet-500 transition-colors" />
-            <p className="text-sm font-medium text-neutral-500 group-hover:text-violet-600 transition-colors">
-              Tạo bảng
-            </p>
-            <span className="text-xs text-neutral-400 group-hover:text-violet-400 transition-colors">
-              {isPro ? "Không giới hạn" : `Còn lại ${MAX_FREE_BOARDS - availableCount}`}
-            </span>
-            <Hint
-              sideOffset={12}
-              description={`Không gian làm việc miễn phí được tạo tối đa ${MAX_FREE_BOARDS} bảng. Nâng cấp lên Pro để có số lượng bảng không giới hạn.`}
+        {!hasReachedFreeLimit && (
+          <FormPopover sideOffset={10} side="right">
+            <div
+              role="button"
+              className="group aspect-video relative h-full w-full bg-neutral-100 border-2 border-dashed border-neutral-200 rounded-xl flex flex-col gap-y-1.5 items-center justify-center hover:bg-violet-50 hover:border-violet-300 transition-all duration-200 cursor-pointer"
             >
-              <HelpCircle
-                className="absolute bottom-2 right-2 h-3.5 w-3.5 text-neutral-300 hover:text-neutral-500 transition-colors"
-              />
-            </Hint>
+              <Plus className="h-5 w-5 text-neutral-400 group-hover:text-violet-500 transition-colors" />
+              <p className="text-sm font-medium text-neutral-500 group-hover:text-violet-600 transition-colors">
+                Tạo bảng
+              </p>
+              <span className="text-xs text-neutral-400 group-hover:text-violet-400 transition-colors">
+                {isPro ? "Không giới hạn" : `Còn lại ${remainingBoards}`}
+              </span>
+              <Hint
+                sideOffset={12}
+                description={`Không gian làm việc miễn phí được tạo tối đa ${MAX_FREE_BOARDS} bảng. Nâng cấp lên Pro để có số lượng bảng không giới hạn.`}
+              >
+                <HelpCircle
+                  className="absolute bottom-2 right-2 h-3.5 w-3.5 text-neutral-300 hover:text-neutral-500 transition-colors"
+                />
+              </Hint>
+            </div>
+          </FormPopover>
+        )}
+        {hasReachedFreeLimit && isOrgAdmin && <UpgradeBillingTile />}
+        {hasReachedFreeLimit && !isOrgAdmin && (
+          <div className="aspect-video relative h-full w-full bg-neutral-100 border-2 border-dashed border-neutral-200 rounded-xl flex flex-col gap-y-1.5 items-center justify-center text-center px-4">
+            <Lock className="h-5 w-5 text-neutral-400" />
+            <p className="text-sm font-medium text-neutral-600">
+              Đã đạt giới hạn bảng
+            </p>
+            <span className="text-xs text-neutral-400">
+              Tổ chức đã đạt giới hạn {MAX_FREE_BOARDS} bảng. Vui lòng liên hệ quản trị viên tổ chức để nâng cấp.
+            </span>
           </div>
-        </FormPopover>
+        )}
       </div>
     </div>
   );

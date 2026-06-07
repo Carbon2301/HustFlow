@@ -1,11 +1,8 @@
 \documentclass[../DoAn.tex]{subfiles}
 \begin{document}
 
-Trong kỷ nguyên số hóa hiện nay, việc quản lý công việc và cộng tác nhóm hiệu quả đã trở thành yếu tố then chốt quyết định sự thành bại của các dự án công nghệ cũng như các hoạt động học thuật. Chương 1 này đóng vai trò giới thiệu tổng quan về đề tài xây dựng ứng dụng quản lý công việc và cộng tác nhóm HustFlow. Chương này nêu bật sự cần thiết của đề tài, đặt nền móng lý do phát triển hệ thống và giới thiệu cấu trúc chung của báo cáo đồ án tốt nghiệp. Nội dung chi tiết của chương được chia thành bốn đề mục chính bao gồm: (i) đặt vấn đề thực tế trong quản lý công việc nhóm ở phần 1.1, (ii) xác định mục tiêu và phạm vi nghiên cứu của đề tài ở phần 1.2, (iii) đề xuất định hướng giải pháp kỹ thuật ở phần 1.3, và (iv) trình bày bố cục chi tiết của các chương còn lại trong đồ án ở phần 1.4.
-
 \section{Đặt vấn đề}
 \label{section:1.1}
-
 Trong bối cảnh phát triển mạnh mẽ của công nghệ thông tin và sự thay đổi trong mô hình làm việc hiện đại, các tổ chức và nhóm phát triển ngày càng có nhu cầu cao về việc tối ưu hóa quy trình làm việc nhóm. Việc phối hợp nhịp nhàng giữa các thành viên, phân chia nhiệm vụ rõ ràng và theo dõi tiến độ một cách trực quan là các yếu tố quyết định để đảm bảo dự án hoàn thành đúng thời hạn và đạt chất lượng yêu cầu. Việc thiếu đi các công cụ hỗ trợ quản lý hiệu quả thường dẫn đến sự lãng phí tài nguyên, chồng chéo công việc và suy giảm hiệu suất làm việc chung của toàn tổ chức.
 
 Khảo sát thực tế tại các nhóm làm việc, đặc biệt là các nhóm phát triển phần mềm và các nhóm nghiên cứu học thuật, cho thấy nhiều khó khăn trong quy trình phối hợp hàng ngày. Các vấn đề cốt lõi bao gồm: (i) việc theo dõi trạng thái công việc gặp nhiều trở ngại khi chỉ sử dụng danh sách tác vụ tĩnh, dẫn đến khó khăn trong việc nhận diện các điểm nghẽn; (ii) quản lý mốc thời gian và thời hạn hoàn thành phức tạp khi các công việc con và thời hạn chung bị tách rời; (iii) sự thiếu kiểm soát đối với mối quan hệ phụ thuộc giữa các thẻ công việc dẫn đến tình trạng hoàn thành sai thứ tự quy trình; (iv) hiện tượng không đồng bộ dữ liệu thời gian thực giữa các thành viên cùng thao tác, dễ gây ra xung đột thông tin; và (v) gánh nặng hành chính khi người quản trị phải tổng hợp số liệu tiến độ và phân bổ tài nguyên một cách thủ công.
@@ -14,7 +11,6 @@ Từ những thách thức nêu trên, việc phát triển một hệ thống q
 
 \section{Mục tiêu và phạm vi đề tài}
 \label{section:1.2}
-
 Hiện nay, trên thị trường đã có một số công cụ quản lý công việc phổ biến như Trello, Jira hay Asana. Mỗi hệ thống đều có những ưu điểm riêng biệt nhằm phục vụ các đối tượng người dùng cụ thể. Ứng dụng Trello nổi bật với giao diện bảng Kanban đơn giản, dễ tiếp cận nhưng thiếu các góc nhìn tiến độ chuyên sâu như biểu đồ Gantt hay lịch biểu tích hợp sẵn. Ngược lại, hệ thống Jira cung cấp các quy trình quản lý vô cùng chặt chẽ cho các dự án phần mềm lớn nhưng lại có giao diện phức tạp, đòi hỏi chi phí bản quyền cao và khó tiếp cận đối với các nhóm quy mô nhỏ hoặc các nhóm sinh viên. Trong khi đó, ứng dụng Asana hỗ trợ giao diện dòng thời gian tương đối trực quan nhưng chưa tối ưu khả năng cập nhật thời gian thực khi nhiều thành viên đồng thời thao tác trên cùng một màn hình.
 
 Bên cạnh đó, phần lớn các công cụ hiện tại chưa tích hợp sâu khả năng của trí tuệ nhân tạo thế hệ mới để hỗ trợ người dùng trong quá trình soạn thảo và kiểm soát chất lượng tác vụ. Người sử dụng vẫn phải thực hiện thủ công các công việc lặp đi lặp lại như viết mô tả chi tiết, đề xuất danh mục công việc con hay tổng hợp báo cáo sức khỏe dự án. Khoảng trống này tạo ra cơ hội để xây dựng một giải pháp quản lý công việc thế hệ mới kết hợp hài hòa giữa tính trực quan của Kanban, tính bao quát của biểu đồ dòng thời gian, khả năng tương tác thời gian thực và sự trợ giúp thông minh từ AI.

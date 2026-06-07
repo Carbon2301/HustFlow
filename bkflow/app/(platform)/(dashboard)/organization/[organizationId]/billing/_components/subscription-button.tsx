@@ -10,7 +10,7 @@ import { useProModal } from "@/hooks/use-pro-modal";
 
 interface SubscriptionButtonProps {
   isPro: boolean;
-};
+}
 
 export const SubscriptionButton = ({
   isPro,
@@ -23,7 +23,7 @@ export const SubscriptionButton = ({
     },
     onError: (error) => {
       toast.error(error);
-    }
+    },
   });
 
   const onClick = () => {
@@ -32,7 +32,7 @@ export const SubscriptionButton = ({
     } else {
       proModal.onOpen();
     }
-  }
+  };
 
   return (
     <Button
@@ -47,7 +47,7 @@ export const SubscriptionButton = ({
       {isPro ? (
         <>
           <Settings className="h-4 w-4" />
-          {isLoading ? "Đang tải…" : "Quản lý gói đăng ký"}
+          {isLoading ? "Đang tải..." : "Quản lý gói đăng ký"}
         </>
       ) : (
         <>
@@ -56,5 +56,5 @@ export const SubscriptionButton = ({
         </>
       )}
     </Button>
-  )
+  );
 };

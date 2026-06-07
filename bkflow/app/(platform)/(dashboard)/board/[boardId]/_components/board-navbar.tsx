@@ -57,6 +57,9 @@ export const BoardNavbar = async ({
         <BoardOptions
           id={data.id}
           title={data.title}
+          orgId={data.orgId}
+          currentUserId={currentUserId}
+          currentMemberRole={currentMemberRole}
           canDelete={isAdmin}
           canEdit={canEdit}
           lists={data.lists}
