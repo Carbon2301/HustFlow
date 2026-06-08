@@ -1,15 +1,110 @@
 \documentclass[../DoAn.tex]{subfiles}
 \begin{document}
 
-Chương này có độ dài không quá 10 trang. Nếu cần trình bày dài hơn, sinh viên đưa vào phần phụ lục. Chú ý đây là kiến thức đã có sẵn; SV sau khi tìm hiểu được thì phân tích và tóm tắt lại. Sinh viên không trình bày dài dòng, chi tiết. 
+Chương 2 đã trình bày kết quả khảo sát hiện trạng, các nhóm use case cốt lõi và các yêu cầu phi chức năng của hệ thống HustFlow. Từ những yêu cầu đó, chương này trình bày các nền tảng lý thuyết và công nghệ được lựa chọn để hiện thực hóa hệ thống. Nội dung chương tập trung vào hai nhóm chính: nền tảng lý thuyết phục vụ mô hình hóa dữ liệu và kiểm soát phụ thuộc công việc tại phần \ref{section:3.1}, sau đó là các công nghệ phát triển ứng dụng được sử dụng để đáp ứng yêu cầu về giao diện, lưu trữ, cộng tác thời gian thực, xác thực, thanh toán và hỗ trợ trí tuệ nhân tạo tại phần \ref{section:3.2}. Với mỗi công nghệ, chương phân tích yêu cầu cụ thể ở Chương 2 mà công nghệ đó giải quyết, các lựa chọn thay thế có thể sử dụng và lý do lựa chọn trong phạm vi đồ án.
 
-Với đồ án ứng dụng, sinh viên để tên chương là “Nền tảng lý thuyết và Công nghệ sử dụng”. Trong chương này, sinh viên giới thiệu về các công nghệ, nền tảng lý thuyết sử dụng trong đồ án. Sinh viên cũng có thể trình bày thêm nền tảng lý thuyết nào đó nếu cần dùng tới.
+\section{Nền tảng lý thuyết}
+\label{section:3.1}
 
-Với từng công nghệ/nền tảng/lý thuyết được trình bày, sinh viên phải phân tích rõ công nghệ/nền tảng/lý thuyết đó dùng để để giải quyết vấn đề/yêu cầu cụ thể nào ở Chương 2. Hơn nữa, với từng vấn đề/yêu cầu, sinh viên phải liệt kê danh sách các công nghệ/hướng tiếp cận tương tự có thể dùng làm lựa chọn thay thế, rồi giải thích rõ sự lựa chọn của mình.
+HustFlow là hệ thống quản lý công việc theo mô hình bảng Kanban, trong đó dữ liệu có quan hệ phân cấp và các thẻ công việc có thể phụ thuộc lẫn nhau. Vì vậy, hai nền tảng lý thuyết cần được làm rõ trước khi lựa chọn công nghệ là: (i) đồ thị có hướng phi chu trình để kiểm soát quan hệ phụ thuộc giữa các thẻ, và (ii) mô hình cơ sở dữ liệu quan hệ để bảo đảm tính toàn vẹn của dữ liệu nghiệp vụ.
 
-Lưu ý: Nội dung ĐATN phải có tính chất liên kết, liền mạch, và nhất quán. Vì vậy, các công nghệ/thuật toán trình bày trong chương này phải khớp với nội dung giới thiệu của sinh viên ở phần trước đó. 
+\subsection{Đồ thị có hướng phi chu trình và phát hiện chu trình}
+\label{subsection:3.1.1}
 
-Trong chương này, để tăng tính khoa học và độ tin cậy, sinh viên nên chỉ rõ nguồn kiến thức mình thu thập được ở tài liệu nào, đồng thời đưa tài liệu đó vào trong danh sách tài liệu tham khảo rồi tạo các tham chiếu chéo (xem hướng dẫn ở phụ lục A.7).
+Use case UC004 ở Chương 2 yêu cầu hệ thống cho phép thiết lập quan hệ phụ thuộc giữa các thẻ công việc. Nếu các quan hệ này tạo thành vòng lặp, ví dụ thẻ A chặn thẻ B, thẻ B chặn thẻ C và thẻ C lại chặn thẻ A, người dùng sẽ không thể xác định công việc nào cần hoàn thành trước. Để tránh trạng thái bế tắc đó, các quan hệ phụ thuộc trong một bảng cần được mô hình hóa dưới dạng đồ thị có hướng phi chu trình (Directed Acyclic Graph - DAG), một cấu trúc dữ liệu thường dùng cho các bài toán có ràng buộc thứ tự trước sau \cite{cormen2009algorithms}.
 
+Hệ thống biểu diễn tập thẻ trên một bảng bằng đồ thị có hướng $G = (V, E)$, trong đó $V$ là tập đỉnh đại diện cho các thẻ công việc, còn $E$ là tập cạnh có hướng đại diện cho quan hệ phụ thuộc:
+\begin{equation}\label{eq:vertices}
+    V = \{v_1, v_2, \dots, v_n\}
+\end{equation}
+\begin{equation}\label{eq:edges}
+    E = \{(u, v) \mid u, v \in V, u \text{ chặn } v\}
+\end{equation}
+Theo định nghĩa ở công thức \eqref{eq:edges}, cạnh $(u, v)$ thể hiện rằng thẻ $u$ là điều kiện cần hoàn thành trước khi thẻ $v$ có thể được xử lý. Khi người dùng thêm một quan hệ phụ thuộc mới, hệ thống cần kiểm tra xem cạnh mới đó có tạo ra chu trình dạng $v_1 \rightarrow v_2 \rightarrow \dots \rightarrow v_k \rightarrow v_1$ hay không.
+
+Trong HustFlow, bài toán phát hiện chu trình được giải quyết bằng thuật toán duyệt đồ thị theo chiều sâu (Depth-First Search - DFS) kết hợp cơ chế đánh dấu trạng thái đỉnh. Mỗi đỉnh có ba trạng thái: chưa thăm, đang thăm và đã thăm xong. Nếu trong quá trình duyệt từ một đỉnh, thuật toán gặp lại một đỉnh đang nằm trên nhánh duyệt hiện tại, đồ thị tồn tại cạnh ngược và quan hệ phụ thuộc mới bị từ chối. Thuật toán có độ phức tạp thời gian $O(V + E)$ và độ phức tạp không gian $O(V)$, phù hợp với quy mô một bảng công việc trong hệ thống.
+
+Một hướng tiếp cận thay thế là thuật toán Kahn dựa trên sắp xếp topo. Thuật toán này liên tục loại bỏ các đỉnh có bán bậc vào bằng 0; nếu sau quá trình loại bỏ vẫn còn đỉnh chưa được xử lý thì đồ thị có chu trình. Cả DFS và Kahn đều có độ phức tạp tuyến tính theo số đỉnh và cạnh. Tuy nhiên, DFS được lựa chọn trong đồ án vì có thể dừng ngay khi phát hiện cạnh ngược đầu tiên, dễ triển khai trong luồng kiểm tra khi thêm một quan hệ phụ thuộc mới và không yêu cầu tính lại toàn bộ thứ tự topo của bảng. Cách lựa chọn này đáp ứng trực tiếp yêu cầu về độ tin cậy dữ liệu ở phần \ref{subsection:2.4.3} và yêu cầu phản hồi nhanh ở phần \ref{subsection:2.4.1}.
+
+\subsection{Mô hình cơ sở dữ liệu quan hệ và toàn vẹn dữ liệu}
+\label{subsection:3.1.2}
+
+Cấu trúc dữ liệu của HustFlow có nhiều quan hệ chặt chẽ: tổ chức sở hữu bảng, bảng chứa danh sách, danh sách chứa thẻ, thẻ có checklist, bình luận, nhãn, tệp đính kèm và quan hệ phụ thuộc. Với đặc điểm này, mô hình cơ sở dữ liệu quan hệ là nền tảng phù hợp vì dữ liệu được tổ chức thành các bảng có lược đồ rõ ràng, được liên kết bằng khóa chính, khóa ngoại và các ràng buộc toàn vẹn \cite{codd1970relational}.
+
+Yêu cầu phi chức năng tại phần \ref{subsection:2.4.3} nhấn mạnh tính nhất quán của dữ liệu khi người dùng cập nhật thẻ, danh sách, thành viên, vai trò hoặc thanh toán. Trong mô hình quan hệ, các ràng buộc khóa chính, khóa ngoại, ràng buộc duy nhất và giao dịch ACID giúp hạn chế các trạng thái dữ liệu không hợp lệ. Ví dụ, khi xóa một bảng, các danh sách và thẻ thuộc bảng đó cũng cần được xử lý nhất quán để tránh bản ghi mồ côi. Quan hệ này có thể được mô tả như sau:
+\begin{equation}\label{eq:cascade}
+    \text{Delete}(Board) \Longrightarrow \forall List \in Board: \text{Delete}(List) \Longrightarrow \forall Card \in List: \text{Delete}(Card)
+\end{equation}
+Công thức \eqref{eq:cascade} cho thấy cơ chế xóa lan truyền cần được quản lý ở mức cơ sở dữ liệu hoặc lớp truy cập dữ liệu, thay vì chỉ dựa vào xử lý thủ công ở giao diện.
+
+Một lựa chọn thay thế là cơ sở dữ liệu phi quan hệ dạng tài liệu, chẳng hạn MongoDB. Cách tiếp cận này linh hoạt khi lưu các đối tượng JSON lồng nhau và có thể thuận tiện cho một số màn hình đọc dữ liệu thẻ. Tuy nhiên, HustFlow có nhiều quan hệ nhiều-nhiều và các ràng buộc phân quyền, phụ thuộc, thanh toán cần kiểm soát chặt chẽ. Nếu sử dụng mô hình tài liệu, nhiều ràng buộc sẽ phải tự triển khai ở tầng ứng dụng, làm tăng nguy cơ bất đồng bộ dữ liệu. Vì vậy, mô hình quan hệ được lựa chọn để bảo đảm dữ liệu có cấu trúc rõ ràng, dễ kiểm tra và phù hợp với yêu cầu bảo trì, mở rộng ở phần \ref{subsection:2.4.5}.
+
+\section{Các công nghệ phát triển ứng dụng}
+\label{section:3.2}
+
+Trên cơ sở các yêu cầu đã xác định ở Chương 2, HustFlow được triển khai bằng nhóm công nghệ phục vụ các vai trò khác nhau trong hệ thống: Next.js và React cho giao diện và xử lý full-stack, MySQL và Prisma cho lưu trữ dữ liệu, Pusher cho đồng bộ thời gian thực, Clerk cho xác thực và phân quyền, Stripe cho thanh toán, OpenAI API cho trợ lý trí tuệ nhân tạo và \texttt{@hello-pangea/dnd} cho tương tác kéo thả. Các công nghệ này khớp với định hướng kỹ thuật đã nêu ở Chương 1 và được phân tích cụ thể trong các mục sau.
+
+\subsection{Next.js và React}
+\label{subsection:3.2.1}
+
+Next.js \cite{nextjs} là framework phát triển ứng dụng web dựa trên React \cite{reactjs}, hỗ trợ kết hợp giao diện người dùng với xử lý phía máy chủ trong cùng một dự án. Trong HustFlow, Next.js và React được sử dụng để xây dựng giao diện bảng Kanban, lịch, biểu đồ tiến độ, trang quản trị tổ chức và các luồng thao tác với thẻ công việc.
+
+Công nghệ này giải quyết trực tiếp yêu cầu về tính dễ dùng ở phần \ref{subsection:2.4.4}, yêu cầu hiệu năng ở phần \ref{subsection:2.4.1} và yêu cầu bảo trì ở phần \ref{subsection:2.4.5}. React giúp chia giao diện thành các thành phần nhỏ có thể tái sử dụng, phù hợp với các màn hình có nhiều vùng tương tác như bảng Kanban, modal chi tiết thẻ và khu vực bình luận. Next.js App Router hỗ trợ tổ chức mã nguồn theo tuyến đường, kết xuất phía máy chủ và Server Actions, nhờ đó các thao tác như tạo bảng, cập nhật thẻ hoặc gửi bình luận có thể được xử lý gần với lớp dữ liệu hơn.
+
+Một phương án thay thế là xây dựng ứng dụng trang đơn bằng React kết hợp Vite. Phương án này nhẹ và phù hợp với các ứng dụng chỉ cần giao diện phía máy khách, nhưng HustFlow cần nhiều xử lý phía máy chủ như kiểm tra phân quyền, truy vấn dữ liệu, xử lý thanh toán và gọi API bên ngoài. Một phương án khác là tách backend bằng Spring Boot hoặc Laravel và frontend bằng React. Cách này mạnh trong các hệ thống lớn, nhưng làm tăng số lượng dự án cần duy trì trong phạm vi đồ án. Vì vậy, Next.js được lựa chọn vì cân bằng giữa tốc độ phát triển, khả năng tổ chức mã nguồn và khả năng triển khai các luồng full-stack trong một hệ sinh thái thống nhất.
+
+\subsection{MySQL và Prisma ORM}
+\label{subsection:3.2.2}
+
+HustFlow sử dụng hệ quản trị cơ sở dữ liệu quan hệ MySQL \cite{mysql} để lưu trữ dữ liệu lâu bền, kết hợp Prisma ORM \cite{prisma} làm lớp truy cập dữ liệu trong mã nguồn TypeScript. MySQL lưu trữ các thực thể chính như tổ chức, bảng, thành viên, danh sách, thẻ, checklist, bình luận, tệp đính kèm và thông tin thuê bao. Prisma giúp ánh xạ các bảng này thành các kiểu dữ liệu và hàm truy vấn an toàn hơn trong mã nguồn.
+
+Cặp công nghệ này giải quyết yêu cầu toàn vẹn dữ liệu ở phần \ref{subsection:2.4.3} và yêu cầu bảo trì ở phần \ref{subsection:2.4.5}. Thay vì viết nhiều câu SQL thủ công, Prisma cho phép định nghĩa lược đồ dữ liệu tập trung trong \texttt{schema.prisma}, từ đó sinh client truy vấn có kiểm tra kiểu. Điều này làm giảm lỗi khi thay đổi mô hình dữ liệu và giúp mã nguồn tầng nghiệp vụ dễ đọc hơn.
+
+PostgreSQL là lựa chọn thay thế phù hợp nếu hệ thống cần nhiều tính năng nâng cao như kiểu dữ liệu JSONB mạnh, truy vấn phân tích phức tạp hoặc extension chuyên dụng. Tuy nhiên, với phạm vi HustFlow, MySQL đã đáp ứng đầy đủ các yêu cầu về quan hệ, chỉ mục và giao dịch, đồng thời quen thuộc và dễ triển khai trong môi trường phát triển. Ở lớp ORM, TypeORM hoặc Sequelize cũng có thể được sử dụng, nhưng Prisma có ưu thế ở khả năng sinh kiểu TypeScript trực tiếp từ lược đồ, phù hợp với mục tiêu giảm lỗi kiểu dữ liệu giữa backend và frontend.
+
+\subsection{Pusher cho đồng bộ thời gian thực}
+\label{subsection:3.2.3}
+
+Pusher \cite{pusher} là dịch vụ truyền thông điệp thời gian thực dựa trên WebSocket. Trong HustFlow, Pusher được sử dụng để phát tán sự kiện khi người dùng kéo thả thẻ, cập nhật thông tin thẻ hoặc gửi bình luận. Các thao tác này liên quan trực tiếp tới UC003, UC005 và yêu cầu đồng bộ gần thời gian thực ở phần \ref{subsection:2.4.1}.
+
+Luồng xử lý tổng quát là: người dùng thực hiện thao tác trên giao diện, Server Action kiểm tra quyền và cập nhật dữ liệu, sau đó máy chủ gửi sự kiện qua Pusher tới những trình duyệt đang mở cùng bảng công việc. Khi nhận sự kiện, giao diện phía khách cập nhật dữ liệu tương ứng mà không yêu cầu người dùng tải lại trang. Cách làm này giúp trải nghiệm cộng tác của HustFlow nhất quán với mục tiêu đã nêu ở phần khảo sát hiện trạng.
+
+Giải pháp thay thế là tự vận hành máy chủ WebSocket bằng Socket.io. Cách này cho phép kiểm soát sâu hơn nhưng yêu cầu duy trì tiến trình máy chủ kết nối lâu dài, xử lý mở rộng kết nối và triển khai hạ tầng riêng. Server-Sent Events cũng có thể dùng cho một số luồng thông báo một chiều, nhưng không phù hợp bằng WebSocket cho các tương tác cộng tác dày đặc. Do đồ án ưu tiên triển khai ứng dụng trên kiến trúc web hiện đại và giảm chi phí vận hành hạ tầng thời gian thực, Pusher là lựa chọn phù hợp hơn.
+
+\subsection{Clerk cho xác thực và phân quyền}
+\label{subsection:3.2.4}
+
+Clerk \cite{clerk} là dịch vụ xác thực và quản lý người dùng. Trong HustFlow, Clerk đảm nhiệm đăng ký, đăng nhập, quản lý phiên làm việc, tổ chức và vai trò thành viên ở cấp tổ chức. Công nghệ này giải quyết yêu cầu bảo mật và phân quyền tại phần \ref{subsection:2.4.2}, đặc biệt là yêu cầu mọi thao tác đọc ghi dữ liệu phải được kiểm tra theo ngữ cảnh tổ chức, bảng và vai trò người dùng.
+
+Nếu tự xây dựng xác thực bằng Auth.js hoặc một thư viện tương tự, hệ thống sẽ có quyền kiểm soát dữ liệu người dùng tốt hơn, nhưng phải tự xử lý nhiều vấn đề phụ trợ như bảo mật mật khẩu, phiên đăng nhập, mời thành viên, xác thực hai yếu tố và quản lý tổ chức. Những phần này không phải đóng góp chính của đồ án. Clerk được lựa chọn vì cung cấp sẵn các cơ chế xác thực phổ biến, tích hợp tốt với Next.js và cho phép đồ án tập trung hơn vào nghiệp vụ quản lý công việc, phân quyền bảng và xử lý dữ liệu.
+
+\subsection{Stripe cho thanh toán gói dịch vụ}
+\label{subsection:3.2.5}
+
+Stripe \cite{stripe} là nền tảng thanh toán trực tuyến hỗ trợ tạo phiên thanh toán, quản lý thuê bao và gửi sự kiện webhook. Trong HustFlow, Stripe được dùng cho nhóm chức năng quản lý gói dịch vụ và thanh toán đã được mô tả trong phần phân rã use case ở Chương 2, đặc biệt tại Hình \ref{fig:usecase_billing} và yêu cầu bảo mật thanh toán ở phần \ref{subsection:2.4.2}.
+
+Khi quản trị viên tổ chức yêu cầu nâng cấp gói, hệ thống tạo phiên thanh toán và chuyển người dùng sang Stripe Checkout. Sau khi giao dịch hoàn tất, Stripe gửi webhook về HustFlow để hệ thống kiểm tra tính hợp lệ của sự kiện rồi cập nhật trạng thái thuê bao trong cơ sở dữ liệu. Thiết kế này giúp hệ thống không trực tiếp lưu trữ thông tin thẻ thanh toán, giảm rủi ro bảo mật và phù hợp với yêu cầu chỉ cập nhật gói dịch vụ khi nhận được sự kiện hợp lệ từ cổng thanh toán.
+
+Các lựa chọn thay thế gồm VNPay, MoMo hoặc chuyển khoản ngân hàng thủ công. Các cổng nội địa thuận tiện hơn cho thị trường Việt Nam, nhưng việc quản lý thuê bao định kỳ, môi trường kiểm thử và tài liệu tích hợp trong phạm vi đồ án không đồng nhất bằng Stripe. Chuyển khoản thủ công dễ triển khai ban đầu nhưng không đáp ứng tốt yêu cầu tự động cập nhật trạng thái gói dịch vụ. Vì vậy, Stripe được chọn để mô phỏng đầy đủ luồng thanh toán, webhook và quản lý vòng đời thuê bao.
+
+\subsection{OpenAI API cho trợ lý trí tuệ nhân tạo}
+\label{subsection:3.2.6}
+
+OpenAI API \cite{openai} cung cấp khả năng gọi mô hình ngôn ngữ lớn qua HTTP API. Trong HustFlow, API này được gọi từ phía máy chủ để hỗ trợ UC007, bao gồm phân tích văn bản tự do, tạo bản nháp thẻ, đề xuất checklist và hỗ trợ một số tác vụ tổng hợp nội dung. Công nghệ này liên quan trực tiếp tới yêu cầu tính dễ dùng ở phần \ref{subsection:2.4.4}, vì nó giảm số thao tác nhập liệu thủ công cho người dùng.
+
+Khi người dùng nhập mô tả công việc dạng tự do, hệ thống gửi nội dung và ngữ cảnh cần thiết tới API, sau đó nhận về dữ liệu có cấu trúc để hiển thị bản nháp cho người dùng kiểm tra trước khi lưu. Việc gọi API từ máy chủ giúp bảo vệ khóa truy cập, đồng thời cho phép kiểm tra lại dữ liệu đầu ra trước khi ghi vào cơ sở dữ liệu, phù hợp với yêu cầu kiểm tra dữ liệu ở phần \ref{subsection:2.4.5}.
+
+Các phương án thay thế gồm Google Gemini API hoặc tự triển khai mô hình mã nguồn mở như Llama thông qua hạ tầng riêng. Gemini có thể đáp ứng nhiều tác vụ ngôn ngữ tương tự, nhưng việc giữ một API thống nhất và dễ kiểm soát đầu ra có cấu trúc giúp giảm độ phức tạp triển khai. Mô hình mã nguồn mở cho phép kiểm soát dữ liệu tốt hơn, nhưng đòi hỏi tài nguyên vận hành lớn và không phù hợp với phạm vi triển khai của đồ án. Do đó, OpenAI API được lựa chọn để cân bằng giữa chất lượng kết quả, thời gian phát triển và chi phí hạ tầng.
+
+\subsection{\texttt{@hello-pangea/dnd} cho tương tác kéo thả}
+\label{subsection:3.2.7}
+
+Thư viện \texttt{@hello-pangea/dnd} \cite{hellopangeadnd} hỗ trợ xây dựng tương tác kéo thả trong ứng dụng React. Trong HustFlow, thư viện này được dùng cho bảng Kanban, nơi người dùng cần di chuyển thẻ giữa các danh sách và sắp xếp lại thứ tự công việc. Đây là thao tác trung tâm của UC003 và là một phần quan trọng của yêu cầu tính dễ dùng ở phần \ref{subsection:2.4.4}.
+
+Các lựa chọn thay thế gồm React DnD và dnd-kit. React DnD linh hoạt nhưng ở mức trừu tượng thấp, đòi hỏi tự xử lý nhiều chi tiết về vùng kéo, vùng thả và trạng thái giao diện. dnd-kit hiện đại và có khả năng tùy biến cao, nhưng cần nhiều cấu hình hơn cho bố cục Kanban gồm nhiều danh sách ngang và nhiều thẻ dọc. Trong phạm vi HustFlow, \texttt{@hello-pangea/dnd} được lựa chọn vì cung cấp sẵn mô hình kéo thả danh sách phù hợp với Kanban, giúp giảm khối lượng cài đặt giao diện trong khi vẫn đáp ứng yêu cầu thao tác trực quan.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Chương này đã trình bày các nền tảng lý thuyết và công nghệ chính được sử dụng trong HustFlow. Về lý thuyết, đồ thị có hướng phi chu trình và thuật toán phát hiện chu trình được dùng để kiểm soát quan hệ phụ thuộc giữa các thẻ, còn mô hình cơ sở dữ liệu quan hệ được dùng để bảo đảm tính toàn vẹn dữ liệu. Về công nghệ, Next.js, React, MySQL, Prisma, Pusher, Clerk, Stripe, OpenAI API và \texttt{@hello-pangea/dnd} được lựa chọn vì tương ứng với các yêu cầu cụ thể đã phân tích ở Chương 2, đồng thời phù hợp với phạm vi triển khai của đồ án. Các lựa chọn này là cơ sở để Chương 4 tiếp tục trình bày kiến trúc, thiết kế dữ liệu, luồng xử lý và kết quả triển khai hệ thống.
 
 \end{document}
