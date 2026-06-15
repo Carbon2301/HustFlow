@@ -1,0 +1,58 @@
+@startuml
+title Mô hình chạy thử nghiệm cục bộ của HustFlow
+
+left to right direction
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam linetype ortho
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam nodesep 70
+skinparam ranksep 80
+skinparam ArrowColor #475569
+skinparam ArrowThickness 1.2
+
+node "MÁY PHÁT TRIỂN\nWindows 64-bit" as local #EFF6FF {
+
+  node "Trình duyệt" as browser <<executionEnvironment>> #FFFFFF
+
+  node "Node.js 20.18.0" as nodejs <<executionEnvironment>> #F3E8FF {
+    artifact "HustFlow\nNext.js 16.2.1" as app
+    artifact "Prisma Client\n6.19.3" as prisma
+
+    app -[hidden]up- prisma
+  }
+
+  database "MySQL\nlocalhost:3306" as mysql #ECFDF5
+  artifact "Stripe CLI" as stripecli #FEF2F2
+
+  ' Cố định bố cục
+  browser -[hidden]up- nodejs
+  nodejs -[hidden]right- stripecli
+  nodejs -[hidden]down- mysql
+
+  ' Các kết nối nội bộ
+  browser -up-> app : ①
+  prisma -down-> mysql : ②
+  stripecli -left-> app : ③
+}
+
+cloud "DỊCH VỤ BÊN NGOÀI\n\nClerk · Pusher · OpenAI\nStripe · UploadThing · Unsplash" as external #FEF2F2
+
+' Đặt dịch vụ ngoài bên phải
+local -[hidden]right- external
+
+' Các kết nối Internet
+app -right-> external : ④
+external -up-> stripecli : ⑤
+
+legend bottom
+  |= Ký hiệu |= Kết nối |
+  | ① | Trình duyệt truy cập HustFlow qua HTTP tại localhost:3000 |
+  | ② | Prisma kết nối MySQL/TCP tại localhost:3306 |
+  | ③ | Stripe CLI chuyển tiếp webhook tới /api/webhook |
+  | ④ | HustFlow kết nối dịch vụ ngoài qua HTTPS hoặc WebSocket |
+  | ⑤ | Stripe gửi webhook tới Stripe CLI |
+endlegend
+@enduml

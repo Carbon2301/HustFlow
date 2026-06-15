@@ -1,6 +1,9 @@
 import { ACTION, AUDIT_EVENT_TYPE, ENTITY_TYPE, type Card } from "@prisma/client";
 
-import type { InputType, ReturnType } from "@/actions/cards/copy-card/types";
+import type {
+  CopyCardInput,
+  CopyCardResult,
+} from "@/lib/cards/copy-card-contract";
 import { db } from "@/lib/db";
 import { requireBoardEditorForUser, requireBoardMemberForUser } from "@/lib/permissions";
 import { isAssignableBoardMember } from "@/lib/boards/board-member-role";
@@ -22,7 +25,7 @@ type CurrentUserLike = {
 };
 
 type CopyCardServiceInput = {
-  data: InputType;
+  data: CopyCardInput;
   userId: string;
   user: CurrentUserLike;
 };
@@ -31,7 +34,7 @@ export const copyCardService = async ({
   data,
   userId,
   user,
-}: CopyCardServiceInput): Promise<ReturnType> => {
+}: CopyCardServiceInput): Promise<CopyCardResult> => {
   const {
     id,
     sourceBoardId,

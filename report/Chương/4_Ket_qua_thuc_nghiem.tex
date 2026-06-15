@@ -1,0 +1,908 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+
+\newcommand{\chapterfourplaceholder}[2]{%
+    \IfFileExists{#1}{%
+        \includegraphics[width=#2\linewidth]{#1}%
+    }{%
+        \fbox{%
+            \parbox[c][5.2cm][c]{0.88\linewidth}{%
+                \centering
+                \textbf{Hình sẽ được bổ sung sau}\\[6pt]
+                \texttt{\detokenize{#1}}%
+            }%
+        }%
+    }%
+}
+
+Chương 3 đã trình bày nền tảng lý thuyết và các công nghệ được lựa chọn để xây dựng HustFlow. Trên cơ sở đó, chương này cụ thể hóa các lựa chọn công nghệ thành kiến trúc, mô hình dữ liệu và các luồng xử lý của hệ thống. Nội dung chương gồm năm phần chính: thiết kế kiến trúc tại phần \ref{section:4.1}, thiết kế chi tiết tại phần \ref{section:4.2}, kết quả xây dựng ứng dụng tại phần \ref{section:4.3}, thiết kế và kết quả kiểm thử tại phần \ref{section:4.4}, và môi trường chạy thử nghiệm cục bộ tại phần \ref{section:4.5}. Các mô tả trong chương được đối chiếu với lược đồ Prisma, các Server Action, Route Handler và thành phần giao diện trong mã nguồn hiện tại.
+
+\section{Thiết kế kiến trúc}
+\label{section:4.1}
+
+\subsection{Lựa chọn kiến trúc phần mềm}
+\label{subsection:4.1.1}
+
+HustFlow được xây dựng theo kiến trúc nguyên khối mô-đun trên nền tảng Next.js App Router. Toàn bộ chức năng được triển khai trong một ứng dụng, nhưng mã nguồn được chia thành các mô-đun theo miền nghiệp vụ và được tổ chức thành bốn tầng trách nhiệm: trình bày, xử lý ứng dụng, nghiệp vụ và truy cập dữ liệu. Kiến trúc phân tầng giúp phân tách giao diện, điều phối yêu cầu, quy tắc nghiệp vụ và cơ chế lưu trữ \cite{richards2020fundamentals}. Trong HustFlow, các tầng biểu diễn sự phân chia trách nhiệm, không phải ràng buộc mọi lời gọi phải lần lượt đi qua đủ bốn tầng.
+
+Kiến trúc này phù hợp với phạm vi đồ án vì các chức năng quản lý bảng, thẻ, thành viên và cộng tác có quan hệ dữ liệu chặt chẽ. Một ứng dụng thống nhất cho phép dùng chung kiểu dữ liệu, lược đồ Prisma và các mô-đun nghiệp vụ, đồng thời giảm số lượng thành phần phải triển khai và phối hợp. So với microservice, phương án này tránh yêu cầu vận hành nhiều dịch vụ và xử lý giao tiếp phân tán khi quy mô hệ thống chưa cần đến mức phân tách đó \cite{newman2021buildingmicroservices}.
+
+Kiến trúc tổng thể của HustFlow được trình bày trong Hình \ref{fig:chapter4_system_architecture}. Ngoài bốn tầng nội bộ, hình còn thể hiện nhóm dịch vụ bên ngoài được hệ thống sử dụng.
+
+\begin{figure}[H]
+    \centering
+    \chapterfourplaceholder{Hinhve/chapter4_system_architecture.png}{1}
+    \caption{Kiến trúc tổng thể của hệ thống HustFlow}
+    \label{fig:chapter4_system_architecture}
+\end{figure}
+
+Các tầng trong Hình \ref{fig:chapter4_system_architecture} được ánh xạ vào mã nguồn HustFlow như sau. Tầng trình bày gồm Client Component, React Component, hook và năm chế độ xem của bảng. Tầng xử lý ứng dụng gồm Server Component, 57 Server Action, Route Handler, webhook và cơ chế kiểm tra dữ liệu đầu vào. Tầng nghiệp vụ gồm các quy tắc và mô-đun về phân quyền, bảng--thẻ, phụ thuộc, AI, nhật ký và đồng bộ thời gian thực; các thành phần này được đặt trong \textit{lib} hoặc được điều phối tại Server Action và Route Handler tương ứng. Tầng truy cập dữ liệu gồm lược đồ Prisma, Prisma Client, mô-đun \textit{lib/db.ts} và MySQL.
+
+Do đặc điểm full-stack của Next.js, mã nguồn không áp dụng chiều phụ thuộc tầng một cách nghiêm ngặt. Server Component có thể đọc dữ liệu ban đầu qua Prisma; Server Action, Route Handler và mô-đun nghiệp vụ phía máy chủ có thể đọc hoặc ghi dữ liệu sau khi kiểm tra phiên, quyền truy cập và dữ liệu cần thiết. Các Server Action sử dụng lược đồ Zod thông qua \texttt{createSafeAction}, còn Route Handler kiểm tra yêu cầu theo từng điểm cuối. Client Component không nhập Prisma và không truy cập trực tiếp MySQL.
+
+Clerk, Pusher, OpenAI, Stripe, UploadThing và Unsplash là các dịch vụ bên ngoài được gọi qua SDK hoặc mô-đun tích hợp tương ứng. Các mũi tên nét đứt tới nhóm dịch vụ bên ngoài trong hình chỉ biểu diễn quan hệ tích hợp tổng quát; chúng không hàm ý mọi tầng đều sử dụng toàn bộ các dịch vụ được liệt kê.
+
+\subsection{Thiết kế tổng quan}
+\label{subsection:4.1.2}
+
+Biểu đồ gói ở Hình \ref{fig:chapter4_package_diagram} mô tả cách tổ chức các nhóm mã nguồn chính và chiều phụ thuộc giữa chúng. Mũi tên nét đứt biểu diễn quan hệ phụ thuộc, trong đó phần tử tại điểm xuất phát sử dụng thành phần do phần tử mà đầu mũi tên hướng tới cung cấp. Chiều phụ thuộc kiến trúc chủ đạo đi từ tầng trình bày tới tầng xử lý ứng dụng, tầng nghiệp vụ và tầng truy cập dữ liệu. Các package ở tầng dưới không phụ thuộc ngược vào giao diện hoặc trang cụ thể; các contract dùng chung được đặt tại tầng nghiệp vụ để tránh phụ thuộc vòng giữa \textit{actions} và \textit{lib}. Bên cạnh package, biểu đồ sử dụng stereotype để phân biệt mô-đun mã nguồn, lược đồ, client được sinh, cơ sở dữ liệu và dịch vụ ngoài.
+
+\begin{figure}[H]
+    \centering
+    \chapterfourplaceholder{Hinhve/chapter4_package_diagram.png}{1}
+    \caption{Biểu đồ gói và chiều phụ thuộc giữa các mô-đun}
+    \label{fig:chapter4_package_diagram}
+\end{figure}
+
+Tầng trình bày gồm các package \textit{app}, \textit{components} và \textit{hooks}. Package \textit{app} định nghĩa tuyến đường, bố cục, Server Component và Client Component. Các tuyến đường cấp tổ chức cung cấp trang danh sách bảng, nhật ký hoạt động, cài đặt và thanh toán; các tuyến đường cấp bảng cung cấp năm chế độ xem chính. Package \textit{components} chứa các thành phần giao diện dùng chung và modal chi tiết thẻ. Package \textit{hooks} quản lý trạng thái, truy vấn dữ liệu và đồng bộ thời gian thực ở phía khách.
+
+Tầng xử lý ứng dụng gồm các package \textit{actions} và \textit{app/api}. Package \textit{actions} chứa 57 Server Action được chia theo các miền như bảng, danh sách, thẻ, checklist, bình luận, tệp đính kèm, nhãn, phụ thuộc, AI và thanh toán. Mỗi action tiếp nhận lệnh từ giao diện, xác thực phiên làm việc, kiểm tra dữ liệu đầu vào và điều phối lời gọi tới logic nghiệp vụ. Package \textit{app/api} chứa các Route Handler, webhook và điểm cuối phục vụ tìm kiếm, lịch, thông báo, tải tệp, xác thực Pusher và thanh toán Stripe.
+
+Tầng nghiệp vụ trong biểu đồ thể hiện hai package tiêu biểu là \textit{lib/cards} và \textit{lib/boards}, mô-đun phân quyền cùng package \textit{types}. Package \textit{lib/cards} chứa contract, quy tắc ngày, thông điệp nhật ký và service của nghiệp vụ thẻ. Các schema và kiểu đầu vào dùng chung được đặt tại đây để \textit{actions} có thể sử dụng mà \textit{lib/cards} không phải phụ thuộc ngược vào tầng Server Action. Ngoài hai package được vẽ, các thư mục \textit{checklists}, \textit{comments}, \textit{notifications} và \textit{analytics} cũng đóng gói logic theo từng miền nhưng được lược bỏ để hình không quá phức tạp. Mô-đun \textit{permissions} đại diện cho \textit{permissions.ts} và \textit{organization-permissions.ts}, thực hiện kiểm tra quyền ở cấp bảng và tổ chức. Package \textit{types} mô tả dữ liệu dùng chung giữa API, giao diện và các mô-đun nghiệp vụ.
+
+Tầng truy cập dữ liệu gồm mô-đun \textit{lib/db.ts}, lược đồ \textit{prisma/schema.prisma}, Prisma Client được sinh tự động và MySQL. Lược đồ Prisma định nghĩa các model và sinh mã Prisma Client trong quá trình generate. Mô-đun \textit{lib/db.ts} nhập, khởi tạo và tái sử dụng một instance Prisma Client; client này thực hiện truy vấn tới MySQL. Các mũi tên ``sinh mã'', ``sử dụng'' và ``truy vấn'' trong hình lần lượt biểu diễn ba quan hệ trên, không hàm ý \textit{lib/db.ts} đọc trực tiếp tệp schema khi hệ thống đang chạy.
+
+HustFlow có một số đường phụ thuộc trực tiếp tới \textit{lib/db.ts} do đặc điểm full-stack của Next.js. Server Component trong \textit{app} có thể đọc dữ liệu ban đầu; Server Action, Route Handler và các mô-đun nghiệp vụ trong \textit{lib} có thể đọc hoặc ghi dữ liệu. Đây là các đường truy cập phía máy chủ, không phải việc Client Component bỏ qua các tầng kiểm soát. Client Component không được nhập hoặc sử dụng Prisma trực tiếp, còn mọi thao tác với dữ liệu nhạy cảm vẫn phải kiểm tra quyền trước khi truy vấn hoặc thay đổi dữ liệu.
+
+Các mũi tên tới nhóm dịch vụ bên ngoài biểu diễn quan hệ tích hợp tổng quát, không có nghĩa mọi package trong một tầng đều sử dụng tất cả dịch vụ được liệt kê. Clerk cung cấp xác thực và quản lý tổ chức; Pusher hỗ trợ đồng bộ thời gian thực; OpenAI cung cấp chức năng AI; Stripe xử lý thanh toán; UploadThing lưu trữ tệp; Unsplash cung cấp ảnh nền. Tầng trình bày, tầng xử lý ứng dụng và tầng nghiệp vụ sử dụng các dịch vụ phù hợp thông qua SDK hoặc mô-đun tích hợp tương ứng.
+
+Như vậy, thiết kế duy trì chiều phụ thuộc chính từ trên xuống, không tạo phụ thuộc vòng giữa các package và không để tầng dữ liệu gọi ngược lên tầng trên. Các đường truy cập trực tiếp tới \textit{lib/db.ts} được thể hiện riêng để phản ánh đúng mã nguồn, nhưng vẫn tuân thủ ranh giới máy khách--máy chủ và quy tắc phân quyền.
+
+Các bất biến phân quyền ở cấp bảng, quyền quản trị tổ chức và mối liên hệ với giới hạn dịch vụ được kiểm tra tại các Server Action và mô-đun quyền tương ứng.
+
+\subsection{Thiết kế chi tiết gói quản lý thẻ và cộng tác}
+\label{subsection:4.1.3}
+
+Thẻ công việc là thực thể trung tâm của HustFlow. Hình \ref{fig:chapter4_card_module_design} tập trung mô tả luồng cập nhật nội dung thẻ và đồng bộ thay đổi theo thời gian thực giữa các thành viên. Biểu đồ chỉ trình bày tên các thành phần chủ đạo và lược bỏ thuộc tính, tham số cùng chi tiết cài đặt để bảo đảm tính rõ ràng. Do hệ thống được xây dựng chủ yếu theo hướng hàm và React Component, stereotype được sử dụng để phân biệt React Component, Server Action, hook, function, Prisma Client instance và model dữ liệu.
+
+\begin{figure}[H]
+    \centering
+    \chapterfourplaceholder{Hinhve/chapter4_card_module_design.png}{1}
+    \caption{Thiết kế chi tiết nhóm gói quản lý thẻ và cộng tác}
+    \label{fig:chapter4_card_module_design}
+\end{figure}
+
+Trong nhóm gói \textit{components/modals/card-modal}, \texttt{CardModal} hiển thị thành phần \texttt{Description} và sử dụng \texttt{CardRealtimeSync}. Khi người dùng lưu mô tả, \texttt{Description} gọi Server Action \texttt{updateCard} trong nhóm gói \textit{actions/cards/update-card}. Action xác thực phiên làm việc, kiểm tra dữ liệu đầu vào và chuyển yêu cầu tới hàm \texttt{updateCardService} thuộc \textit{lib/cards}.
+
+\texttt{updateCardService} gọi \texttt{requireBoardEditor} trong \textit{lib/permissions} để kiểm tra quyền chỉnh sửa bảng. Sau khi được cấp quyền, service sử dụng instance \texttt{db} của Prisma Client trong \textit{lib/db} để đọc và cập nhật model \texttt{Card} do \texttt{@prisma/client} cung cấp. Khi cập nhật thành công, service gọi \texttt{triggerCardUpdated} để tạo và phát thông báo về thay đổi của thẻ.
+
+Ở phía máy chủ, \texttt{triggerCardUpdated} gọi \texttt{triggerRealtimeEvent}. Hàm này lấy Pusher server instance thông qua \texttt{getServerPusher} rồi phát sự kiện tới kênh riêng của bảng và kênh riêng của thẻ. Ở phía trình duyệt, \texttt{CardRealtimeSync} sử dụng hook \texttt{useRealtimeChannel}; hook gọi \texttt{subscribeRealtimeChannel}, sau đó hàm này sử dụng Pusher client instance do \texttt{getClientPusher} cung cấp để đăng ký kênh thời gian thực. Khi nhận sự kiện do thành viên khác thực hiện, \texttt{CardRealtimeSync} vô hiệu hóa các truy vấn liên quan để giao diện tải lại dữ liệu mới nhất.
+
+Các mũi tên nét đứt trong biểu đồ biểu diễn quan hệ phụ thuộc, trong đó thành phần ở điểm xuất phát sử dụng hoặc gọi thành phần mà mũi tên hướng tới. Biểu đồ không sử dụng quan hệ kế thừa, thực thi, kết tập hoặc hợp thành vì các quan hệ này không phát sinh trong phạm vi luồng cập nhật và đồng bộ được lựa chọn. Việc chỉ biểu diễn các quan hệ thực sự tồn tại giúp thiết kế phản ánh đúng mã nguồn và tránh làm biểu đồ quá phức tạp.
+
+\section{Thiết kế chi tiết}
+\label{section:4.2}
+
+\subsection{Thiết kế giao diện}
+\label{subsection:4.2.1}
+
+HustFlow là ứng dụng quản lý công việc có mật độ thông tin cao, do đó giao diện được thiết kế theo định hướng ưu tiên máy tính xách tay và máy tính để bàn. Các chế độ Kanban, Lịch, Dòng thời gian và Chia đôi cần không gian ngang để người dùng quan sát đồng thời nhiều nhóm công việc. Thiết bị di động vẫn được hỗ trợ cho các tác vụ xem nhanh, cập nhật thẻ và theo dõi thông báo, nhưng không được xem là môi trường tối ưu cho hoạt động lập kế hoạch tổng thể.
+
+\subsubsection{Môi trường hiển thị mục tiêu}
+
+Độ phân giải tối thiểu của môi trường làm việc chính là \(1280 \times 720\) pixel; độ phân giải khuyến nghị là Full HD \(1920 \times 1080\) pixel. Màn hình có kích thước vật lý khoảng 13--24 inch và tỷ lệ 16:9 hoặc 16:10 phù hợp với bố cục nhiều cột. Hệ thống không có yêu cầu xử lý đồ họa chuyên dụng; độ sâu màu 24 bit, tương ứng khoảng 16,7 triệu màu, đủ để hiển thị nền bảng, nhãn, trạng thái và biểu đồ. Chuột và bàn phím là phương thức nhập chính, đồng thời các điều khiển cơ bản vẫn hỗ trợ thao tác chạm. Trình duyệt cần hỗ trợ JavaScript, CSS Grid, Flexbox và kết nối HTTPS.
+
+Giao diện được tổ chức theo hai phạm vi điều hướng. Ở phạm vi tổ chức, thanh điều hướng trên cùng cung cấp truy cập tới tìm kiếm, thông báo và tài khoản; thanh bên chứa danh sách tổ chức và các chức năng quản trị. Ở phạm vi bảng, thanh điều hướng thứ hai hiển thị tên bảng, thành viên, bộ lọc và bộ chuyển đổi chế độ xem. Cấu trúc này giúp người dùng phân biệt thao tác ảnh hưởng toàn tổ chức với thao tác chỉ tác động đến bảng hiện tại.
+
+Hình \ref{fig:chapter4_ui_workspace_wireframe} mô tả khung bố cục của màn hình làm việc chính. Đây là bản phác thảo mức độ chi tiết thấp nhằm thể hiện thứ bậc thông tin và vị trí điều khiển, không phải ảnh chụp giao diện của sản phẩm sau khi cài đặt. Vùng nội dung trung tâm có thể thay bằng Kanban, Lịch, Dòng thời gian, Chia đôi hoặc Thống kê mà không làm thay đổi ngữ cảnh điều hướng.
+
+\begin{figure}[H]
+    \centering
+    \begin{tikzpicture}[
+        scale=0.9,
+        every node/.style={transform shape},
+        browser/.style={draw=gray!30, fill=white, rounded corners=6pt, line width=0.8pt},
+        header/.style={fill=purple!70!black, draw=none},
+        sidebar/.style={fill=gray!5, draw=none},
+        boardheader/.style={fill=white, draw=gray!15},
+        listbg/.style={fill=gray!8, draw=none, rounded corners=4pt},
+        card/.style={fill=white, draw=gray!20, rounded corners=3pt, line width=0.5pt, drop shadow={opacity=0.08, shadow xshift=0.4pt, shadow yshift=-0.4pt}},
+        btn/.style={draw=gray!25, fill=white, rounded corners=2pt, inner sep=3pt, font=\sffamily\tiny},
+        activeview/.style={draw=purple!40, fill=purple!5, text=purple!80!black, rounded corners=2pt, font=\sffamily\tiny\bfseries},
+        badge/.style={rounded corners=1pt, font=\tiny\bfseries, text=white, inner sep=1.5pt},
+        avatar/.style={circle, draw=gray!25, fill=gray!20, minimum size=11pt, font=\tiny\bfseries\sffamily, inner sep=0pt, align=center}
+    ]
+        % Draw browser window
+        \draw[browser] (0,0) rectangle (14, 8.5);
+        
+        % Draw browser control buttons
+        \fill[red!60!white] (0.35, 8.15) circle (2.5pt);
+        \fill[yellow!60!orange] (0.65, 8.15) circle (2.5pt);
+        \fill[green!60!white] (0.95, 8.15) circle (2.5pt);
+        
+        % Draw global header
+        \fill[header] (0, 7.3) rectangle (14, 7.85);
+        \node[white, anchor=west, font=\sffamily\bfseries\small] at (0.3, 7.575) {HustFlow};
+        
+        % Search bar
+        \fill[white!15, rounded corners=2pt] (2.6, 7.4) rectangle (5.6, 7.75);
+        \node[white!70!purple, anchor=west, font=\sffamily\tiny] at (2.8, 7.575) {Tìm kiếm...};
+        
+        % Profile & Settings
+        \node[avatar, fill=purple!30, text=purple!80!black] at (13.5, 7.575) {A};
+        \draw[white, line width=0.5pt] (12.95, 7.575) circle (1.5pt);
+        \fill[red, draw=none] (13.05, 7.675) circle (1pt);
+        \draw[white, line width=0.5pt] (12.55, 7.575) circle (1.5pt);
+        \draw[white, line width=0.5pt] (12.55, 7.625) -- (12.55, 7.525);
+        \draw[white, line width=0.5pt] (12.5, 7.575) -- (12.6, 7.575);
+        
+        % Left Sidebar
+        \fill[sidebar] (0, 0) rectangle (2.8, 7.3);
+        \draw[gray!15, line width=0.5pt] (2.8, 0) -- (2.8, 7.3);
+        
+        % Sidebar text
+        \node[anchor=west, font=\sffamily\bfseries\tiny, text=gray!80!black] at (0.2, 7.0) {TỔ CHỨC};
+        \node[anchor=west, font=\sffamily\bfseries\small, text=purple!90!black] at (0.2, 6.6) {HUST Tech};
+        
+        \fill[purple!10, rounded corners=2pt] (0.15, 6.0) rectangle (2.65, 6.35);
+        \node[anchor=west, font=\sffamily\bfseries\tiny, text=purple!80!black] at (0.3, 6.175) {Bảng công việc};
+        \node[anchor=west, font=\sffamily\tiny, text=gray!80!black] at (0.3, 5.75) {Hoạt động};
+        \node[anchor=west, font=\sffamily\tiny, text=gray!80!black] at (0.3, 5.35) {Cài đặt};
+        
+        \node[anchor=west, font=\sffamily\bfseries\tiny, text=gray!80!black] at (0.2, 4.7) {BẢNG CỦA TÔI};
+        \node[anchor=west, font=\sffamily\tiny, text=gray!90!black] at (0.3, 4.3) {$\star$ Dự án HustFlow};
+        \node[anchor=west, font=\sffamily\tiny, text=gray!90!black] at (0.3, 3.9) {$\star$ Kế hoạch tuần};
+        
+        % Board Header
+        \fill[boardheader] (2.8, 6.5) rectangle (14, 7.3);
+        \draw[gray!15, line width=0.5pt] (2.8, 6.5) -- (14, 6.5);
+        
+        \node[anchor=west, font=\sffamily\bfseries\small, text=gray!90!black] at (3.1, 6.9) {Dự án HustFlow};
+        
+        % Avatars in board header
+        \node[avatar, fill=blue!20, text=blue!80!black] at (6.7, 6.9) {B};
+        \node[avatar, fill=green!20, text=green!80!black] at (7.05, 6.9) {C};
+        \node[avatar, fill=yellow!20, text=brown!80!black] at (7.4, 6.9) {D};
+        
+        % View options
+        \node[activeview, anchor=east] at (11.0, 6.9) {Bảng};
+        \node[btn, anchor=east] at (12.2, 6.9) {Lịch};
+        \node[btn, anchor=east] at (13.7, 6.9) {Timeline};
+        
+        % Kanban columns
+        % Column 1: Cần làm
+        \fill[listbg] (3.1, 0.4) rectangle (6.4, 6.2);
+        \node[anchor=west, font=\sffamily\bfseries\tiny, text=gray!80!black] at (3.3, 5.95) {Cần làm};
+        \node[avatar, fill=gray!30, text=gray!80!black, minimum size=10pt, scale=0.8] at (6.1, 5.95) {3};
+        
+        % Card 1.1
+        \fill[card] (3.25, 4.75) rectangle (6.25, 5.65);
+        \node[anchor=west, font=\sffamily\tiny\bfseries, text=gray!85!black] at (3.35, 5.4) {Thiết kế CSDL};
+        \fill[blue!50!cyan, rounded corners=1pt] (3.35, 4.95) rectangle (4.4, 5.15);
+        \node[white, font=\sffamily\tiny, scale=0.75] at (3.875, 5.05) {Cơ sở dữ liệu};
+        \node[avatar, scale=0.7] at (6.0, 4.95) {B};
+        
+        % Card 1.2
+        \fill[card] (3.25, 3.65) rectangle (6.25, 4.55);
+        \node[anchor=west, font=\sffamily\tiny\bfseries, text=gray!85!black] at (3.35, 4.3) {Tích hợp Stripe};
+        \fill[orange!70, rounded corners=1pt] (3.35, 3.85) rectangle (4.4, 4.05);
+        \node[white, font=\sffamily\tiny, scale=0.75] at (3.875, 3.95) {Thanh toán};
+        
+        % Card 1.3
+        \fill[card] (3.25, 2.55) rectangle (6.25, 3.45);
+        \node[anchor=west, font=\sffamily\tiny\bfseries, text=gray!85!black] at (3.35, 3.2) {Tài liệu API};
+        \fill[red!60!orange, rounded corners=1pt] (3.35, 2.75) rectangle (4.4, 2.95);
+        \node[white, font=\sffamily\tiny, scale=0.75] at (3.875, 2.85) {Tài liệu};
+        
+        \node[anchor=west, font=\sffamily\tiny, text=gray!50!black] at (3.35, 0.7) {+ Thêm thẻ mới};
+        
+        % Column 2: Đang làm
+        \fill[listbg] (6.7, 0.4) rectangle (10.0, 6.2);
+        \node[anchor=west, font=\sffamily\bfseries\tiny, text=gray!80!black] at (6.9, 5.95) {Đang làm};
+        \node[avatar, fill=gray!30, text=gray!80!black, minimum size=10pt, scale=0.8] at (9.7, 5.95) {2};
+        
+        % Card 2.1
+        \fill[card] (6.85, 4.75) rectangle (9.85, 5.65);
+        \node[anchor=west, font=\sffamily\tiny\bfseries, text=gray!85!black] at (6.95, 5.4) {Server Actions};
+        \fill[purple!60, rounded corners=1pt] (6.95, 4.95) rectangle (7.8, 5.15);
+        \node[white, font=\sffamily\tiny, scale=0.75] at (7.375, 5.05) {Nghiệp vụ};
+        \node[avatar, scale=0.7] at (9.6, 4.95) {A};
+        
+        % Card 2.2
+        \fill[card] (6.85, 3.65) rectangle (9.85, 4.55);
+        \node[anchor=west, font=\sffamily\tiny\bfseries, text=gray!85!black] at (6.95, 4.3) {Tối ưu hóa UI};
+        \fill[pink!60!red, rounded corners=1pt] (6.95, 3.85) rectangle (7.8, 4.05);
+        \node[white, font=\sffamily\tiny, scale=0.75] at (7.375, 3.95) {Giao diện};
+        \node[avatar, scale=0.7] at (9.6, 3.85) {C};
+        
+        \node[anchor=west, font=\sffamily\tiny, text=gray!50!black] at (6.95, 0.7) {+ Thêm thẻ mới};
+        
+        % Column 3: Hoàn thành
+        \fill[listbg] (10.3, 0.4) rectangle (13.6, 6.2);
+        \node[anchor=west, font=\sffamily\bfseries\tiny, text=gray!80!black] at (10.5, 5.95) {Hoàn thành};
+        \node[avatar, fill=gray!30, text=gray!80!black, minimum size=10pt, scale=0.8] at (13.3, 5.95) {1};
+        
+        % Card 3.1
+        \fill[card] (10.45, 4.75) rectangle (13.45, 5.65);
+        \node[anchor=west, font=\sffamily\tiny\bfseries, text=gray!85!black] at (10.55, 5.4) {Khảo sát đề tài};
+        \fill[green!60!black, rounded corners=1pt] (10.55, 4.95) rectangle (11.5, 5.15);
+        \node[white, font=\sffamily\tiny, scale=0.75] at (11.025, 5.05) {Nghiên cứu};
+        \node[avatar, scale=0.7] at (13.2, 4.95) {D};
+        
+        \node[anchor=west, font=\sffamily\tiny, text=gray!50!black] at (10.55, 0.7) {+ Thêm thẻ mới};
+    \end{tikzpicture}
+    \caption{Bản phác thảo bố cục không gian làm việc chính}
+    \label{fig:chapter4_ui_workspace_wireframe}
+\end{figure}
+
+\subsubsection{Các quy ước thiết kế}
+
+Các điều khiển được chuẩn hóa theo mục đích và tần suất sử dụng. Nút hành động chính dùng màu tím nhận diện và chỉ xuất hiện một lần trong mỗi cụm thao tác; nút phụ dùng nền trung tính; hành động phá hủy dùng màu đỏ và yêu cầu xác nhận. Nút trên thanh công cụ có chiều cao khoảng 32 px để bảo đảm mật độ thông tin, trong khi điều khiển chính trong biểu mẫu và modal có chiều cao khoảng 40--44 px. Cỡ chữ nội dung phổ biến nằm trong khoảng 13--16 px; tiêu đề, nhãn phụ và metadata được phân cấp bằng kích thước, độ đậm và độ tương phản thay vì sử dụng quá nhiều màu.
+
+Màu tím được dùng cho hành động chính và thành phần nhận diện; nhóm màu trung tính được dùng cho nền, đường viền và nội dung phụ. Màu đỏ chỉ biểu thị lỗi, dữ liệu quá hạn hoặc thao tác nguy hiểm. Trạng thái không chỉ được truyền đạt bằng màu sắc mà còn bằng nhãn, biểu tượng hoặc thông điệp văn bản. Mọi thành phần tương tác cần có trạng thái hover và focus dễ nhận biết; thứ tự focus được bố trí theo chiều đọc để hỗ trợ thao tác bàn phím.
+
+Phản hồi thao tác được đặt theo phạm vi của vấn đề. Lỗi kiểm tra dữ liệu xuất hiện ngay dưới trường nhập tương ứng. Lỗi nghiệp vụ ở mức biểu mẫu được hiển thị trong biểu mẫu hoặc modal. Kết quả thành công, lỗi hệ thống và thông báo không gắn với một trường cụ thể được hiển thị bằng toast ở vùng ít che khuất nội dung. Trong thời gian xử lý, nút gửi bị vô hiệu hóa và hiển thị trạng thái chờ; vùng dữ liệu đang tải sử dụng skeleton. Những thao tác xóa hoặc lưu trữ dữ liệu phải qua hộp thoại xác nhận.
+
+Quyền thao tác cũng được phản ánh trong thiết kế. Vai trò \textbf{ADMIN} có thể quản lý bảng và thành viên; \textbf{MEMBER} có thể tạo, sửa và sắp xếp công việc; \textbf{VIEWER} chỉ theo dõi tiến độ. Các điều khiển cập nhật và trợ lý AI không xuất hiện với người dùng chỉ có quyền xem. Việc ẩn điều khiển chỉ nhằm làm rõ khả năng thao tác; mọi yêu cầu thay đổi dữ liệu vẫn được kiểm tra quyền ở phía máy chủ.
+
+\subsubsection{Thiết kế thích ứng và các màn hình quan trọng}
+
+Thiết kế thích ứng sử dụng các mốc chiều rộng của Tailwind CSS. Từ breakpoint \texttt{md}, thanh bên tổ chức rộng 256 px được hiển thị cố định; ở màn hình nhỏ, thanh bên được thay bằng nút mở menu. Danh sách bảng thay đổi từ hai cột lên ba cột tại \texttt{sm} và bốn cột tại \texttt{lg}. Tên chế độ xem được ẩn trên màn hình hẹp và chỉ giữ biểu tượng; từ \texttt{lg}, cả biểu tượng và nhãn được hiển thị. Modal chi tiết thẻ dùng một cột trên màn hình nhỏ và lưới 12 cột từ \texttt{md}, trong đó nội dung thẻ chiếm bảy cột, hoạt động và bình luận chiếm năm cột.
+
+Hình \ref{fig:chapter4_ui_important_wireframes} minh họa hai tình huống quan trọng: cập nhật chi tiết thẻ trên desktop và theo dõi bảng trên điện thoại. Các hình chỉ mô tả bố cục dự kiến, vùng thông tin và thứ tự thao tác; màu sắc, nội dung mẫu và tỷ lệ thành phần không được xem là kết quả giao diện cuối cùng.
+
+\begin{figure}[H]
+    \centering
+    \begin{subfigure}[t]{0.58\linewidth}
+        \centering
+        \begin{tikzpicture}[
+            scale=0.95,
+            every node/.style={transform shape},
+            modal/.style={draw=gray!30, fill=white, rounded corners=5pt, line width=0.8pt, drop shadow={opacity=0.1, shadow xshift=0.5pt, shadow yshift=-0.5pt}},
+            header/.style={font=\sffamily\bfseries\tiny, text=gray!80!black},
+            sectiontitle/.style={font=\sffamily\bfseries\tiny, text=purple!80!black, anchor=west},
+            contenttext/.style={font=\sffamily\tiny, text=gray!70!black, anchor=west},
+            inputbox/.style={draw=gray!20, fill=gray!2, rounded corners=2pt, line width=0.5pt},
+            btn/.style={draw=purple!50, fill=purple!5, text=purple!80!black, rounded corners=2pt, font=\sffamily\tiny\bfseries, inner sep=2.5pt},
+            avatar/.style={circle, draw=gray!25, fill=gray!20, minimum size=10pt, font=\tiny\bfseries\sffamily, inner sep=0pt, align=center}
+        ]
+            % Outer boundary overlay context
+            \fill[gray!5, rounded corners=4pt] (0,0) rectangle (8.2, 5.5);
+            \draw[gray!20, rounded corners=4pt, line width=0.5pt] (0,0) rectangle (8.2, 5.5);
+            
+            % Modal container
+            \draw[modal] (0.3, 0.3) rectangle (7.9, 5.2);
+            
+            % Modal Header
+            \node[header, anchor=west] at (0.5, 4.95) {Chi tiết thẻ: Thiết kế CSDL};
+            \node[gray!50, font=\sffamily\tiny\bfseries, anchor=east] at (7.7, 4.95) {Đóng x};
+            \draw[gray!15] (0.3, 4.7) -- (7.9, 4.7);
+            
+            % Left side contents
+            \node[sectiontitle] at (0.5, 4.45) {Thành viên};
+            \node[avatar, fill=blue!20] at (0.8, 4.1) {B};
+            
+            \node[sectiontitle] at (2.0, 4.45) {Nhãn};
+            \fill[blue!50!cyan, rounded corners=1pt] (2.0, 4.05) rectangle (3.2, 4.25);
+            \node[white, font=\sffamily\tiny, scale=0.65] at (2.6, 4.15) {Cơ sở dữ liệu};
+            
+            % Description
+            \node[sectiontitle] at (0.5, 3.65) {Mô tả};
+            \fill[gray!2, rounded corners=2pt] (0.5, 2.9) rectangle (4.5, 3.45);
+            \node[contenttext] at (0.6, 3.25) {Xây dựng lược đồ và thiết lập các};
+            \node[contenttext] at (0.6, 3.0) {bảng dữ liệu cốt lõi trên MySQL.};
+            
+            % Checklist
+            \node[sectiontitle] at (0.5, 2.5) {Checklist: Công việc};
+            \draw[gray!20, fill=gray!10, rounded corners=1.5pt] (0.5, 2.15) rectangle (4.5, 2.28);
+            \fill[purple!70, rounded corners=1.5pt] (0.5, 2.15) rectangle (2.5, 2.28);
+            \node[contenttext, scale=0.75, text=purple!80!black] at (4.1, 2.45) {50\%};
+            \node[contenttext] at (0.5, 1.85) {$\boxtimes$ Thiết kế ERD};
+            \node[contenttext] at (0.5, 1.6) {$\square$ Cài đặt Prisma Schema};
+            
+            % Dependencies
+            \node[sectiontitle] at (0.5, 1.2) {Phụ thuộc};
+            \node[contenttext, text=orange!80!black] at (0.5, 0.95) {Bị chặn bởi: Khảo sát đề tài};
+            
+            % Right side contents
+            \draw[gray!15] (4.7, 0.3) -- (4.7, 4.7);
+            
+            % Activities / Comments
+            \node[sectiontitle] at (4.9, 4.45) {Bình luận};
+            \draw[inputbox] (4.9, 3.4) rectangle (7.7, 4.2);
+            \node[gray!40, font=\sffamily\tiny, anchor=west] at (5.0, 4.0) {Viết bình luận...};
+            \node[btn, scale=0.75, inner sep=1.5pt, anchor=east] at (7.7, 3.1) {Gửi};
+            
+            \node[sectiontitle] at (4.9, 2.6) {Hoạt động};
+            
+            % Activity items
+            \node[avatar, fill=purple!30, scale=0.7] at (5.1, 2.15) {A};
+            \node[contenttext, scale=0.9, text=gray!80!black] at (5.3, 2.2) {\textbf{A} đã thêm thẻ này};
+            \node[contenttext, scale=0.65, text=gray!40!black] at (5.35, 2.00) {10 phút trước};
+            
+            \node[avatar, fill=blue!20, scale=0.7] at (5.1, 1.55) {B};
+            \node[contenttext, scale=0.9, text=gray!80!black] at (5.3, 1.6) {\textbf{B} đã nhận việc};
+            \node[contenttext, scale=0.65, text=gray!40!black] at (5.35, 1.40) {5 phút trước};
+            
+            \node[avatar, fill=purple!30, scale=0.7] at (5.1, 0.95) {A};
+            \node[contenttext, scale=0.9, text=gray!80!black] at (5.3, 1.0) {\textbf{A} đã liên kết phụ thuộc};
+            \node[contenttext, scale=0.65, text=gray!40!black] at (5.35, 0.80) {9 phút trước};
+        \end{tikzpicture}
+        \caption{Modal chi tiết thẻ trên desktop}
+    \end{subfigure}
+    \hfill
+    \begin{subfigure}[t]{0.36\linewidth}
+        \centering
+        \begin{tikzpicture}[
+            scale=0.95,
+            every node/.style={transform shape},
+            phone/.style={draw=gray!40, fill=white, rounded corners=10pt, line width=1.2pt},
+            header/.style={fill=purple!70!black, draw=none},
+            listbg/.style={fill=gray!8, draw=none, rounded corners=4pt},
+            card/.style={fill=white, draw=gray!20, rounded corners=3pt, line width=0.5pt, drop shadow={opacity=0.08, shadow xshift=0.4pt, shadow yshift=-0.4pt}},
+            btn/.style={draw=gray!25, fill=white, rounded corners=2pt, inner sep=2.5pt, font=\sffamily\tiny},
+            avatar/.style={circle, draw=gray!25, fill=gray!20, minimum size=10pt, font=\tiny\bfseries\sffamily, inner sep=0pt, align=center}
+        ]
+            % Draw Phone Frame
+            \draw[phone] (0,0) rectangle (5.0, 5.5);
+            
+            % Notch / Speaker representation
+            \fill[gray!30, rounded corners=1pt] (2.0, 5.35) rectangle (3.0, 5.42);
+            
+            % Global Header
+            \fill[header] (0.05, 4.75) rectangle (4.95, 5.25);
+            \draw[white, line width=0.6pt] (0.2, 5.06) -- (0.35, 5.06);
+            \draw[white, line width=0.6pt] (0.2, 5.0) -- (0.35, 5.0);
+            \draw[white, line width=0.6pt] (0.2, 4.94) -- (0.35, 4.94);
+            \node[white, anchor=west, font=\sffamily\bfseries\tiny, scale=0.9] at (0.45, 5.0) {HustFlow};
+            \node[avatar, fill=purple!30, text=purple!80!black, scale=0.7] at (4.6, 5.0) {A};
+            
+            % Board Header
+            \fill[gray!2, draw=gray!15] (0.05, 4.25) rectangle (4.95, 4.75);
+            \node[anchor=west, font=\sffamily\bfseries\tiny, scale=0.8, text=gray!85!black] at (0.2, 4.5) {Bảng A};
+            \node[btn, scale=0.75, inner sep=1.5pt] at (3.5, 4.5) {Tìm};
+            \node[btn, scale=0.75, inner sep=1.5pt] at (4.4, 4.5) {Lọc};
+            
+            % Stacked Kanban view
+            % List 1: Cần làm
+            \fill[listbg] (0.25, 2.25) rectangle (4.75, 4.15);
+            \node[anchor=west, font=\sffamily\bfseries\tiny, scale=0.8, text=gray!80!black] at (0.4, 3.95) {Cần làm};
+            
+            \fill[card] (0.35, 3.1) rectangle (4.65, 3.75);
+            \node[anchor=west, font=\sffamily\tiny\bfseries, scale=0.9, text=gray!85!black] at (0.45, 3.55) {Thiết kế CSDL};
+            \fill[blue!50!cyan, rounded corners=1pt] (0.45, 3.2) rectangle (1.5, 3.37);
+            \node[white, font=\sffamily\tiny, scale=0.6] at (0.975, 3.28) {Database};
+            \node[avatar, scale=0.65] at (4.4, 3.4) {B};
+            
+            \fill[card] (0.35, 2.35) rectangle (4.65, 3.0);
+            \node[anchor=west, font=\sffamily\tiny\bfseries, scale=0.9, text=gray!85!black] at (0.45, 2.8) {Tài liệu API};
+            
+            % List 2: Đang làm
+            \fill[listbg] (0.25, 0.35) rectangle (4.75, 2.15);
+            \node[anchor=west, font=\sffamily\bfseries\tiny, scale=0.8, text=gray!80!black] at (0.4, 1.95) {Đang làm};
+            
+            \fill[card] (0.35, 1.1) rectangle (4.65, 1.75);
+            \node[anchor=west, font=\sffamily\tiny\bfseries, scale=0.9, text=gray!85!black] at (0.45, 1.55) {Server Actions};
+            \fill[purple!60, rounded corners=1pt] (0.45, 1.2) rectangle (1.4, 1.37);
+            \node[white, font=\sffamily\tiny, scale=0.6] at (0.925, 1.28) {Nghiệp vụ};
+            \node[avatar, scale=0.65] at (4.4, 1.4) {A};
+            
+            \node[anchor=west, font=\sffamily\tiny, scale=0.8, text=gray!50!black] at (0.45, 0.6) {+ Thêm thẻ mới};
+        \end{tikzpicture}
+        \caption{Bảng thu gọn trên điện thoại}
+    \end{subfigure}
+    \caption{Bản phác thảo giao diện cho các tình huống sử dụng quan trọng}
+    \label{fig:chapter4_ui_important_wireframes}
+\end{figure}
+
+Trên desktop, modal chi tiết thẻ ưu tiên nội dung công việc ở vùng bên trái và hoạt động cộng tác ở vùng bên phải, giúp người dùng vừa chỉnh sửa dữ liệu vừa theo dõi lịch sử trao đổi. Trên điện thoại, các điều khiển ít dùng được thu vào menu, danh sách chuyển sang bố cục dọc và nội dung được cuộn theo một trục. Các chế độ cần quan sát tổng thể như Dòng thời gian hoặc Chia đôi vẫn truy cập được nhưng phù hợp hơn với màn hình lớn.
+
+\subsection{Thiết kế lớp}
+\label{subsection:4.2.2}
+
+Mã nguồn HustFlow sử dụng TypeScript theo phong cách hàm và mô-đun thay vì cài đặt toàn bộ nghiệp vụ bằng từ khóa \texttt{class}. Tuy nhiên, ở mức thiết kế hướng đối tượng, thuộc tính và hành vi vẫn được phân chia theo trách nhiệm. Phần này lựa chọn bốn lớp chủ đạo gồm \texttt{Board}, \texttt{Card}, \texttt{BoardMember} và \texttt{CardApplicationService}. Ba lớp đầu là các lớp thực thể được ánh xạ thành model Prisma; lớp \texttt{CardApplicationService} đóng gói các ca sử dụng liên quan đến thẻ. Khi cài đặt, phương thức của lớp dịch vụ được tách thành các hàm và Server Action để phù hợp với mô hình thực thi của Next.js. Cách ánh xạ này không làm thay đổi trách nhiệm và hợp đồng đã xác định trong thiết kế.
+
+\subsubsection{Thuộc tính của các lớp chủ đạo}
+\label{subsubsection:4.2.2.a}
+
+\texttt{Board} biểu diễn phạm vi cộng tác của một tổ chức, \texttt{Card} biểu diễn đơn vị công việc và \texttt{BoardMember} biểu diễn tư cách cùng vai trò của người dùng trong bảng. Các thuộc tính lưu trữ của ba lớp thực thể được trình bày trong Bảng \ref{table:chapter4_core_entities}. Thuộc tính của \texttt{CardApplicationService} là các phụ thuộc \texttt{db}, \texttt{permissionService}, \texttt{auditLogger} và \texttt{realtimePublisher}; trong mã nguồn, các phụ thuộc này được cung cấp qua các mô-đun dùng chung thay vì được giữ trong một đối tượng dịch vụ. Các trường quan hệ của lớp thực thể được ánh xạ thành khóa ngoại hoặc bảng nối ở phần \ref{subsection:4.2.3}.
+
+\begingroup
+\small
+\setlength{\tabcolsep}{3pt}
+\renewcommand{\arraystretch}{1.15}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{0.15\linewidth}|>{\raggedright\arraybackslash}p{0.22\linewidth}|>{\raggedright\arraybackslash}p{0.19\linewidth}|>{\raggedright\arraybackslash}p{0.34\linewidth}|}
+    \caption{Thiết kế thuộc tính của các lớp thực thể chủ đạo}
+    \label{table:chapter4_core_entities}\\
+    \hline
+    \textbf{Lớp} & \textbf{Thuộc tính} & \textbf{Kiểu Prisma} & \textbf{Ý nghĩa} \\ \hline
+    \endfirsthead
+    \hline
+    \textbf{Lớp} & \textbf{Thuộc tính} & \textbf{Kiểu Prisma} & \textbf{Ý nghĩa} \\ \hline
+    \endhead
+    \texttt{Board} & \texttt{id} & \texttt{String} & Khóa định danh UUID của bảng. \\ \hline
+    \texttt{Board} & \texttt{orgId} & \texttt{String} & Định danh tổ chức Clerk sở hữu bảng. \\ \hline
+    \texttt{Board} & \texttt{title} & \texttt{String} & Tên hiển thị của bảng. \\ \hline
+    \texttt{Board} & \texttt{imageId} & \texttt{String} & Định danh ảnh nền từ nguồn ảnh. \\ \hline
+    \texttt{Board} & \texttt{imageThumb}\newline\texttt{Url} & \texttt{String}\newline\texttt{@db.Text} & URL ảnh thu nhỏ dùng ở danh sách bảng. \\ \hline
+    \texttt{Board} & \texttt{imageFullUrl} & \texttt{String}\newline\texttt{@db.Text} & URL ảnh đầy đủ dùng làm nền bảng. \\ \hline
+    \texttt{Board} & \texttt{imageUser}\newline\texttt{Name} & \texttt{String}\newline\texttt{@db.Text} & Tên tác giả ảnh để ghi nguồn. \\ \hline
+    \texttt{Board} & \texttt{imageLink}\newline\texttt{HTML} & \texttt{String}\newline\texttt{@db.Text} & Liên kết ghi nhận nguồn ảnh. \\ \hline
+    \texttt{Board} & \texttt{createdAt} & \texttt{DateTime} & Thời điểm tạo, mặc định là thời gian hiện tại. \\ \hline
+    \texttt{Board} & \texttt{updatedAt} & \texttt{DateTime} & Thời điểm cập nhật gần nhất do Prisma duy trì. \\ \hline
+    \texttt{Card} & \texttt{id} & \texttt{String} & Khóa định danh UUID của thẻ. \\ \hline
+    \texttt{Card} & \texttt{title} & \texttt{String} & Tiêu đề công việc. \\ \hline
+    \texttt{Card} & \texttt{order} & \texttt{Int} & Vị trí của thẻ trong danh sách. \\ \hline
+    \texttt{Card} & \texttt{description} & \texttt{String?}\newline\texttt{@db.Text} & Mô tả Markdown, có thể để trống. \\ \hline
+    \texttt{Card} & \texttt{description}\newline\texttt{UpdatedAt} & \texttt{DateTime} & Mốc phiên bản dùng để phát hiện ghi đè mô tả. \\ \hline
+    \texttt{Card} & \texttt{startDate}, \texttt{dueDate} & \texttt{DateTime?} & Khoảng thời gian dự kiến của công việc. \\ \hline
+    \texttt{Card} & \texttt{isCompleted} & \texttt{Boolean} & Trạng thái hoàn thành, mặc định là \texttt{false}. \\ \hline
+    \texttt{Card} & \texttt{reminder} & \texttt{String?} & Quy tắc nhắc việc được người dùng lựa chọn. \\ \hline
+    \texttt{Card} & \texttt{reminder}\newline\texttt{SetAt} & \texttt{DateTime?} & Thời điểm cấu hình nhắc việc gần nhất. \\ \hline
+    \texttt{Card} & \texttt{archivedAt} & \texttt{DateTime?} & Thời điểm lưu trữ mềm của thẻ. \\ \hline
+    \texttt{Card} & \texttt{archivedBy}\newline\texttt{ListId} & \texttt{String?} & Danh sách nguồn khi thẻ bị lưu trữ cùng danh sách. \\ \hline
+    \texttt{Card} & \texttt{listId} & \texttt{String} & Khóa ngoại tới danh sách chứa thẻ. \\ \hline
+    \texttt{Card} & \texttt{createdAt}, \texttt{updatedAt} & \texttt{DateTime} & Thời điểm tạo và cập nhật gần nhất. \\ \hline
+    \texttt{Board}\newline\texttt{Member} & \texttt{id} & \texttt{String} & Khóa định danh UUID của quan hệ thành viên bảng. \\ \hline
+    \texttt{Board}\newline\texttt{Member} & \texttt{boardId} & \texttt{String} & Khóa ngoại tới bảng. \\ \hline
+    \texttt{Board}\newline\texttt{Member} & \texttt{userId} & \texttt{String} & Định danh người dùng Clerk. \\ \hline
+    \texttt{Board}\newline\texttt{Member} & \texttt{userName} & \texttt{String}\newline\texttt{@db.Text} & Tên được chụp lại để hiển thị trong bảng. \\ \hline
+    \texttt{Board}\newline\texttt{Member} & \texttt{userImage} & \texttt{String}\newline\texttt{@db.Text} & URL ảnh đại diện. \\ \hline
+    \texttt{Board}\newline\texttt{Member} & \texttt{userEmail} & \texttt{String?}\newline\texttt{@db.Text} & Thư điện tử dùng cho tìm kiếm và gợi ý gán việc. \\ \hline
+    \texttt{Board}\newline\texttt{Member} & \texttt{role} & \texttt{BoardMember}\newline\texttt{Role} & Vai trò \texttt{ADMIN}, \texttt{MEMBER} hoặc \texttt{VIEWER}. \\ \hline
+    \texttt{Board}\newline\texttt{Member} & \texttt{createdAt},\newline\texttt{updatedAt} & \texttt{DateTime} & Thời điểm tạo và cập nhật quan hệ thành viên. \\ \hline
+\end{longtable}
+\endgroup
+
+\texttt{Board} có quan hệ một-nhiều với \texttt{List}, \texttt{BoardMember} và \texttt{Label}. \texttt{Card} thuộc một \texttt{List} và có các tập quan hệ người phụ trách, bình luận, nhãn, checklist, tệp đính kèm cùng hai chiều phụ thuộc. \texttt{BoardMember} liên kết với thẻ qua \texttt{CardAssignee} và có thể được gán cho nhiều \texttt{ChecklistItem}. Các quan hệ tập hợp này không tạo cột trực tiếp trong bảng chủ mà được Prisma ánh xạ qua khóa ngoại hoặc bảng nối.
+
+\subsubsection{Phương thức và trách nhiệm của các lớp}
+\label{subsubsection:4.2.2.b}
+
+Các phương thức ở mức thiết kế được trình bày trong Bảng \ref{table:chapter4_class_methods}. Do các lớp thực thể Prisma chủ yếu lưu trạng thái, phương thức làm thay đổi dữ liệu được điều phối bởi \texttt{CardApplicationService}. Các phương thức kiểm tra trạng thái đơn giản vẫn được gắn với lớp sở hữu thông tin tương ứng. Trong mã nguồn, các phương thức này được hiện thực bằng hàm thuần, service hoặc Server Action; kiểu \texttt{ActionState<TInput,TOutput>} thống nhất kết quả với các trường \texttt{fieldErrors}, \texttt{error}, \texttt{errorCode} và \texttt{data}.
+
+\begin{table}[H]
+    \centering
+    \caption{Phương thức và trách nhiệm của bốn lớp chủ đạo}
+    \label{table:chapter4_class_methods}
+    \footnotesize
+    \setlength{\tabcolsep}{3pt}
+    \renewcommand{\arraystretch}{1.15}
+    \begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{0.20\linewidth}|>{\raggedright\arraybackslash}p{0.23\linewidth}|>{\raggedright\arraybackslash}p{0.20\linewidth}|X|}
+        \hline
+        \textbf{Lớp} & \textbf{Phương thức thiết kế} & \textbf{Đầu vào/đầu ra} & \textbf{Trách nhiệm và điều kiện chính} \\ \hline
+        \texttt{Board}
+        &
+        \texttt{containsCard}\newline
+        \texttt{hasActiveList}
+        &
+        Nhận định danh thẻ hoặc danh sách; trả giá trị đúng/sai.
+        &
+        Xác định thẻ hoặc danh sách còn hoạt động có thuộc đúng bảng và tổ chức hay không. Khi cài đặt, điều kiện này được đưa vào truy vấn Prisma. \\ \hline
+
+        \texttt{Card}
+        &
+        \texttt{validateDate}\newline
+        \texttt{Range}\newline
+        \texttt{canUpdate}\newline
+        \texttt{Description}\newline
+        \texttt{isBlocked}
+        &
+        Sử dụng trạng thái thẻ; trả kết quả kiểm tra hoặc mã lỗi.
+        &
+        Bảo đảm ngày bắt đầu không sau hạn hoàn thành, phát hiện xung đột phiên bản mô tả và xác định các phụ thuộc chưa hoàn thành. \\ \hline
+
+        \texttt{BoardMember}
+        &
+        \texttt{canView}\newline
+        \texttt{canEdit}\newline
+        \texttt{canAdminister}
+        &
+        Sử dụng thuộc tính \texttt{role}; trả giá trị đúng/sai.
+        &
+        Ánh xạ \texttt{ADMIN}, \texttt{MEMBER}, \texttt{VIEWER} thành quyền xem, chỉnh sửa và quản trị; không tin cậy vai trò do máy khách gửi lên. \\ \hline
+
+        \texttt{Card}\newline
+        \texttt{Application}\newline
+        \texttt{Service}
+        &
+        \texttt{updateCard}\newline
+        \texttt{moveCards}\newline
+        \texttt{create}\newline
+        \texttt{Dependency}\newline
+        \texttt{analyzeSmart}\newline
+        \texttt{Capture}
+        &
+        Nhận lệnh, định danh người dùng và tổ chức; trả \texttt{ActionState} hoặc bản nháp.
+        &
+        Kiểm tra lược đồ và quyền, phối hợp các lớp thực thể, ghi dữ liệu khi cần, tạo nhật ký và phát sự kiện thời gian thực. Phương thức \texttt{analyzeSmartCapture} chỉ tạo bản nháp, không tự ghi dữ liệu. \\ \hline
+    \end{tabularx}
+\end{table}
+
+Trong ánh xạ cài đặt, \texttt{CardApplicationService.updateCard()} tương ứng với \texttt{updateCardService}; \texttt{createDependency()} tương ứng với Server Action \texttt{createCardDependency}; và \texttt{analyzeSmartCapture()} tương ứng với Server Action cùng tên. Các phương thức quyền của \texttt{BoardMember} được hiện thực qua nhóm hàm \texttt{requireBoardMember}, \texttt{requireBoardEditor} và \texttt{requireBoardAdmin}. Dữ liệu đầu vào được \texttt{createSafeAction} kiểm tra bằng lược đồ Zod trước khi chuyển tới hàm xử lý.
+
+Định danh người dùng và tổ chức được lấy từ phiên Clerk ở phía máy chủ, không lấy từ giá trị quyền do máy khách tự khai báo. Dữ liệu bảng hoặc thẻ sau đó được truy vấn kèm điều kiện \texttt{orgId}, \texttt{boardId} và trạng thái lưu trữ. Quy tắc này vừa duy trì bất biến của các lớp, vừa giảm nguy cơ truy cập chéo tổ chức khi một định danh hợp lệ bị đưa vào yêu cầu không thuộc phạm vi hiện tại.
+
+\subsubsection{Luồng cập nhật thuộc tính và đồng bộ thẻ}
+\label{subsubsection:4.2.2.c}
+
+Hình \ref{fig:chapter4_sequence_realtime} mô tả luồng cập nhật thuộc tính của thẻ và đồng bộ kết quả tới các thành viên đang mở cùng bảng. Luồng kéo thả và sắp xếp thẻ sử dụng Server Action riêng nên không được gộp vào biểu đồ này.
+
+\begin{figure}[H]
+    \centering
+    \chapterfourplaceholder{Hinhve/chapter4_sequence_realtime.png}{1}
+    \caption{Biểu đồ trình tự cập nhật thuộc tính thẻ và đồng bộ thời gian thực}
+    \label{fig:chapter4_sequence_realtime}
+\end{figure}
+
+Giao diện gửi dữ liệu tới Server Action \texttt{updateCard}. Hàm \texttt{createSafeAction} kiểm tra đầu vào bằng lược đồ Zod trước khi handler lấy \texttt{userId} và \texttt{orgId} từ phiên Clerk. Handler chuyển yêu cầu tới \texttt{updateCardService}; service kiểm tra quyền chỉnh sửa, tải trạng thái hiện tại, xác định các trường thay đổi và áp dụng quy tắc về khoảng ngày, nhắc việc cùng phiên bản mô tả. Nếu không có trường nào thay đổi, service trả ngay dữ liệu hiện tại. Khi mô tả thay đổi, service kiểm tra mốc \texttt{descriptionUpdatedAt}, sau đó dùng \texttt{updateMany} kèm điều kiện phiên bản để phát hiện cập nhật đồng thời; mốc phiên bản cũ hoặc không có bản ghi được cập nhật đều dẫn tới lỗi \texttt{DESCRIPTION\_CONFLICT}. Các thuộc tính khác được cập nhật bằng \texttt{update}. Sau cập nhật, các thông báo nhắc việc không còn hợp lệ được xóa khi cần. Thao tác này không nằm trong một giao dịch Prisma bao gồm cả nhật ký. Sau khi cập nhật thành công, hệ thống ghi nhật ký và phát sự kiện \texttt{card.updated} tới kênh bảng và kênh thẻ. Máy khách nhận sự kiện sẽ cập nhật cache hoặc vô hiệu hóa các query liên quan. Riêng khi trạng thái hoàn thành thay đổi, service truy vấn các quan hệ phụ thuộc và phát thêm sự kiện cập nhật cho các thẻ liên quan.
+
+Đối với kéo thả, giao diện gọi Server Action \texttt{updateCardOrder}, không gọi \texttt{updateCard}. Action này nhận danh sách thẻ cùng \texttt{listId} và \texttt{order} mới, kiểm tra các danh sách đích và thẻ đều thuộc cùng một bảng, sau đó cập nhật các thẻ thay đổi trong một giao dịch Prisma. Nếu có thẻ chuyển sang danh sách khác, hệ thống phát \texttt{card.moved}; nếu chỉ thay đổi thứ tự, hệ thống phát \texttt{card.reordered}. Việc tách riêng hai luồng phản ánh đúng trách nhiệm của từng Server Action và giúp máy khách xử lý đúng phạm vi thay đổi.
+
+Kênh Pusher là kênh riêng tư. Điểm cuối \texttt{/api/pusher/auth} kiểm tra người dùng trước khi cấp quyền đăng ký kênh người dùng, tổ chức, bảng hoặc thẻ. Với kênh bảng, người dùng phải tồn tại trong \texttt{BoardMember}; với kênh thẻ, thẻ phải thuộc một bảng mà người dùng đang là thành viên. Do đó, tên kênh không đủ để truy cập dữ liệu thời gian thực.
+
+Chiến lược cập nhật gia tăng, loại sự kiện trùng và phục hồi khi payload hoặc kết nối không đầy đủ được trình bày tại phần \ref{section:5.1}.
+
+\subsubsection{Luồng kiểm soát quan hệ phụ thuộc}
+\label{subsubsection:4.2.2.d}
+
+Quan hệ phụ thuộc được biểu diễn bởi \texttt{CardDependency}, trong đó \texttt{blockerCardId} là công việc phải hoàn thành trước và \texttt{blockedCardId} là công việc bị chặn. Trong cài đặt hiện tại, toàn bộ luồng kiểm tra và tạo quan hệ được điều phối trực tiếp bởi Server Action \texttt{createCardDependency}, thay vì qua một service riêng. Luồng tạo liên kết được trình bày trong Hình \ref{fig:chapter4_sequence_dependency}.
+
+\begin{figure}[H]
+    \centering
+    \chapterfourplaceholder{Hinhve/chapter4_sequence_dependency.png}{1}
+    \caption{Biểu đồ trình tự tạo và kiểm tra quan hệ phụ thuộc}
+    \label{fig:chapter4_sequence_dependency}
+\end{figure}
+
+Sau khi dữ liệu đầu vào được kiểm tra bằng Zod và phiên Clerk được xác thực, máy chủ loại trường hợp một thẻ phụ thuộc vào chính nó, kiểm tra quyền chỉnh sửa và truy vấn hai thẻ trong phạm vi bảng hiện tại. Hai thẻ chỉ được chấp nhận khi chưa bị lưu trữ và không thuộc danh sách đã lưu trữ. Trước khi ghi, Server Action tiếp tục kiểm tra cạnh trùng và xác định cạnh mới có tạo chu trình trong đồ thị phụ thuộc hay không.
+
+Khi quan hệ hợp lệ được tạo, hệ thống ghi nhật ký dưới ngữ cảnh thẻ bị chặn và phát sự kiện cập nhật cho hai thẻ liên quan. Khi trạng thái hoàn thành của một thẻ thay đổi, các thẻ có quan hệ với nó cũng được yêu cầu làm mới để giao diện phản ánh dữ liệu mới. Cách ánh xạ đồ thị, thuật toán kiểm tra chu trình, kết quả và giới hạn xử lý đồng thời của giải pháp được phân tích tại phần \ref{section:5.2}.
+
+\subsubsection{Luồng Smart Capture}
+\label{subsubsection:4.2.2.e}
+
+Smart Capture chuyển văn bản tự do thành bản nháp thẻ có cấu trúc. Trong cài đặt hiện tại, hai giai đoạn được điều phối bởi hai Server Action \texttt{analyzeSmartCapture} và \texttt{createSmartCaptureCard}, không đi qua một \texttt{CardApplicationService} riêng. Luồng xử lý được trình bày trong Hình \ref{fig:chapter4_sequence_smart_capture}.
+
+\begin{figure}[H]
+    \centering
+    \chapterfourplaceholder{Hinhve/chapter4_sequence_smart_capture.png}{1}
+    \caption{Biểu đồ trình tự phân tích và tạo thẻ bằng Smart Capture}
+    \label{fig:chapter4_sequence_smart_capture}
+\end{figure}
+
+Ở giai đoạn phân tích, máy chủ kiểm tra quyền, chuẩn bị ngữ cảnh của bảng và gửi văn bản đầu vào tới mô hình OpenAI. Phản hồi được kiểm tra trước khi hiển thị thành bản nháp có cấu trúc. Người dùng có thể chỉnh sửa bản nháp; chỉ sau khi xác nhận, \texttt{createSmartCaptureCard} mới kiểm tra lại dữ liệu và tạo thẻ cùng các quan hệ liên quan.
+
+Kết quả triển khai cho phép dữ liệu do mô hình sinh ra đi qua quy trình ``phân tích--xác nhận'' thay vì được ghi trực tiếp vào cơ sở dữ liệu. Các lớp kiểm soát đầu ra, cách xử lý dữ liệu mơ hồ và nguyên tắc giới hạn vai trò của AI được phân tích tại phần \ref{section:5.3}.
+
+\subsection{Thiết kế cơ sở dữ liệu}
+\label{subsection:4.2.3}
+
+Lược đồ dữ liệu của HustFlow gồm 17 mô hình dữ liệu (model) Prisma và được ánh xạ sang MySQL. Hình \ref{fig:chapter4_erd} trình bày các thực thể, khóa chính, khóa ngoại và lực lượng quan hệ. Để sơ đồ có thể đọc rõ khi in, hình chỉ giữ các thuộc tính định danh, thuộc tính nghiệp vụ quan trọng và các ràng buộc duy nhất; các trường nội dung dài và trường thời gian được lược bớt.
+
+\begin{figure}[H]
+    \centering
+    \includegraphics[
+        trim=9cm 0cm 9cm 0cm, % Cắt khoảng trắng hai bên để tăng kích thước sơ đồ
+        clip,                 % Bắt buộc phải có clip để thực hiện cắt thực tế
+        width=\linewidth,
+        height=0.82\textheight,
+        keepaspectratio
+    ]{Hinhve/chapter4_erd.pdf}
+    \caption{Sơ đồ thực thể liên kết của cơ sở dữ liệu HustFlow}
+    \label{fig:chapter4_erd}
+\end{figure}
+
+Nhóm quản lý công việc gồm \texttt{Board}, \texttt{List}, \texttt{Card} và \texttt{CardDependency}. Một bảng chứa nhiều danh sách; một danh sách chứa nhiều thẻ. \texttt{CardDependency} có hai khóa ngoại cùng trỏ tới \texttt{Card} nhưng sử dụng hai tên quan hệ khác nhau để biểu diễn hướng chặn. Các chỉ mục theo \texttt{boardId}, \texttt{listId}, trạng thái lưu trữ và thứ tự hỗ trợ các truy vấn hiển thị Kanban.
+
+Nhóm phân quyền và phân loại gồm \texttt{BoardMember}, \texttt{CardAssignee}, \texttt{Label} và \texttt{CardLabel}. Hai bảng nối \texttt{CardAssignee} và \texttt{CardLabel} triển khai quan hệ nhiều-nhiều. Ràng buộc duy nhất theo cặp khóa ngăn cùng một thành viên hoặc nhãn được gắn lặp vào một thẻ. Thông tin tổ chức và người dùng Clerk được lưu dưới dạng định danh chuỗi thay vì khóa ngoại, vì nguồn dữ liệu chính của chúng nằm ngoài MySQL của ứng dụng.
+
+Nhóm nội dung chi tiết gồm \texttt{Checklist}, \texttt{ChecklistItem}, \texttt{CardComment}, \texttt{CardCommentReaction} và \texttt{CardAttachment}. Bình luận hỗ trợ trả lời lồng thông qua quan hệ tự tham chiếu \texttt{parentId}. Phản ứng có ràng buộc duy nhất theo bình luận, người dùng và emoji. Tệp đính kèm phân biệt liên kết và tệp bằng enum \texttt{AttachmentType}; tệp vật lý được lưu bởi UploadThing, còn cơ sở dữ liệu lưu siêu dữ liệu và URL.
+
+Nhóm theo dõi và thương mại gồm \texttt{Notification}, \texttt{AuditLog}, \texttt{OrgLimit} và \texttt{OrgSubscription}. \texttt{Notification} chứa dữ liệu ngữ cảnh đã làm phẳng để thông báo vẫn có thể hiển thị tiêu đề tại thời điểm phát sinh. \texttt{AuditLog} lưu loại sự kiện và thực thể để phục vụ trang hoạt động và báo cáo. \texttt{OrgLimit} theo dõi số bảng của tổ chức, còn \texttt{OrgSubscription} ánh xạ tổ chức với khách hàng và thuê bao Stripe.
+
+Thiết kế vật lý sử dụng các ánh xạ kiểu dữ liệu chính: \texttt{String} sang \texttt{varchar(191)}, nội dung dài có \texttt{@db.Text} sang \texttt{text}, \texttt{DateTime} sang \texttt{datetime(3)}, \texttt{Int} sang \texttt{int} và \texttt{Boolean} sang \texttt{tinyint(1)}. UUID của khóa chính được Prisma Client tạo tại tầng ứng dụng; \texttt{createdAt} nhận giá trị mặc định khi tạo bản ghi, còn \texttt{updatedAt} được Prisma tự động cập nhật. Bảng \ref{table:chapter4_physical_schema} tóm tắt thiết kế của năm bảng cốt lõi mà không lặp lại toàn bộ thuộc tính đã có trong lược đồ.
+
+\begin{table}[H]
+    \centering
+    \footnotesize
+    \setlength{\tabcolsep}{3pt}
+    \caption{Thiết kế vật lý của các bảng dữ liệu cốt lõi}
+    \label{table:chapter4_physical_schema}
+    \begin{tabularx}{\linewidth}{|>{\raggedright\arraybackslash}p{0.22\linewidth}|>{\raggedright\arraybackslash}p{0.30\linewidth}|>{\raggedright\arraybackslash}X|}
+        \hline
+        \textbf{Bảng} & \textbf{Cột và kiểu dữ liệu chính} & \textbf{Khóa, quan hệ và chỉ mục} \\ \hline
+        \texttt{Board} & \texttt{id}, \texttt{orgId}, \texttt{title}, \texttt{imageId}: \texttt{varchar(191)}; \texttt{imageThumbUrl}, \texttt{imageFullUrl}, \texttt{imageUserName}, \texttt{imageLinkHTML}: \texttt{text}. & \texttt{id} là PK; \texttt{orgId} là định danh tổ chức do Clerk quản lý. \\ \hline
+        \texttt{List} & \texttt{id}, \texttt{boardId}, \texttt{title}: \texttt{varchar(191)}; \texttt{order}: \texttt{int}; \texttt{archivedAt}: \texttt{datetime(3)}, cho phép \texttt{NULL}. & FK \texttt{boardId} tham chiếu \texttt{Board.id}; chỉ mục \texttt{boardId} và \((boardId, archivedAt, order)\). \\ \hline
+        \texttt{Card} & \texttt{id}, \texttt{title}, \texttt{listId}, \texttt{reminder}, \texttt{archivedByListId}: \texttt{varchar(191)}; \texttt{description}: \texttt{text}; \texttt{descriptionUpdatedAt}, \texttt{startDate}, \texttt{dueDate}, \texttt{reminderSetAt}, \texttt{archivedAt}: \texttt{datetime(3)}; \texttt{order}: \texttt{int}; \texttt{isCompleted}: \texttt{tinyint(1)}. & FK \texttt{listId} tham chiếu \texttt{List.id}; chỉ mục \texttt{listId} và \((listId, archivedAt, order)\). \\ \hline
+        \texttt{BoardMember} & \texttt{id}, \texttt{boardId}, \texttt{userId}: \texttt{varchar(191)}; \texttt{userName}, \texttt{userImage}, \texttt{userEmail}: \texttt{text}; \texttt{role}: enum \texttt{ADMIN}, \texttt{MEMBER}, \texttt{VIEWER}. & FK \texttt{boardId}; duy nhất \((boardId,userId)\); chỉ mục riêng theo \texttt{boardId} và \texttt{userId}. \\ \hline
+        \texttt{CardDependency} & \texttt{id}, \texttt{blockerCardId}, \texttt{blockedCardId}: \texttt{varchar(191)}. & Hai FK cùng tham chiếu \texttt{Card.id}; duy nhất theo cặp hai thẻ; chỉ mục theo từng chiều phụ thuộc. \\ \hline
+    \end{tabularx}
+\end{table}
+
+Các chỉ mục ghép được đặt theo điều kiện lọc và thứ tự sắp xếp của truy vấn Kanban. Với \texttt{List} và \texttt{Card}, chỉ mục lần lượt bắt đầu bằng khóa ngoại \texttt{boardId} hoặc \texttt{listId}, sau đó là trạng thái lưu trữ và thứ tự. Ràng buộc duy nhất của \texttt{BoardMember}, \texttt{CardAssignee}, \texttt{CardLabel}, \texttt{CardDependency} và \texttt{CardCommentReaction} vừa bảo vệ tính toàn vẹn dữ liệu, vừa ngăn các liên kết nghiệp vụ bị tạo trùng.
+
+Các quan hệ sở hữu sử dụng \texttt{onDelete: Cascade}. Vì vậy, khi xóa một bảng, các danh sách, thẻ và dữ liệu con có khóa ngoại tương ứng được xóa theo chuỗi, tránh bản ghi mồ côi. Riêng quan hệ từ \texttt{ChecklistItem} tới người phụ trách sử dụng \texttt{SetNull}; khi thành viên bị xóa khỏi bảng, nội dung công việc con vẫn được giữ lại nhưng không còn người phụ trách. Các model \texttt{Notification}, \texttt{AuditLog}, \texttt{OrgLimit} và \texttt{OrgSubscription} lưu định danh ngoài hoặc dữ liệu lịch sử nên không tạo khóa ngoại tới toàn bộ thực thể nghiệp vụ.
+
+\section{Xây dựng ứng dụng}
+\label{section:4.3}
+
+\subsection{Thư viện và công cụ sử dụng}
+\label{subsection:4.3.1}
+
+Các công cụ và thư viện trong Bảng \ref{table:chapter4_tools} được lựa chọn theo vai trò trực tiếp trong quá trình phát triển hoặc vận hành HustFlow; các package giao diện phụ trợ nhỏ không được liệt kê riêng. Phiên bản Node.js, npm, Visual Studio Code và Git được lấy từ công cụ dòng lệnh; phiên bản thư viện được đối chiếu với cây phụ thuộc đã cài đặt và \texttt{package-lock.json}; phiên bản MySQL được truy vấn bằng \texttt{SELECT VERSION()}. Kết quả được ghi nhận ngày 20/06/2026.
+
+\begingroup
+\scriptsize
+\setlength{\tabcolsep}{4pt}
+\begin{longtable}{|>{\raggedright\arraybackslash}p{0.19\linewidth}|>{\raggedright\arraybackslash}p{0.42\linewidth}|>{\raggedright\arraybackslash}p{0.29\linewidth}|}
+    \caption{Thư viện và công cụ chính được sử dụng trong HustFlow}
+    \label{table:chapter4_tools}\\
+    \hline
+    \textbf{Mục đích} & \textbf{Công cụ/thư viện/API và phiên bản} & \textbf{Địa chỉ URL} \\ \hline
+    \endfirsthead
+    \hline
+    \textbf{Mục đích} & \textbf{Công cụ/thư viện/API và phiên bản} & \textbf{Địa chỉ URL} \\ \hline
+    \endhead
+    IDE & Visual Studio Code 1.124.2 & \url{https://code.visualstudio.com/} \\ \hline
+    Quản lý phiên bản & Git for Windows 2.47.1.windows.2 & \url{https://git-scm.com/} \\ \hline
+    Môi trường chạy & Node.js 20.18.0; npm 10.8.2 & \url{https://nodejs.org/}\newline \url{https://www.npmjs.com/} \\ \hline
+    Ngôn ngữ & TypeScript 5.9.3 & \url{https://www.typescriptlang.org/} \\ \hline
+    Framework web & Next.js 16.2.1 & \url{https://nextjs.org/} \\ \hline
+    Giao diện & React / React DOM 19.2.4 & \url{https://react.dev/} \\ \hline
+    Định kiểu & Tailwind CSS 4.2.2 & \url{https://tailwindcss.com/} \\ \hline
+    Cơ sở dữ liệu & MySQL 8.0.44; Prisma Client / Prisma CLI 6.19.3 & \url{https://www.mysql.com/}\newline \url{https://www.prisma.io/} \\ \hline
+    Xác thực & \texttt{@clerk/nextjs} 7.0.12 & \url{https://clerk.com/} \\ \hline
+    Thời gian thực & Pusher 5.3.3; Pusher JS 8.5.0 & \url{https://pusher.com/} \\ \hline
+    Dữ liệu phía khách & TanStack React Query 5.100.10 & \url{https://tanstack.com/query/} \\ \hline
+    Kiểm tra dữ liệu & Zod 4.3.6 & \url{https://zod.dev/} \\ \hline
+    Kéo thả & \texttt{@hello-pangea/dnd} 18.0.1 & \url{https://github.com/hello-pangea/dnd} \\ \hline
+    Biểu đồ & Recharts 3.8.1 & \url{https://recharts.org/} \\ \hline
+    Trí tuệ nhân tạo & OpenAI REST API \texttt{v1}; \texttt{gpt-4o-mini} mặc định & \url{https://developers.openai.com/api/reference/resources/chat} \\ \hline
+    Thanh toán & Stripe SDK 22.1.1 & \url{https://stripe.com/docs} \\ \hline
+    Lưu trữ tệp & UploadThing 7.7.4; \texttt{@uploadthing/react} 7.3.3 & \url{https://uploadthing.com/} \\ \hline
+    Ảnh nền & Unsplash JS 7.0.20; Unsplash API & \url{https://unsplash.com/developers} \\ \hline
+    Xuất dữ liệu & ExcelJS 4.4.0 & \url{https://github.com/exceljs/exceljs} \\ \hline
+    Kiểm tra mã nguồn & ESLint 9.39.4; ESLint Config Next 16.2.1 & \url{https://eslint.org/}\newline \url{https://nextjs.org/docs/app/api-reference/config/eslint} \\ \hline
+\end{longtable}
+\endgroup
+
+Tên mô hình OpenAI không được xem là phiên bản thư viện cố định. Mã nguồn đọc mô hình từ biến \texttt{OPENAI\_MODEL} và chỉ dùng \texttt{gpt-4o-mini} khi biến này không được khai báo. Dự án hiện chưa cấu hình framework kiểm thử tự động như Jest, Vitest hoặc Playwright; \texttt{npm run lint} và \texttt{npm run build} chỉ cung cấp kiểm tra tĩnh, kiểm tra kiểu và khả năng biên dịch, không thay thế các ca kiểm thử chức năng được trình bày tại phần \ref{section:4.4}.
+
+\subsection{Kết quả đạt được}
+\label{subsection:4.3.2}
+
+\subsubsection{Kết quả xây dựng chức năng}
+
+Kết quả chính của đồ án là ứng dụng web HustFlow hỗ trợ quản lý công việc và cộng tác theo tổ chức. Người dùng đăng nhập qua Clerk, lựa chọn tổ chức và truy cập các bảng mà mình là thành viên. Danh sách thành viên và vai trò được quản lý riêng cho từng bảng, qua đó phân biệt quyền quản trị, chỉnh sửa và chỉ xem.
+
+Ở cấp tổ chức và bảng, ứng dụng đã hiện thực các chức năng tạo, cập nhật và xóa bảng; thêm hoặc xóa thành viên; thay đổi vai trò; rời bảng; lưu trữ và khôi phục dữ liệu. Giới hạn số bảng được áp dụng theo tổ chức, còn quản trị viên tổ chức có thể nâng cấp và quản lý thuê bao qua Stripe.
+
+Ở cấp công việc, người dùng có thể tạo, sắp xếp, lưu trữ và khôi phục danh sách hoặc thẻ. Thẻ lưu trữ tiêu đề, mô tả Markdown, thời gian thực hiện, trạng thái hoàn thành, nhắc việc, người phụ trách, nhãn, checklist, bình luận, phản ứng, tệp hoặc liên kết đính kèm và quan hệ phụ thuộc. Các thay đổi nghiệp vụ chính được ghi vào nhật ký hoạt động.
+
+Ứng dụng cung cấp năm chế độ xem dùng chung dữ liệu thẻ, gồm Kanban, Lịch, Dòng thời gian, Chia đôi và Thống kê. Lịch hỗ trợ chế độ ngày, tuần và tháng; Dòng thời gian biểu diễn khoảng thực hiện và quan hệ phụ thuộc; Chia đôi hiển thị đồng thời Lịch và Kanban; trang Thống kê tổng hợp tiến độ, công việc quá hạn, phân bố theo danh sách và tải công việc theo thành viên.
+
+Các chức năng AI gồm Smart Capture, đề xuất checklist, hỗ trợ tạo và cải thiện mô tả thẻ, cùng báo cáo bảng. Lời gọi mô hình được thực hiện phía máy chủ; đầu ra được kiểm tra cấu trúc, giới hạn độ dài và đối chiếu với dữ liệu bảng trước khi sử dụng. Smart Capture chỉ tạo bản nháp và yêu cầu người dùng xác nhận trước khi ghi dữ liệu.
+
+\subsubsection{Sản phẩm bàn giao}
+
+Kết quả bàn giao gồm hai thành phần. Thành phần thứ nhất là gói mã nguồn ứng dụng, bao gồm mã TypeScript, tài nguyên công khai, lược đồ Prisma, cấu hình và file khóa phụ thuộc; các thư mục sinh tự động, file môi trường và dữ liệu bí mật không thuộc gói bàn giao. Thành phần thứ hai là output build production của Next.js, gồm mã máy chủ đã biên dịch, tài nguyên tĩnh và metadata định tuyến. Output này vẫn cần môi trường Node.js, phụ thuộc runtime và các biến môi trường phù hợp khi triển khai.
+
+Bảng \ref{table:chapter4_artifacts} ghi nhận dung lượng tại thời điểm hoàn thiện chương. Gói nguồn được đo trên các file trong thư mục \texttt{bkflow} thuộc phạm vi quản lý phiên bản, gồm file đã được theo dõi và file mới chưa bị loại bởi \texttt{.gitignore}. Output production chỉ tính \texttt{.next/server}, \texttt{.next/static}, \texttt{.next/build} và các file ở gốc \texttt{.next}; thư mục phát triển và cache không được tính.
+
+\begin{table}[H]
+    \centering
+    \caption{Dung lượng các thành phần bàn giao của HustFlow}
+    \label{table:chapter4_artifacts}
+    \begin{tabularx}{\linewidth}{|p{0.27\linewidth}|p{0.14\linewidth}|p{0.20\linewidth}|X|}
+        \hline
+        \textbf{Thành phần} & \textbf{Số file} & \textbf{Dung lượng} & \textbf{Phạm vi đo} \\ \hline
+        Gói mã nguồn ứng dụng & 520 & 4.931.119 byte (4,70 MiB) & Các file thuộc phạm vi quản lý phiên bản trong thư mục \texttt{bkflow}; không gồm file bị \texttt{.gitignore} loại bỏ. \\ \hline
+        Output build production & 776 & 75.106.348 byte (71,63 MiB) & Mã máy chủ, tài nguyên tĩnh, metadata build và các file gốc của \texttt{.next}; không gồm \texttt{dev} và cache. \\ \hline
+    \end{tabularx}
+\end{table}
+
+\subsubsection{Thống kê mã nguồn}
+
+Thống kê trong Bảng \ref{table:chapter4_source_stats} chỉ tính các file \texttt{.ts}, \texttt{.tsx}, \texttt{.css} và \texttt{.prisma} thuộc phạm vi quản lý phiên bản trong thư mục ứng dụng. Thư mục \texttt{node\_modules}, sản phẩm build \texttt{.next}, file khóa gói và tài nguyên ảnh không được tính. Số dòng là số dòng vật lý, được xác định bằng số ký tự xuống dòng cộng một đối với mỗi file không rỗng.
+
+\begin{table}[H]
+    \centering
+    \caption{Thống kê mã nguồn HustFlow tại thời điểm hoàn thiện chương}
+    \label{table:chapter4_source_stats}
+    \begin{tabular}{|l|r|r|r|}
+        \hline
+        \textbf{Loại file} & \textbf{Số file} & \textbf{Số dòng vật lý} & \textbf{Dung lượng (byte)} \\ \hline
+        TypeScript (\texttt{.ts}) & 313 & 29.033 & 792.624 \\ \hline
+        React TypeScript (\texttt{.tsx}) & 184 & 28.775 & 956.011 \\ \hline
+        CSS & 1 & 216 & 6.476 \\ \hline
+        Prisma schema & 1 & 387 & 9.554 \\ \hline
+        \textbf{Tổng} & \textbf{499} & \textbf{58.411} & \textbf{1.764.665} \\ \hline
+    \end{tabular}
+\end{table}
+
+Các chỉ số cấu trúc bổ sung được trình bày trong Bảng \ref{table:chapter4_structure_stats}. Do HustFlow chủ yếu sử dụng component hàm, hook và service thay cho hệ thống lớp hướng đối tượng, số file TSX và số mô-đun nghiệp vụ được dùng để phản ánh quy mô cấu trúc thay cho chỉ tiêu ``số lớp''.
+
+\begin{table}[H]
+    \centering
+    \caption{Thống kê cấu trúc mô-đun của ứng dụng}
+    \label{table:chapter4_structure_stats}
+    \begin{tabularx}{\linewidth}{|p{0.35\linewidth}|r|X|}
+        \hline
+        \textbf{Thành phần} & \textbf{Số lượng} & \textbf{Tiêu chí đếm} \\ \hline
+        File React TypeScript & 184 & Các file \texttt{.tsx} thuộc phạm vi quản lý phiên bản. \\ \hline
+        Mô-đun Server Action & 57 & Thư mục action có file \texttt{index.ts}. \\ \hline
+        API Route Handler & 19 & Các file \texttt{route.ts} trong \texttt{app/api}. \\ \hline
+        Hook phía khách & 10 & File TypeScript/TSX trong thư mục \texttt{hooks}. \\ \hline
+        Mô-đun thư viện & 52 & File \texttt{.ts} thuộc phạm vi quản lý phiên bản trong thư mục \texttt{lib}. \\ \hline
+        Model Prisma & 17 & Các khai báo \texttt{model} trong \texttt{schema.prisma}. \\ \hline
+        Nhóm thư mục nguồn cấp cao & 9 & \texttt{actions}, \texttt{app}, \texttt{components}, \texttt{config}, \texttt{constants}, \texttt{hooks}, \texttt{lib}, \texttt{prisma}, \texttt{types}. \\ \hline
+    \end{tabularx}
+\end{table}
+
+Các số liệu trên chỉ mô tả quy mô cài đặt, không phản ánh trực tiếp chất lượng phần mềm. Phạm vi và tiêu chí đếm được nêu rõ để có thể đo lại khi mã nguồn thay đổi.
+
+\subsection{Minh họa các chức năng chính}
+\label{subsection:4.3.3}
+
+Sáu giao diện dưới đây được lựa chọn để minh họa các chức năng cốt lõi và những đặc điểm nổi bật của HustFlow, gồm quản lý công việc theo Kanban, xử lý chi tiết thẻ, lập kế hoạch theo lịch và dòng thời gian, tạo thẻ bằng AI, cùng theo dõi tiến độ qua thống kê và báo cáo.
+
+Hình \ref{fig:chapter4_result_kanban} trình bày giao diện Kanban tổng quan. Các thẻ được tổ chức theo danh sách và hiển thị những thông tin cần nhận biết nhanh như nhãn, thời hạn, người phụ trách và tiến độ checklist. Người dùng có thể kéo thả thẻ trong cùng danh sách hoặc giữa các danh sách để cập nhật thứ tự và trạng thái công việc.
+
+\begin{figure}[H]
+    \centering
+    \chapterfourplaceholder{Hinhve/chapter4_result_kanban.png}{1}
+    \caption{Giao diện Kanban tổng quan của HustFlow}
+    \label{fig:chapter4_result_kanban}
+\end{figure}
+
+Hình \ref{fig:chapter4_result_card_detail} trình bày cửa sổ chi tiết thẻ. Giao diện tập trung các thuộc tính và hoạt động liên quan đến một công việc, gồm mô tả, thời gian thực hiện, người phụ trách, nhãn, checklist, tệp hoặc liên kết đính kèm, quan hệ phụ thuộc, bình luận và nhật ký hoạt động. Cửa sổ này cho phép người dùng cập nhật và trao đổi về công việc mà không phải rời khỏi bảng.
+
+\begin{figure}[H]
+    \centering
+    \chapterfourplaceholder{Hinhve/chapter4_result_card_detail.png}{1}
+    \caption{Giao diện chi tiết thẻ công việc}
+    \label{fig:chapter4_result_card_detail}
+\end{figure}
+
+Hình \ref{fig:chapter4_result_calendar} minh họa chế độ Lịch cùng khung ``Chưa lên lịch''. Lịch hỗ trợ các chế độ xem ngày, tuần và tháng để theo dõi công việc theo thời gian. Khung ``Chưa lên lịch'' tập hợp những thẻ chưa có cả ngày bắt đầu và hạn hoàn thành; người dùng có thể kéo thẻ từ khung này vào một ngày trên lịch để thiết lập thời gian thực hiện.
+
+\begin{figure}[H]
+    \centering
+    \chapterfourplaceholder{Hinhve/chapter4_result_calendar.png}{1}
+    \caption{Giao diện Lịch với khung thẻ chưa lên lịch}
+    \label{fig:chapter4_result_calendar}
+\end{figure}
+
+Hình \ref{fig:chapter4_result_timeline} trình bày chế độ Dòng thời gian. Các thẻ có ngày bắt đầu và hạn hoàn thành được biểu diễn thành các thanh theo khoảng thời gian tương ứng; các đường nối thể hiện quan hệ phụ thuộc giữa những công việc liên quan. Giao diện này hỗ trợ quan sát thời lượng, thứ tự thực hiện và ảnh hưởng của một công việc tới tiến độ chung.
+
+\begin{figure}[H]
+    \centering
+    \chapterfourplaceholder{Hinhve/chapter4_result_timeline.png}{0.95}
+    \caption{Giao diện lập kế hoạch theo dòng thời gian}
+    \label{fig:chapter4_result_timeline}
+\end{figure}
+
+Hình \ref{fig:chapter4_result_smart_capture} trình bày bản nháp đầu ra của Smart Capture sau khi phân tích nội dung bằng ngôn ngữ tự nhiên. Bản nháp gồm tiêu đề, mô tả, checklist, danh sách đích, hạn chót, người thực hiện và nhãn công việc. Người dùng có thể kiểm tra, chỉnh sửa hoặc loại bỏ các đề xuất trước khi xác nhận tạo thẻ, do đó AI chỉ hỗ trợ nhập liệu và không tự động ghi dữ liệu vào bảng.
+
+\begin{figure}[H]
+    \centering
+    \chapterfourplaceholder{Hinhve/chapter4_result_smart_capture.png}{1}
+    \caption{Bản nháp thẻ do Smart Capture tạo ra}
+    \label{fig:chapter4_result_smart_capture}
+\end{figure}
+
+Hình \ref{fig:chapter4_result_analytics} trình bày trang Thống kê và báo cáo AI của bảng. Trang này tổng hợp các chỉ số về số lượng và tiến độ thẻ, công việc chưa lên lịch hoặc quá hạn, phân bố công việc theo danh sách và khối lượng công việc của thành viên. Báo cáo AI sử dụng dữ liệu đã được truy vấn từ hệ thống để tóm tắt kết quả, nhận diện rủi ro và đề xuất hành động; mô hình không tự tạo thêm số liệu ngoài dữ liệu đầu vào.
+
+\begin{figure}[H]
+    \centering
+    \chapterfourplaceholder{Hinhve/chapter4_result_analytics.png}{1}
+    \caption{Giao diện thống kê và báo cáo của bảng}
+    \label{fig:chapter4_result_analytics}
+\end{figure}
+
+\section{Kiểm thử}
+\label{section:4.4}
+
+\subsection{Phương pháp và môi trường kiểm thử}
+\label{subsection:4.4.1}
+
+Các chức năng được đánh giá bằng kiểm thử hộp đen theo kịch bản, dựa trên dữ liệu đầu vào, thao tác của người dùng và kết quả quan sát được trên giao diện. Bốn kỹ thuật được sử dụng gồm: (i) kiểm thử theo use case cho luồng nghiệp vụ chính; (ii) phân lớp tương đương để đại diện cho nhóm dữ liệu hợp lệ và không hợp lệ; (iii) phân tích giá trị biên đối với độ dài văn bản; và (iv) kiểm thử chuyển trạng thái đối với quan hệ phụ thuộc và dữ liệu được chia sẻ giữa nhiều phiên. Cách tiếp cận này phù hợp với mục tiêu đánh giá hành vi chức năng; kiểm thử hộp trắng không được sử dụng do phạm vi này không đo độ phủ câu lệnh, nhánh hoặc đường đi trong mã nguồn.
+
+Kiểm thử được thực hiện trên máy phát triển chạy Windows, Node.js 20.18.0 và npm 10.8.2. Ứng dụng Next.js hoạt động tại \texttt{localhost:3000} và sử dụng cơ sở dữ liệu MySQL thử nghiệm. Dữ liệu chuẩn bị gồm một bảng có hai danh sách, ba thẻ, hai tài khoản có quyền chỉnh sửa, một tài khoản \textbf{VIEWER}, cùng cấu hình cần thiết cho Smart Capture. Dữ liệu được đưa về trạng thái ban đầu trước mỗi nhóm kiểm thử.
+
+\subsection{Thiết kế ca kiểm thử chức năng}
+\label{subsection:4.4.2}
+
+Bảng \ref{table:chapter4_functional_tests} trình bày chín ca kiểm thử cho ba chức năng quan trọng: quản lý thẻ và đồng bộ, thiết lập quan hệ phụ thuộc, và tạo thẻ bằng Smart Capture. Mỗi nhóm bao gồm luồng hợp lệ và trường hợp ngoại lệ hoặc giá trị biên.
+
+\begingroup
+\footnotesize
+\setlength{\tabcolsep}{2pt}
+\begin{longtable}{|p{0.055\linewidth}|p{0.13\linewidth}|p{0.205\linewidth}|p{0.19\linewidth}|p{0.19\linewidth}|p{0.065\linewidth}|}
+    \caption{Các ca kiểm thử chức năng trọng tâm}
+    \label{table:chapter4_functional_tests}\\
+    \hline
+    \textbf{Mã} & \textbf{Kỹ thuật} & \textbf{Dữ liệu và bước thực hiện} & \textbf{Kết quả mong đợi} & \textbf{Kết quả thực tế} & \textbf{Đánh giá} \\ \hline
+    \endfirsthead
+    \hline
+    \textbf{Mã} & \textbf{Kỹ thuật} & \textbf{Dữ liệu và bước thực hiện} & \textbf{Kết quả mong đợi} & \textbf{Kết quả thực tế} & \textbf{Đánh giá} \\ \hline
+    \endhead
+    FT01 & Theo use case & Tài khoản \textbf{MEMBER} kéo một thẻ sang danh sách khác; tài khoản thứ hai đang mở cùng bảng. & Thẻ xuất hiện đúng vị trí mới ở cả hai phiên mà không cần tải lại trang. & Hai phiên hiển thị cùng vị trí mới của thẻ. & Đạt \\ \hline
+    FT02 & Phân lớp tương đương & Tài khoản \textbf{VIEWER} thử sửa tiêu đề và kéo thẻ sang danh sách khác. & Hệ thống không cho phép thay đổi; dữ liệu thẻ giữ nguyên. & Các thao tác bị từ chối và dữ liệu không thay đổi. & Đạt \\ \hline
+    FT03 & Chuyển trạng thái & Hai phiên mở cùng một thẻ. Phiên thứ nhất lưu mô tả mới; phiên thứ hai lưu nội dung từ phiên bản cũ. & Phiên thứ hai nhận cảnh báo xung đột; mô tả mới nhất không bị ghi đè. & Cảnh báo được hiển thị và nội dung của phiên thứ nhất được giữ lại. & Đạt \\ \hline
+    FT04 & Theo use case & Với hai thẻ A và B cùng bảng, thiết lập A là thẻ chặn của B. & Quan hệ được tạo và hiển thị đúng trên hai thẻ liên quan. & Quan hệ A--B được hiển thị đúng sau khi xác nhận. & Đạt \\ \hline
+    FT05 & Phân lớp tương đương & Lần lượt chọn một thẻ phụ thuộc chính nó và tạo lại quan hệ A--B đã tồn tại. & Cả hai thao tác bị từ chối với thông báo phù hợp; không phát sinh quan hệ mới. & Hệ thống báo lỗi tương ứng và số quan hệ không đổi. & Đạt \\ \hline
+    FT06 & Chuyển trạng thái & Chuẩn bị A \(\rightarrow\) B và B \(\rightarrow\) C, sau đó thêm C \(\rightarrow\) A. & Hệ thống cảnh báo quan hệ mới tạo vòng lặp và không lưu thay đổi. & Cảnh báo vòng lặp được hiển thị; quan hệ C--A không được tạo. & Đạt \\ \hline
+    FT07 & Theo use case & Nhập văn bản tiếng Việt gồm công việc, hạn hoàn thành và người phụ trách; xem bản nháp rồi xác nhận tạo thẻ. & Bản nháp chứa thông tin đã trích xuất; thẻ chỉ được tạo sau khi người dùng xác nhận. & Bản nháp hiển thị đúng và thẻ được tạo sau khi xác nhận. & Đạt \\ \hline
+    FT08 & Giá trị biên & Lần lượt gửi nội dung rỗng, nội dung dài 4.000 ký tự và 4.001 ký tự tới Smart Capture. & Nội dung rỗng và 4.001 ký tự bị từ chối; nội dung 4.000 ký tự được chấp nhận để phân tích. & Hệ thống xử lý đúng cả ba giá trị biên. & Đạt \\ \hline
+    FT09 & Chuyển trạng thái & Phân tích một nội dung hợp lệ để tạo bản nháp, sau đó đóng hộp thoại mà không xác nhận. & Bản nháp bị hủy và không có thẻ mới trong danh sách. & Không phát sinh thẻ sau khi hủy bản nháp. & Đạt \\ \hline
+\end{longtable}
+\endgroup
+
+\subsection{Tổng hợp kết quả}
+\label{subsection:4.4.3}
+
+Kết quả cho thấy cả chín ca kiểm thử chức năng đều đạt, không có ca không đạt, tương ứng tỷ lệ đạt 100\%. Các ca phủ định được xem là đạt khi hệ thống từ chối đúng thao tác không hợp lệ và giữ nguyên dữ liệu. Do không phát sinh ca thất bại nên phần này không có nguyên nhân lỗi cần phân tích.
+
+Ngoài kiểm thử chức năng, hai kiểm tra kỹ thuật được thực hiện trên mã nguồn. Lệnh \texttt{npm run build} hoàn tất quá trình biên dịch production và kiểm tra kiểu TypeScript. Lệnh \texttt{npm run lint} hoàn tất với 0 lỗi và 3 cảnh báo về mã chưa sử dụng; các cảnh báo không làm lệnh thất bại. Hai kết quả này đều được đánh giá đạt nhưng không được tính vào chín ca kiểm thử chức năng.
+
+\section{Triển khai}
+\label{section:4.5}
+
+\subsection{Môi trường chạy thử nghiệm}
+\label{subsection:4.5.1}
+
+HustFlow hiện chỉ được chạy thử nghiệm cục bộ trên máy phát triển, chưa được công khai trên Internet và chưa có máy chủ production. Trình duyệt, tiến trình Next.js và cơ sở dữ liệu MySQL cùng hoạt động trên một thiết bị. Tiến trình Next.js được khởi động bằng lệnh \texttt{npm run dev} và phục vụ ứng dụng tại địa chỉ \texttt{http://localhost:3000}; Prisma kết nối tới MySQL tại \texttt{localhost:3306}.
+
+Cấu hình thiết bị và phần mềm dùng để chạy thử nghiệm được tổng hợp trong Bảng \ref{table:chapter4_local_environment}. Cấu hình này đáp ứng việc phát triển và kiểm tra các chức năng trong phạm vi đồ án, nhưng không đại diện cho cấu hình của một máy chủ vận hành thực tế.
+
+\begin{table}[H]
+    \centering
+    \caption{Cấu hình môi trường chạy thử nghiệm HustFlow}
+    \label{table:chapter4_local_environment}
+    \begin{tabularx}{\linewidth}{|p{0.25\linewidth}|X|}
+        \hline
+        \textbf{Thành phần} & \textbf{Cấu hình} \\ \hline
+        Hệ điều hành & Windows 64-bit \\ \hline
+        Bộ xử lý & AMD Ryzen 5 5500U\\ \hline
+        Bộ nhớ & 16 GB RAM \\ \hline
+        Môi trường thực thi & Node.js 20.18.0 và npm 10.8.2. \\ \hline
+        Ứng dụng web & Next.js 16.2.1, chạy bằng \texttt{npm run dev} tại \texttt{localhost:3000}. \\ \hline
+        Dữ liệu & MySQL chạy tại \texttt{localhost:3306}; Prisma 6.19.3 thực hiện truy cập dữ liệu. \\ \hline
+    \end{tabularx}
+\end{table}
+
+Quy trình chạy thử nghiệm gồm: (i) khởi động MySQL trên máy phát triển; (ii) cấu hình chuỗi kết nối \texttt{DATABASE\_URL} và khóa truy cập các dịch vụ trong tệp \texttt{.env}; (iii) sinh Prisma Client khi lược đồ dữ liệu thay đổi; (iv) khởi động ứng dụng bằng lệnh \texttt{npm run dev}; (v) truy cập hệ thống tại \texttt{http://localhost:3000}; và (vi) khi kiểm tra chức năng thanh toán, sử dụng Stripe CLI để chuyển tiếp webhook tới \texttt{localhost:3000/api/webhook}. Các giá trị bí mật của biến môi trường không được công bố trong báo cáo.
+
+\subsection{Mô hình chạy thử nghiệm cục bộ}
+\label{subsection:4.5.2}
+
+Hình \ref{fig:chapter4_local_deployment} trình bày mô hình chạy thử nghiệm cục bộ của HustFlow. Trình duyệt gửi yêu cầu HTTP tới tiến trình Next.js qua cổng 3000. Các Server Component, Server Action và Route Handler sử dụng Prisma để truy cập MySQL qua cổng 3306. Toàn bộ các thành phần này cùng nằm trên máy phát triển.
+
+\begin{figure}[H]
+    \centering
+    \chapterfourplaceholder{Hinhve/chapter4_local_deployment.png}{1}
+    \caption{Mô hình chạy thử nghiệm cục bộ của HustFlow, không phải môi trường production}
+    \label{fig:chapter4_local_deployment}
+\end{figure}
+
+Trong quá trình chạy, ứng dụng vẫn truy cập Clerk, Pusher, OpenAI, Stripe, UploadThing và Unsplash qua Internet. Stripe CLI đóng vai trò trung gian nhận webhook từ Stripe và chuyển tiếp yêu cầu tới Route Handler trên máy local. Do hệ thống chưa được triển khai cho người dùng thực tế, báo cáo không đưa ra kết luận về số lượng người dùng, số lượt truy cập, thời gian phản hồi hoặc khả năng chịu tải.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Chương này đã chuyển các nền tảng công nghệ ở Chương 3 thành thiết kế cụ thể cho HustFlow. Hệ thống được tổ chức theo kiến trúc nguyên khối mô-đun với ranh giới giữa giao diện, xử lý ứng dụng, nghiệp vụ và dữ liệu. Các luồng cập nhật thẻ, kiểm soát phụ thuộc, Smart Capture và đồng bộ thời gian thực đều thực hiện kiểm tra phía máy chủ trước khi thay đổi dữ liệu. Lược đồ MySQL gồm 17 model hỗ trợ quản lý công việc, cộng tác, phân quyền, thông báo và thuê bao.
+
+Kết quả xây dựng bao gồm các chế độ Kanban, Lịch, Dòng thời gian, Chia đôi và Thống kê cùng các chức năng chi tiết của thẻ, AI và thanh toán. Chín ca kiểm thử hộp đen cho ba chức năng trọng tâm đều đạt; build production hoàn tất và lint không có lỗi, còn ba cảnh báo. Hệ thống đã được chạy và kiểm tra trong môi trường cục bộ trên máy phát triển, chưa được triển khai cho người dùng thực tế. Từ nền tảng thiết kế và kết quả này, Chương 5 sẽ phân tích sâu các giải pháp và đóng góp kỹ thuật nổi bật của đồ án.
+
+\end{document}

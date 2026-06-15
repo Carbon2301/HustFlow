@@ -22,9 +22,11 @@ Hệ thống biểu diễn tập thẻ trên một bảng bằng đồ thị có
 \end{equation}
 Theo định nghĩa ở công thức \eqref{eq:edges}, cạnh $(u, v)$ thể hiện rằng thẻ $u$ là điều kiện cần hoàn thành trước khi thẻ $v$ có thể được xử lý. Khi người dùng thêm một quan hệ phụ thuộc mới, hệ thống cần kiểm tra xem cạnh mới đó có tạo ra chu trình dạng $v_1 \rightarrow v_2 \rightarrow \dots \rightarrow v_k \rightarrow v_1$ hay không.
 
-Trong HustFlow, bài toán phát hiện chu trình được giải quyết bằng thuật toán duyệt đồ thị theo chiều sâu (Depth-First Search - DFS) kết hợp cơ chế đánh dấu trạng thái đỉnh. Mỗi đỉnh có ba trạng thái: chưa thăm, đang thăm và đã thăm xong. Nếu trong quá trình duyệt từ một đỉnh, thuật toán gặp lại một đỉnh đang nằm trên nhánh duyệt hiện tại, đồ thị tồn tại cạnh ngược và quan hệ phụ thuộc mới bị từ chối. Thuật toán có độ phức tạp thời gian $O(V + E)$ và độ phức tạp không gian $O(V)$, phù hợp với quy mô một bảng công việc trong hệ thống.
+Trong HustFlow, bài toán được giải quyết bằng phép duyệt theo chiều rộng (Breadth-First Search - BFS) để kiểm tra tính khả đạt. Giả sử hệ thống chuẩn bị thêm cạnh $u \rightarrow v$, trong đó $u$ là thẻ chặn và $v$ là thẻ bị chặn. Thuật toán bắt đầu từ $v$, lần lượt duyệt các thẻ có thể đi tới theo quan hệ phụ thuộc hiện có. Nếu gặp $u$, cạnh mới sẽ khép kín một chu trình và bị từ chối. Hàng đợi lưu các đỉnh chưa xử lý, còn tập đỉnh đã thăm bảo đảm mỗi thẻ chỉ được xét một lần. Thuật toán có độ phức tạp thời gian $O(V + E)$ và độ phức tạp không gian $O(V)$ \cite{cormen2009algorithms}, phù hợp với quy mô một bảng công việc trong hệ thống.
 
-Một hướng tiếp cận thay thế là thuật toán Kahn dựa trên sắp xếp topo. Thuật toán này liên tục loại bỏ các đỉnh có bán bậc vào bằng 0; nếu sau quá trình loại bỏ vẫn còn đỉnh chưa được xử lý thì đồ thị có chu trình. Cả DFS và Kahn đều có độ phức tạp tuyến tính theo số đỉnh và cạnh. Tuy nhiên, DFS được lựa chọn trong đồ án vì có thể dừng ngay khi phát hiện cạnh ngược đầu tiên, dễ triển khai trong luồng kiểm tra khi thêm một quan hệ phụ thuộc mới và không yêu cầu tính lại toàn bộ thứ tự topo của bảng. Cách lựa chọn này đáp ứng trực tiếp yêu cầu về độ tin cậy dữ liệu ở phần \ref{subsection:2.4.3} và yêu cầu phản hồi nhanh ở phần \ref{subsection:2.4.1}.
+Các hướng tiếp cận thay thế gồm DFS và thuật toán Kahn dựa trên sắp xếp topo; các thuật toán này đều có thể xử lý đồ thị trong thời gian tuyến tính theo số đỉnh và cạnh \cite{cormen2009algorithms}. BFS được lựa chọn cho cài đặt hiện tại vì thao tác thêm cạnh chỉ cần xác định có tồn tại đường đi từ thẻ bị chặn tới thẻ chặn hay không. Thuật toán có thể dừng khi tìm thấy thẻ đích, không cần tính lại thứ tự topo của toàn bộ bảng và dễ kết hợp với danh sách kề được tạo từ các quan hệ đang lưu. Đây là quyết định thiết kế trong phạm vi HustFlow nhằm đáp ứng yêu cầu về độ tin cậy dữ liệu ở phần \ref{subsection:2.4.3} và yêu cầu phản hồi ở phần \ref{subsection:2.4.1}.
+
+Chi tiết về cách ánh xạ quan hệ phụ thuộc, chuỗi kiểm tra phía máy chủ và mã giả BFS trong HustFlow được phân tích tại phần \ref{section:5.2}.
 
 \subsection{Mô hình cơ sở dữ liệu quan hệ và toàn vẹn dữ liệu}
 \label{subsection:3.1.2}
@@ -71,6 +73,8 @@ Luồng xử lý tổng quát là: người dùng thực hiện thao tác trên 
 
 Giải pháp thay thế là tự vận hành máy chủ WebSocket bằng Socket.io. Cách này cho phép kiểm soát sâu hơn nhưng yêu cầu duy trì tiến trình máy chủ kết nối lâu dài, xử lý mở rộng kết nối và triển khai hạ tầng riêng. Server-Sent Events cũng có thể dùng cho một số luồng thông báo một chiều, nhưng không phù hợp bằng WebSocket cho các tương tác cộng tác dày đặc. Do đồ án ưu tiên triển khai ứng dụng trên kiến trúc web hiện đại và giảm chi phí vận hành hạ tầng thời gian thực, Pusher là lựa chọn phù hợp hơn.
 
+Cơ chế kết hợp kênh riêng tư, payload có kiểu, cập nhật bộ nhớ đệm và các tầng phục hồi của hệ thống được trình bày chi tiết tại phần \ref{section:5.1}.
+
 \subsection{Clerk cho xác thực và phân quyền}
 \label{subsection:3.2.4}
 
@@ -85,7 +89,9 @@ Stripe \cite{stripe} là nền tảng thanh toán trực tuyến hỗ trợ tạ
 
 Khi quản trị viên tổ chức yêu cầu nâng cấp gói, hệ thống tạo phiên thanh toán và chuyển người dùng sang Stripe Checkout. Sau khi giao dịch hoàn tất, Stripe gửi webhook về HustFlow để hệ thống kiểm tra tính hợp lệ của sự kiện rồi cập nhật trạng thái thuê bao trong cơ sở dữ liệu. Thiết kế này giúp hệ thống không trực tiếp lưu trữ thông tin thẻ thanh toán, giảm rủi ro bảo mật và phù hợp với yêu cầu chỉ cập nhật gói dịch vụ khi nhận được sự kiện hợp lệ từ cổng thanh toán.
 
-Các lựa chọn thay thế gồm VNPay, MoMo hoặc chuyển khoản ngân hàng thủ công. Các cổng nội địa thuận tiện hơn cho thị trường Việt Nam, nhưng việc quản lý thuê bao định kỳ, môi trường kiểm thử và tài liệu tích hợp trong phạm vi đồ án không đồng nhất bằng Stripe. Chuyển khoản thủ công dễ triển khai ban đầu nhưng không đáp ứng tốt yêu cầu tự động cập nhật trạng thái gói dịch vụ. Vì vậy, Stripe được chọn để mô phỏng đầy đủ luồng thanh toán, webhook và quản lý vòng đời thuê bao.
+Các lựa chọn thay thế gồm VNPay, MoMo hoặc chuyển khoản ngân hàng thủ công. Các cổng nội địa thuận tiện hơn cho thị trường Việt Nam, nhưng việc quản lý thuê bao định kỳ, môi trường kiểm thử và tài liệu tích hợp trong phạm vi đồ án không đồng nhất bằng Stripe. Chuyển khoản thủ công dễ triển khai ban đầu nhưng không đáp ứng tốt yêu cầu tự động cập nhật trạng thái gói dịch vụ. Vì vậy, Stripe được chọn để triển khai luồng Checkout, webhook và gia hạn thuê bao cơ bản trong phạm vi đồ án.
+
+Phạm vi quyền quản lý thanh toán, cách nối trạng thái thuê bao với giới hạn tài nguyên và các giới hạn của webhook hiện tại được trình bày trong phần thiết kế và kết quả xây dựng hệ thống tại Chương 4.
 
 \subsection{OpenAI API cho trợ lý trí tuệ nhân tạo}
 \label{subsection:3.2.6}
@@ -95,6 +101,8 @@ OpenAI API \cite{openai} cung cấp khả năng gọi mô hình ngôn ngữ lớ
 Khi người dùng nhập mô tả công việc dạng tự do, hệ thống gửi nội dung và ngữ cảnh cần thiết tới API, sau đó nhận về dữ liệu có cấu trúc để hiển thị bản nháp cho người dùng kiểm tra trước khi lưu. Việc gọi API từ máy chủ giúp bảo vệ khóa truy cập, đồng thời cho phép kiểm tra lại dữ liệu đầu ra trước khi ghi vào cơ sở dữ liệu, phù hợp với yêu cầu kiểm tra dữ liệu ở phần \ref{subsection:2.4.5}.
 
 Các phương án thay thế gồm Google Gemini API hoặc tự triển khai mô hình mã nguồn mở như Llama thông qua hạ tầng riêng. Gemini có thể đáp ứng nhiều tác vụ ngôn ngữ tương tự, nhưng việc giữ một API thống nhất và dễ kiểm soát đầu ra có cấu trúc giúp giảm độ phức tạp triển khai. Mô hình mã nguồn mở cho phép kiểm soát dữ liệu tốt hơn, nhưng đòi hỏi tài nguyên vận hành lớn và không phù hợp với phạm vi triển khai của đồ án. Do đó, OpenAI API được lựa chọn để cân bằng giữa chất lượng kết quả, thời gian phát triển và chi phí hạ tầng.
+
+Các lớp kiểm soát đầu ra, đối chiếu định danh và quy trình xác nhận trước khi ghi dữ liệu được trình bày tại phần \ref{section:5.3}.
 
 \subsection{\texttt{@hello-pangea/dnd} cho tương tác kéo thả}
 \label{subsection:3.2.7}

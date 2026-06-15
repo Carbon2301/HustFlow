@@ -1,0 +1,78 @@
+@startuml
+title Biểu đồ gói và chiều phụ thuộc giữa các mô-đun HustFlow
+
+top to bottom direction
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam ArrowColor #475569
+skinparam ArrowThickness 1.3
+skinparam nodesep 45
+skinparam ranksep 50
+
+package "TẦNG TRÌNH BÀY" as presentation #F3E8FF {
+  package "app\nTrang, bố cục và Server Component" as app
+  package "components\nThành phần giao diện dùng chung" as components
+  package "hooks\nTrạng thái và truy vấn phía khách" as hooks
+
+  app -[hidden]right- components
+  components -[hidden]right- hooks
+}
+
+package "TẦNG XỬ LÝ ỨNG DỤNG" as application #ECFDF5 {
+  package "actions\nServer Action và kiểm tra dữ liệu" as actions
+  package "app/api\nRoute Handler và Webhook" as api
+
+  actions -[hidden]right- api
+}
+
+package "TẦNG NGHIỆP VỤ" as business #FFF7ED {
+  package "Nghiệp vụ thẻ và contract\n(lib/cards)" as cards
+  package "Các mô-đun nghiệp vụ trong lib\nBảng, checklist, bình luận,\nthông báo và báo cáo" as domain
+  package "Mô-đun phân quyền trong lib\nQuyền ở cấp bảng và tổ chức" as security
+  package "types\nKiểu dữ liệu dùng chung" as types
+
+  cards -[hidden]right- domain
+  domain -[hidden]right- security
+  security -[hidden]right- types
+}
+
+package "TẦNG TRUY CẬP DỮ LIỆU" as data #EFF6FF {
+  package "lib/db.ts\nPrisma Client" as db
+  package "prisma/schema.prisma\nMô hình dữ liệu" as schema
+  database "MySQL" as mysql
+
+  db -[hidden]right- schema
+  schema -[hidden]right- mysql
+  db ..> schema : sinh kiểu từ
+  db --> mysql : truy vấn
+}
+
+cloud "DỊCH VỤ BÊN NGOÀI\nClerk · Pusher · OpenAI\nStripe · UploadThing · Unsplash" as external #FEF2F2
+
+' Chiều phụ thuộc kiến trúc chính.
+presentation -down-> application
+application -down-> business
+business -down-> data
+
+' Các tầng sử dụng SDK hoặc mô-đun kết nối dịch vụ ngoài.
+presentation ..> external
+application ..> external
+business ..> external
+
+' Ép bố cục, không tạo thêm quan hệ nghiệp vụ.
+data -[hidden]right- external
+
+note bottom of data
+  Quy tắc truy cập dữ liệu:
+  • Client Component không truy cập trực tiếp DB.
+  • Server Component trong app có thể dùng lib/db.
+  • Server Action và Route Handler có thể dùng lib/db.
+  • Mô-đun nghiệp vụ trong lib có thể dùng lib/db.
+  Mọi đường ghi dữ liệu vẫn phải kiểm tra quyền.
+end note
+
+@enduml

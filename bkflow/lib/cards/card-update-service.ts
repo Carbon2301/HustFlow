@@ -1,6 +1,9 @@
 import { ENTITY_TYPE, type Card } from "@prisma/client";
 
-import type { InputType, ReturnType } from "@/actions/cards/update-card/types";
+import type {
+  UpdateCardInput,
+  UpdateCardResult,
+} from "@/lib/cards/update-card-contract";
 import { createAuditLog } from "@/lib/create-audit-log";
 import { db } from "@/lib/db";
 import { deleteCardReminderNotifications } from "@/lib/notifications/reminder-notifications";
@@ -25,7 +28,7 @@ import {
 } from "@/lib/cards/card-date-rules";
 
 type UpdateCardServiceInput = {
-  data: InputType;
+  data: UpdateCardInput;
   userId: string;
   orgId: string;
 };
@@ -38,7 +41,7 @@ export const updateCardService = async ({
   data,
   userId,
   orgId,
-}: UpdateCardServiceInput): Promise<ReturnType> => {
+}: UpdateCardServiceInput): Promise<UpdateCardResult> => {
   const {
     id,
     boardId,

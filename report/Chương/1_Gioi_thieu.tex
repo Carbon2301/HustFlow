@@ -1,0 +1,48 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+
+\section{Đặt vấn đề}
+\label{section:1.1}
+Trong hoạt động của các nhóm phát triển phần mềm và nhóm dự án học thuật, thông tin công việc thường được phân tán giữa danh sách tác vụ, lịch, tin nhắn và các tài liệu trao đổi. Khi số lượng thành viên và đầu việc tăng, nhóm cần một cách thống nhất để phân công trách nhiệm, theo dõi trạng thái, quản lý thời hạn và quan sát quan hệ phụ thuộc giữa các công việc.
+
+Trong phạm vi đề tài, bài toán được xác định qua năm nhu cầu chính: (i) biểu diễn trạng thái công việc trực quan thay cho danh sách tác vụ tĩnh; (ii) quản lý ngày bắt đầu, hạn hoàn thành và các góc nhìn theo thời gian; (iii) kiểm soát quan hệ phụ thuộc để tránh chu trình giữa các công việc; (iv) đồng bộ thay đổi giữa những thành viên đang thao tác trên cùng bảng; và (v) hỗ trợ tổng hợp thông tin tiến độ từ dữ liệu công việc đã lưu.
+
+Từ các nhu cầu đó, đề tài xây dựng một hệ thống quản lý công việc tích hợp nhiều chế độ xem, cập nhật gần thời gian thực và hỗ trợ tạo bản nháp nội dung bằng trí tuệ nhân tạo. Mục tiêu của hệ thống là cung cấp một quy trình thống nhất để nhóm nhập, cập nhật và theo dõi dữ liệu công việc; mức cải thiện năng suất hoặc thời gian thao tác không được khẳng định khi chưa có nghiên cứu người dùng tương ứng.
+
+\section{Mục tiêu và phạm vi đề tài}
+\label{section:1.2}
+Các công cụ quản lý công việc hiện có như Trello, Jira và Asana đều cung cấp nhiều chế độ tổ chức và theo dõi công việc. Trello hỗ trợ bảng Kanban, tự động hóa và các góc nhìn Calendar, Timeline, Table, Dashboard theo từng gói dịch vụ \cite{trelloofficial}. Jira cung cấp bảng, danh sách công việc tồn đọng, lịch, dòng thời gian, báo cáo, tự động hóa, phân quyền và lập kế hoạch phụ thuộc liên nhóm \cite{jiraofficial}. Asana hỗ trợ danh sách, bảng, lịch, Timeline, Gantt, quan hệ phụ thuộc, tự động hóa và các chức năng AI theo từng gói \cite{asanaofficial}.
+
+Vì vậy, HustFlow không được định hướng như một sản phẩm thay thế toàn diện cho các nền tảng trên. Phạm vi nghiên cứu tập trung vào việc xây dựng một nguyên mẫu thống nhất các góc nhìn Kanban, Lịch, Dòng thời gian và Thống kê với quan hệ phụ thuộc có kiểm tra chu trình, vai trò thành viên ở cấp bảng, cập nhật gần thời gian thực và quy trình AI chỉ sinh bản nháp để người dùng kiểm tra trước khi lưu.
+
+Mục tiêu cụ thể của đề tài này là thiết kế và xây dựng ứng dụng HustFlow nhằm giải quyết các hạn chế nêu trên. Các mục tiêu kỹ thuật và nghiệp vụ chính bao gồm: (i) xây dựng bảng Kanban kéo thả linh hoạt tích hợp phân quyền vai trò chi tiết; (ii) phát triển các góc nhìn tiến độ đa chiều gồm Lịch biểu, biểu đồ dòng thời gian Gantt và chế độ xem chia đôi màn hình; (iii) thiết lập cơ chế kiểm soát và cảnh báo mối quan hệ phụ thuộc giữa các công việc để tránh vòng lặp; (iv) tích hợp trợ lý trí tuệ nhân tạo để tự động hóa việc khởi tạo mô tả, gợi ý danh sách công việc con và tổng hợp báo cáo tiến độ; và (v) cài đặt hệ thống giới hạn tài nguyên và thanh toán để quản lý việc nâng cấp gói cước.
+
+Phạm vi nghiên cứu và triển khai của đề tài tập trung vào việc phát triển một ứng dụng web phục vụ nhu cầu cộng tác của các nhóm phát triển phần mềm, các nhóm dự án học thuật và các nhà quản lý dự án quy mô vừa và nhỏ. Hệ thống hỗ trợ mô hình đa tổ chức làm việc, trong đó mỗi tổ chức có không gian làm việc riêng biệt, được bảo vệ theo quyền truy cập và đồng bộ hóa thời gian thực qua kết nối WebSocket. Các chi tiết thiết kế giao diện, cấu trúc cơ sở dữ liệu và kịch bản thực nghiệm hệ thống sẽ được phân tích rõ hơn ở các chương sau.
+
+\section{Định hướng giải pháp}
+\label{section:1.3}
+
+Để hiện thực hóa các mục tiêu đã đề ra, đề tài định hướng xây dựng hệ thống HustFlow dựa trên kiến trúc ứng dụng web hiện đại. Công nghệ cốt lõi được lựa chọn bao gồm: (i) Next.js App Router kết hợp thư viện React để xây dựng giao diện và các luồng xử lý full-stack; (ii) hệ quản trị cơ sở dữ liệu MySQL cùng Prisma ORM để hỗ trợ toàn vẹn dữ liệu; (iii) dịch vụ Pusher làm nền tảng truyền tải dữ liệu thời gian thực qua giao thức WebSocket; (iv) Clerk quản lý quá trình xác thực người dùng và phân cấp tổ chức làm việc; và (v) OpenAI API cung cấp khả năng xử lý ngôn ngữ tự nhiên cho trợ lý AI. Sự kết hợp này hướng tới khả năng bảo trì, tính nhất quán dữ liệu và phạm vi chức năng đã xác định.
+
+Giải pháp kỹ thuật của HustFlow tổ chức thông tin công việc theo cấu trúc phân cấp chặt chẽ từ không gian tổ chức đến các bảng công việc, các cột danh sách và các thẻ tác vụ chi tiết. Ở khía cạnh quản lý trạng thái ứng dụng, hệ thống sử dụng TanStack Query (React Query) \cite{tanstackquery} để quản lý và lưu bộ nhớ đệm dữ liệu phía máy khách, kết hợp với các sự kiện Pusher được phát đi mỗi khi có thay đổi dữ liệu trên máy chủ. Khi một thành viên thực hiện thao tác kéo thả thẻ, chỉnh sửa thuộc tính hoặc gửi bình luận, máy chủ sẽ xử lý thay đổi và gửi tín hiệu đồng bộ. Các máy khách khác đang tham gia cùng bảng sẽ nhận được tín hiệu này để tự động cập nhật bộ nhớ đệm mà không cần tải lại toàn bộ trang web.
+
+Đồ án đã xây dựng được ứng dụng web HustFlow với các nhóm chức năng quản lý công việc đa chiều, cộng tác thời gian thực, kiểm soát phụ thuộc, hỗ trợ AI và nâng cấp gói dịch vụ. Các giải pháp được đánh giá trong phạm vi thiết kế, mã nguồn và những kiểm tra kỹ thuật đã thực hiện; đồ án chưa sử dụng các kết quả này để suy diễn thành số liệu hiệu năng, khả năng chịu tải hoặc mức cải thiện năng suất khi chưa có thực nghiệm tương ứng. Phân tích chi tiết về các đóng góp kỹ thuật được trình bày tại Chương 5.
+
+\section{Bố cục đồ án}
+\label{section:1.4}
+
+Báo cáo đồ án tốt nghiệp này ngoài chương mở đầu được cấu trúc thành năm chương tiếp theo như dưới đây.
+
+Chương 2 tập trung vào phần Khảo sát hiện trạng và Phân tích yêu cầu hệ thống. Chương này đánh giá chi tiết các quy trình quản lý công việc thực tế và phân tích các ưu nhược điểm của các giải pháp hiện có, từ đó xây dựng các yêu cầu chức năng và phi chức năng cho hệ thống HustFlow. Các yêu cầu chức năng được mô hình hóa chi tiết thông qua biểu đồ ca sử dụng tổng quát và các biểu đồ phân rã ca sử dụng, kèm theo đặc tả luồng sự kiện cho các chức năng cốt lõi của ứng dụng.
+
+Chương 3 trình bày về Nền tảng lý thuyết và Công nghệ sử dụng. Chương này giới thiệu chi tiết cơ sở khoa học của các công nghệ được áp dụng như mô hình Next.js App Router, thư viện React, hệ quản trị cơ sở dữ liệu MySQL, Prisma ORM, cơ chế Pusher và API của OpenAI. Đồng thời, nội dung chương cũng đưa ra các lập luận so sánh kỹ thuật để minh chứng cho sự phù hợp của các công nghệ đã chọn đối với yêu cầu bài toán.
+
+Chương 4 mô tả chi tiết quá trình Phân tích thiết kế, Triển khai và Đánh giá hệ thống. Nội dung chương bao gồm thiết kế kiến trúc hệ thống tổng thể, thiết kế biểu đồ gói, biểu đồ tuần tự cho các luồng nghiệp vụ chính, sơ đồ quan hệ thực thể cơ sở dữ liệu và thống kê mã nguồn dự án. Chương này cũng trình bày thiết kế và kết quả kiểm thử chức năng, kết quả kiểm tra kỹ thuật cùng môi trường và mô hình chạy thử nghiệm cục bộ.
+
+Chương 5 giới thiệu chi tiết ba giải pháp và đóng góp nổi bật của đồ án. Nội dung gồm giải pháp đồng bộ dữ liệu thời gian thực có kiểm soát tại phần \ref{section:5.1}, giải pháp phát hiện chu trình trong quan hệ phụ thuộc tại phần \ref{section:5.2}, và giải pháp tích hợp trợ lý trí tuệ nhân tạo theo nguyên tắc sinh bản nháp có ràng buộc tại phần \ref{section:5.3}.
+
+Chương 6 đưa ra Kết luận và Hướng phát triển của đề tài. Chương này tổng kết lại những kết quả đạt được, tự đánh giá các ưu điểm và hạn chế còn tồn tại của hệ thống HustFlow. Từ đó, đề tài đề xuất định hướng nghiên cứu tiếp theo và các giải pháp cải tiến công nghệ nhằm nâng cao hiệu suất và trải nghiệm người dùng trong tương lai.
+
+Như vậy, chương này đã phác thảo những nét khái quát nhất về đề tài nghiên cứu và xây dựng hệ thống HustFlow. Thông qua việc phân tích bối cảnh thực tế và các khó khăn hiện hữu trong hoạt động phối hợp nhóm, đề tài đã xác định mục tiêu xây dựng một ứng dụng trực quan, tích hợp các chế độ xem đa chiều và hỗ trợ từ trí tuệ nhân tạo. Định hướng giải pháp kỹ thuật được lựa chọn để đáp ứng các nhóm yêu cầu chính của đề tài. Những nội dung tổng quan này sẽ làm cơ sở để tiến hành phân tích chi tiết các yêu cầu nghiệp vụ và khảo sát hiện trạng thực tế trong Chương 2.
+
+\end{document}

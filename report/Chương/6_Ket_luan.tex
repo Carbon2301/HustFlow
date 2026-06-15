@@ -1,0 +1,42 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+
+Chương 5 đã phân tích các giải pháp và đóng góp kỹ thuật nổi bật của HustFlow. Chương này tổng kết, đối chiếu và tự đánh giá kết quả của đồ án, sau đó đề xuất các công việc hoàn thiện chức năng hiện có trước khi mở rộng hệ thống.
+
+\section{Kết luận}
+\label{section:6.1}
+
+Đồ án đặt ra mục tiêu xây dựng một nền tảng quản lý công việc cho các nhóm quy mô vừa và nhỏ, kết hợp quản lý đa góc nhìn, cộng tác thời gian thực, quan hệ phụ thuộc, hỗ trợ trí tuệ nhân tạo, phân quyền và giới hạn dịch vụ. Ứng dụng web HustFlow đã cài đặt các nhóm chức năng nêu trong Chương 1 và tổ chức dữ liệu theo phạm vi tổ chức, bảng, danh sách, thẻ. 
+
+So với Trello, HustFlow tương đồng ở mô hình Kanban và các góc nhìn Lịch, Dòng thời gian, Thống kê. Trello có hệ sinh thái tích hợp, luật tự động hóa, ứng dụng trên nhiều nền tảng và các chế độ xem theo từng gói dịch vụ \cite{trelloofficial}. HustFlow vì vậy không phải sản phẩm thay thế toàn diện, mà là nguyên mẫu kết hợp các góc nhìn tiến độ với quan hệ phụ thuộc, vai trò thành viên bảng và quy trình kiểm soát nội dung do AI tạo ra.
+
+Jira cung cấp khả năng cấu hình quy trình, báo cáo, tự động hóa, phân quyền và lập kế hoạch liên nhóm; các gói cao hơn còn hỗ trợ quản trị quy mô lớn và cam kết mức dịch vụ \cite{jiraofficial}. Asana hỗ trợ Bảng, Lịch, Dòng thời gian, Gantt, quan hệ phụ thuộc và các chức năng AI \cite{asanaofficial}. HustFlow có phạm vi hẹp hơn và chưa có bằng chứng vận hành tương đương. Điểm khác biệt được nghiên cứu là sự kết hợp giữa cơ chế bảo vệ dữ liệu phía máy chủ và luồng AI sinh bản nháp có kiểm soát.
+
+Về kết quả xây dựng, HustFlow đã triển khai năm chế độ xem gồm Kanban, Lịch, Dòng thời gian, Chia đôi và Thống kê trên cùng dữ liệu công việc. Hệ thống hỗ trợ quản lý vòng đời thẻ, cộng tác giữa thành viên, tìm kiếm, lọc, thông báo, lưu trữ và xuất dữ liệu. Các thao tác thay đổi dữ liệu được xử lý qua \textit{Server Action} hoặc \textit{Route Handler}; giao diện không truy cập trực tiếp cơ sở dữ liệu.
+
+Ba đóng góp nổi bật tương ứng với các giải pháp ở Chương 5: (i) đồng bộ thời gian thực bằng kênh riêng tư, dữ liệu sự kiện có kiểu, kiểm tra quyền đăng ký, loại sự kiện trùng và các mức phục hồi về nguồn dữ liệu chuẩn; (ii) bảo vệ quan hệ phụ thuộc bằng kiểm tra phạm vi thẻ, ngăn tự phụ thuộc và cạnh trùng, kết hợp ràng buộc dữ liệu với tìm kiếm theo chiều rộng (BFS) để phát hiện chu trình; và (iii) kiểm soát đầu ra AI thông qua thu hẹp ngữ cảnh, kiểm tra--chuẩn hóa phản hồi và xác nhận của người dùng trước khi ghi dữ liệu. Cả ba giải pháp đều đặt việc kiểm tra quyền và quy tắc nghiệp vụ tại máy chủ, đồng thời coi cơ sở dữ liệu là nguồn dữ liệu chuẩn.
+
+Hệ thống vẫn còn một số giới hạn. Mã nguồn chưa có bộ kiểm thử tự động; chín ca kiểm thử hộp đen ở Chương 4 chỉ bao phủ ba chức năng trọng tâm. Đồ án chưa đo thời gian phản hồi, độ trễ đồng bộ, tải đồng thời, tỷ lệ lỗi hoặc hiệu quả sử dụng, và ứng dụng mới được chạy thử nghiệm trên máy phát triển cục bộ. Quan hệ phụ thuộc mới cảnh báo, chưa cưỡng chế thứ tự hoàn thành tại máy chủ. Stripe chỉ xử lý \texttt{checkout.session.completed} và \texttt{invoice.payment\_succeeded}, còn chức năng AI chưa được đánh giá trên một bộ dữ liệu cố định.
+
+Quá trình thực hiện đồ án cho thấy điều khiển trên giao diện không thể thay thế phân quyền và bất biến nghiệp vụ tại máy chủ. Đồng bộ thời gian thực cần vừa cập nhật nhanh, vừa có đường phục hồi về dữ liệu đã lưu. Nội dung do mô hình sinh ra phải được xem như dữ liệu bên ngoài, cần kiểm tra, giới hạn và xác nhận trước khi sử dụng. Báo cáo kỹ thuật cũng phải phân biệt chức năng đã cài đặt, phạm vi đã kiểm thử và kết quả đã đo lường để phản ánh đúng trạng thái sản phẩm.
+
+Như vậy, HustFlow đã hiện thực hóa các nhóm chức năng được xác định trong phạm vi đề tài và hình thành ba cơ chế bảo vệ dữ liệu có thể tái sử dụng. Kết quả hiện có xác nhận nguyên mẫu hoạt động trong môi trường cục bộ đối với phạm vi đã đánh giá; các giới hạn về kiểm thử, đo lường và triển khai là cơ sở cho hướng phát triển tiếp theo.
+
+\section{Hướng phát triển}
+\label{section:6.2}
+
+Ưu tiên trước mắt là hoàn thiện khả năng kiểm chứng các chức năng hiện có. Dự án cần bổ sung kiểm thử đơn vị, tích hợp và hồi quy cho phân quyền, cập nhật thẻ, quan hệ phụ thuộc, Smart Capture, Stripe webhook và quy tắc ngày. Kiểm thử trình duyệt cần bao phủ các vai trò cấp bảng \texttt{ADMIN}, \texttt{MEMBER}, \texttt{VIEWER}, nhiều phiên đồng thời và luồng phục hồi khi mất kết nối. Dữ liệu đầu vào, kết quả chạy và ảnh chụp trạng thái cần được lưu làm bằng chứng kiểm thử.
+
+Quy trình bảo đảm chất lượng cần được tự động hóa bằng tích hợp liên tục, chạy lint, kiểm tra kiểu, build và test trước khi hợp nhất thay đổi. Các cảnh báo hiện tại cần được xử lý. Hệ thống cũng cần được đo trên bộ dữ liệu cố định ở nhiều mức tải theo thời gian phản hồi, độ trễ đồng bộ, tỷ lệ lỗi và tài nguyên, qua đó tạo cơ sở đánh giá khả năng mở rộng.
+
+Bước tiếp theo là triển khai HustFlow trên môi trường vận hành có HTTPS và cơ sở dữ liệu được quản lý. Quy trình triển khai cần quản lý phiên bản lược đồ, sao lưu, khôi phục và khóa bí mật theo môi trường. Lỗi ứng dụng, truy vấn chậm, kết nối thời gian thực, lời gọi AI và webhook cần được thu thập tập trung để hạn chế sai lệch dữ liệu.
+
+Các chức năng hiện có cần tiếp tục được hoàn thiện theo rủi ro nghiệp vụ. Stripe cần xử lý hủy thuê bao, thanh toán thất bại, hoàn tiền, tranh chấp và đối soát webhook bị bỏ lỡ. Quan hệ phụ thuộc có thể hỗ trợ chế độ cảnh báo hoặc cưỡng chế; ở chế độ cưỡng chế, điều kiện hoàn thành thẻ tiền nhiệm phải được kiểm tra tại máy chủ. AI cần được đánh giá bằng bộ dữ liệu tiếng Việt có nhiều dạng ngày, tên mơ hồ, nhãn không tồn tại, nội dung thiếu và phản hồi sai cấu trúc. Các chỉ số gồm tỷ lệ JSON hợp lệ, độ chính xác của ngày, người phụ trách và nhãn, tỷ lệ dùng nội dung dự phòng và tỷ lệ bản nháp được chấp nhận.
+
+Sau khi chức năng hiện tại được kiểm chứng, hệ thống có thể bổ sung trường dữ liệu tùy chỉnh, mẫu bảng, tác vụ lặp, luật tự động hóa, danh mục dự án, góc nhìn nhiều bảng và phụ thuộc liên bảng. Những thay đổi này phải mở rộng mô hình phân quyền và phạm vi kiểm tra chu trình, do người dùng có thể có quyền khác nhau trên thẻ nguồn, thẻ đích và từng bảng liên quan.
+
+HustFlow cũng có thể tích hợp lịch, thư điện tử, công cụ trao đổi nhóm và kho mã nguồn; đồng thời nghiên cứu ứng dụng web tiến bộ, giao diện di động hoặc chế độ ngoại tuyến có kiểm soát. Mỗi tích hợp cần xác minh webhook, chống xử lý lặp và giới hạn dữ liệu theo quyền. Các hướng AI như tìm kiếm ngữ nghĩa, hỏi--đáp và dự báo rủi ro phải cung cấp căn cứ, tuân thủ quyền truy cập và yêu cầu xác nhận trước khi thay đổi dữ liệu.
+
+Lộ trình phát triển cần đi từ kiểm chứng chức năng hiện tại, hoàn thiện khả năng vận hành, đến mở rộng quy trình, tích hợp và hỗ trợ thông minh trên nền tảng các cơ chế kiểm soát đã xây dựng.
+
+\end{document}

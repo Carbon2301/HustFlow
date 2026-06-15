@@ -1,0 +1,84 @@
+@startuml
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam defaultFontColor #222222
+
+' Phong cách gần giống Astah: đối tượng vàng nhạt, ghi chú hồng
+skinparam sequence {
+  ArrowColor #333333
+  ArrowThickness 1
+  LifeLineBorderColor #666666
+  LifeLineBackgroundColor #FFFDF0
+  ParticipantBorderColor #666666
+  ParticipantBackgroundColor #FFF2A8
+  ParticipantFontColor #222222
+  ParticipantFontStyle plain
+  ActorBorderColor #666666
+  ActorBackgroundColor #FFF2A8
+  ActorFontColor #222222
+  DividerBackgroundColor #FFF2A8
+  DividerBorderColor #666666
+  GroupBackgroundColor #FFFBE0
+  GroupBorderColor #666666
+}
+
+skinparam BoundaryBackgroundColor #FFF2A8
+skinparam BoundaryBorderColor #666666
+skinparam ControlBackgroundColor #FFF2A8
+skinparam ControlBorderColor #666666
+skinparam DatabaseBackgroundColor #FFF2A8
+skinparam DatabaseBorderColor #666666
+skinparam NoteBackgroundColor #F8C8DC
+skinparam NoteBorderColor #B56B86
+skinparam NoteFontColor #222222
+
+title Tạo và kiểm tra quan hệ phụ thuộc
+
+actor "Người dùng" as User
+boundary "Giao diện phụ thuộc" as UI
+control "createCardDependency\nServer Action" as Action
+control "PermissionService" as Permission
+database "Prisma / MySQL" as DB
+control "RealtimePublisher" as Realtime
+
+User -> UI: Chọn thẻ chặn và thẻ bị chặn
+UI -> Action: createCardDependency(input)
+Action -> Action: safeParse bằng lược đồ Zod
+Action -> Action: auth lấy userId và orgId
+Action -> Action: Loại trường hợp tự phụ thuộc
+Action -> Permission: requireBoardEditor(boardId)
+Permission -> DB: Tìm BoardMember
+DB --> Permission: Vai trò thành viên
+Permission --> Action: permission | error
+Action -> DB: card.findMany trong cùng bảng
+DB --> Action: Hai Card | thiếu Card
+Action -> DB: cardDependency.findUnique
+DB --> Action: CardDependency | null
+Action -> DB: cardDependency.findMany của bảng
+DB --> Action: Danh sách cạnh
+Action -> Action: Duyệt BFS từ blockedCardId\nđể tìm blockerCardId
+note right of Action
+  Khi chuẩn bị thêm cạnh u -> v,
+  nếu đã có đường đi từ v tới u
+  thì cạnh mới sẽ tạo chu trình.
+end note
+alt Không tạo chu trình
+  Action -> DB: cardDependency.create
+  DB --> Action: CardDependency
+  Action -> DB: createAuditLog\n(ngữ cảnh thẻ bị chặn)
+  Action -> Realtime: triggerRelatedDependencyCardsUpdated
+  note right of Realtime
+    Phát card.updated cho cả thẻ chặn
+    và thẻ bị chặn trên kênh bảng,
+    đồng thời trên kênh riêng của từng thẻ.
+  end note
+else Tạo chu trình
+  Action -> Action: Trả lỗi tạo vòng
+end
+Action --> UI: ActionState<CardDependency>
+UI --> User: Hiển thị liên kết hoặc thông báo lỗi
+
+@enduml

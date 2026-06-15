@@ -1,9 +1,4 @@
-import { z } from "zod";
-import { Card } from "@prisma/client";
-
-import { ActionState } from "@/lib/create-safe-action";
-
-import { CopyCard } from "./schema";
-
-export type InputType = z.infer<typeof CopyCard>;
-export type ReturnType = ActionState<InputType, Card>;
+export type {
+  CopyCardInput as InputType,
+  CopyCardResult as ReturnType,
+} from "@/lib/cards/copy-card-contract";

@@ -1,0 +1,184 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+
+\newcommand{\chapterfiveplaceholder}[2]{%
+    \IfFileExists{#1}{%
+        \includegraphics[width=#2\linewidth]{#1}%
+    }{%
+        \fbox{%
+            \parbox[c][5.2cm][c]{0.88\linewidth}{%
+                \centering
+                \textbf{Hình sẽ được bổ sung sau}\\[6pt]
+                \texttt{\detokenize{#1}}%
+            }%
+        }%
+    }%
+}
+
+Chương 4 đã trình bày kiến trúc, thiết kế dữ liệu, các luồng xử lý và kết quả xây dựng hệ thống HustFlow. Trên cơ sở đó, chương này phân tích ba đóng góp kỹ thuật nổi bật: (i) đồng bộ dữ liệu thời gian thực có kiểm soát; (ii) kiểm soát quan hệ phụ thuộc giữa các thẻ bằng đồ thị có hướng; và (iii) tích hợp trí tuệ nhân tạo theo nguyên tắc sinh bản nháp có ràng buộc.
+
+Các đóng góp được lựa chọn dựa trên mức độ khó của bài toán, ảnh hưởng tới tính đúng đắn của dữ liệu và khả năng tái sử dụng trong các chức năng khác. Nội dung chương tập trung vào bài toán, quyết định thiết kế, kết quả và giới hạn; các công nghệ nền tảng và kiến trúc tổng thể đã được trình bày tại Chương 3 và Chương 4.
+
+\section{Đồng bộ dữ liệu thời gian thực có kiểm soát}
+\label{section:5.1}
+
+\subsection{Bài toán đặt ra}
+\label{subsection:5.1.1}
+
+HustFlow cung cấp nhiều cách quan sát và thay đổi cùng một tập dữ liệu, bao gồm Kanban, Lịch, Dòng thời gian, Chia đôi và hộp thoại chi tiết thẻ. Khi một thành viên di chuyển thẻ trên Kanban, thay đổi ngày trong Lịch hoặc cập nhật checklist, các giao diện khác đang mở cần phản ánh trạng thái mới. Nếu mỗi giao diện chỉ tải dữ liệu khi được mở, trạng thái hiển thị có thể trở nên cũ. Người dùng khi đó có thể thao tác dựa trên thứ tự thẻ, người phụ trách hoặc thời hạn không còn đúng với dữ liệu ở máy chủ.
+
+Một sự kiện thời gian thực có thể được nhận nhiều lần, đến sau một cập nhật mới hơn hoặc không chứa đủ dữ liệu để vá trạng thái cục bộ. Thành phần phát sinh thao tác cũng có thể đã áp dụng cập nhật lạc quan. Nếu tiếp tục xử lý sự kiện do chính thao tác đó tạo ra, giao diện có nguy cơ áp dụng thay đổi hai lần. Khi kết nối bị gián đoạn, việc đăng ký kênh một lần cũng không bảo đảm thành phần giao diện luôn sẵn sàng nhận sự kiện.
+
+Quyền truy cập cũng là một phần của bài toán. Tên bảng hoặc tên thẻ không phải là bí mật và có thể xuất hiện trong URL. Nếu chỉ cần biết tên kênh để đăng ký, người dùng đã đăng nhập nhưng không thuộc bảng vẫn có thể nhận sự kiện về hoạt động của bảng đó. Do vậy, giải pháp đồng bộ cần đồng thời giải quyết ba yêu cầu: dữ liệu bền vững phải được ghi trước khi thông báo được phát; máy khách phải có chiến lược cập nhật và phục hồi khi dữ liệu sự kiện không đầy đủ; và quyền đăng ký kênh phải được kiểm tra theo đúng phạm vi dữ liệu.
+
+\subsection{Giải pháp đề xuất}
+\label{subsection:5.1.2}
+
+Giải pháp của HustFlow sử dụng máy chủ và cơ sở dữ liệu làm nguồn dữ liệu chuẩn. Một thao tác ghi trước hết đi qua Server Action, nơi dữ liệu đầu vào được kiểm tra, phiên người dùng được xác thực và quy tắc nghiệp vụ được áp dụng. Chỉ sau khi thay đổi được ghi vào MySQL, hệ thống mới tạo sự kiện Pusher \cite{pusher}. Trình tự này tránh trường hợp giao diện khác nhận được tín hiệu về một trạng thái chưa tồn tại hoặc cuối cùng bị từ chối ở cơ sở dữ liệu. Với các thao tác cập nhật nhiều bản ghi, sự kiện được phát sau khi giao dịch Prisma hoàn tất để máy khách không quan sát trạng thái trung gian.
+
+Hệ thống phân chia kênh riêng tư theo bốn phạm vi gồm tổ chức, bảng, thẻ và người dùng. Tên kênh lần lượt có dạng \texttt{private-org-*}, \texttt{private-board-*}, \texttt{private-card-*} và \texttt{private-user-*}. Điểm cuối xác thực Pusher phân tích tên kênh trước khi cấp chữ ký đăng ký. Kênh người dùng chỉ được cấp cho chính người đang đăng nhập; kênh tổ chức phải trùng tổ chức hoạt động trong phiên; kênh bảng yêu cầu tồn tại bản ghi \texttt{BoardMember}; còn kênh thẻ yêu cầu thẻ thuộc một bảng mà người dùng là thành viên. Vì vậy, việc đoán được định danh không đủ để nhận luồng sự kiện.
+
+Các sự kiện được mô tả bằng kiểu TypeScript theo từng tên sự kiện. Phần lớn sự kiện phục vụ đồng bộ bảng và thẻ chứa \texttt{eventId}, \texttt{actorUserId}, phạm vi dữ liệu và thời điểm phát sinh. Những sự kiện tác động tới dữ liệu do React Query quản lý còn mang danh sách khóa truy vấn cần vô hiệu hóa. Thiết kế này tạo hợp đồng rõ giữa mã phát và mã tiếp nhận, đồng thời hạn chế việc xử lý sai cấu trúc dữ liệu.
+
+Ở phía máy khách, HustFlow áp dụng chiến lược cập nhật bốn mức được minh họa trong Hình \ref{fig:chapter5_realtime_sync_strategy}. Mức thứ nhất vá trực tiếp trạng thái khi dữ liệu sự kiện đầy đủ và trạng thái cục bộ phù hợp. Ví dụ, sự kiện cập nhật thẻ có thể thay thế tiêu đề, mô tả, ngày, trạng thái hoàn thành và nhắc việc trong danh sách đang hiển thị. Sự kiện sắp xếp mang theo các định danh theo thứ tự mới; máy khách chỉ áp dụng khi số lượng và tập định danh khớp với dữ liệu hiện có.
+
+\begin{figure}[H]
+    \centering
+    \chapterfiveplaceholder{Hinhve/chapter5_realtime_sync_strategy.png}{1}
+    \caption{Chiến lược đồng bộ và phục hồi dữ liệu thời gian thực}
+    \label{fig:chapter5_realtime_sync_strategy}
+\end{figure}
+
+Mức thứ hai được sử dụng khi sự kiện xác định được thẻ bị tác động nhưng không mang đủ dữ liệu để vá. Máy khách tải riêng thẻ qua API rồi đối chiếu với trạng thái cục bộ. Thẻ không còn tồn tại bị loại; nếu danh sách đích đang hiển thị, hệ thống giữ bản cục bộ mới hơn hoặc chèn bản ghi tải về. Khi không thể cập nhật cục bộ, hệ thống chuyển sang làm mới tuyến.
+
+Mức thứ ba vô hiệu hóa các truy vấn React Query liên quan tới hộp thoại chi tiết, nhật ký hoặc bình luận. Mức này có thể được áp dụng độc lập hoặc bổ sung sau khi trạng thái danh sách đã được cập nhật. Khi dữ liệu không thể phục hồi cục bộ, mức thứ tư gọi \texttt{router.refresh()} để đồng bộ lại dữ liệu của tuyến từ máy chủ.
+
+Để xử lý sự kiện lặp, các hook đồng bộ duy trì tập \texttt{eventId} đã tiếp nhận trong vòng đời của thành phần giao diện. Sự kiện đã xuất hiện sẽ bị bỏ qua. Với các thao tác gán thành viên hoặc gắn nhãn đã được cập nhật lạc quan, máy khách dựa vào \texttt{actorUserId} để không áp dụng lại sự kiện của chính người dùng hiện tại.
+
+Phần quản lý kết nối sử dụng một đối tượng Pusher dùng chung ở phía máy khách và bộ đếm tham chiếu theo tên kênh. Kênh chỉ bị hủy khi số tham chiếu trở về không. Khi đăng ký lỗi hoặc chưa sẵn sàng sau bốn giây, hook yêu cầu đăng ký lại. Khoảng giới hạn giữa các lần phục hồi ngăn nhiều hook đồng thời tạo chuỗi kết nối lại liên tục.
+
+\subsection{Kết quả đạt được}
+\label{subsection:5.1.3}
+
+Giải pháp đã hình thành cơ chế đồng bộ dùng chung cho dữ liệu bảng, danh sách, thẻ và các quan hệ chi tiết. Kanban có thể cập nhật gia tăng đối với các thao tác phổ biến, trong khi Lịch, Dòng thời gian và hộp thoại chi tiết làm mới dữ liệu theo phạm vi phù hợp. Kiểm tra quyền kênh ngăn người không thuộc phạm vi dữ liệu đăng ký luồng sự kiện.
+
+Đóng góp chính là sự kết hợp giữa sự kiện có kiểu, kiểm tra quyền, cập nhật gia tăng và bốn mức phục hồi. Cấu trúc này giảm nhu cầu tải lại toàn bộ trang nhưng vẫn duy trì đường quay về cơ sở dữ liệu là nguồn chuẩn.
+
+Giải pháp chưa có cơ chế phiên bản hóa tổng quát cho nhánh vá trực tiếp. Vì vậy, một sự kiện cũ đến muộn vẫn có thể ghi đè trường dữ liệu mới hơn trong một số luồng. Đồ án cũng chưa đo độ trễ, tỷ lệ mất sự kiện, mức bảo đảm giao nhận hoặc tải nhiều người dùng, nên chưa đưa ra kết luận về hiệu năng và khả năng chịu tải.
+
+\section{Kiểm soát quan hệ phụ thuộc bằng đồ thị có hướng}
+\label{section:5.2}
+
+\subsection{Bài toán đặt ra}
+\label{subsection:5.2.1}
+
+Quan hệ phụ thuộc biểu diễn thứ tự xử lý giữa các thẻ. Với cạnh \(u \rightarrow v\), thẻ \(u\) là thẻ chặn và thẻ \(v\) là thẻ bị chặn. Nếu quan hệ được tạo mà không kiểm soát, dữ liệu có thể xuất hiện bốn nhóm sai lệch: một thẻ phụ thuộc vào chính nó, cùng một cạnh được lưu nhiều lần, một trong hai thẻ không hợp lệ trong phạm vi bảng hiện tại, hoặc cạnh mới khép kín một chu trình. Nhóm thứ ba bao gồm thẻ thuộc bảng hay tổ chức khác, thẻ đã bị lưu trữ và thẻ thuộc danh sách đã bị lưu trữ. Chu trình làm mất ý nghĩa thứ tự trước--sau vì mỗi thẻ trong chu trình đều gián tiếp chờ chính nó.
+
+Danh sách ứng viên trên trình duyệt chỉ hỗ trợ thao tác và có thể trở nên cũ trước khi người dùng xác nhận. Yêu cầu cũng có thể được gửi trực tiếp tới Server Action mà không đi qua giao diện. Vì vậy, quyết định chấp nhận quan hệ phải được thực hiện tại máy chủ, dựa trên dữ liệu hiện có và trước khi cạnh được ghi. Cơ chế này bảo vệ cấu trúc đồ thị; việc một thẻ còn bị chặn có được đánh dấu hoàn thành hay không là một quy tắc riêng.
+
+\subsection{Giải pháp đề xuất}
+\label{subsection:5.2.2}
+
+Nền tảng DAG và phép kiểm tra tính khả đạt đã được trình bày tại phần \ref{subsection:3.1.1}. Trong cài đặt HustFlow, mỗi cạnh được ánh xạ thành một bản ghi \texttt{CardDependency}. Trường \texttt{blockerCardId} là đỉnh nguồn \(u\), còn \texttt{blockedCardId} là đỉnh đích \(v\). Hai khóa ngoại cùng trỏ tới \texttt{Card} nhưng sử dụng hai tên quan hệ Prisma khác nhau. Ở mức lưu trữ, khóa ngoại bảo vệ sự tồn tại của thẻ và ràng buộc duy nhất trên cặp \texttt{blockerCardId}, \texttt{blockedCardId} ngăn cùng một cạnh được lưu hai lần. Các ràng buộc này không tự bảo đảm hai thẻ thuộc cùng bảng và cũng không phát hiện chu trình.
+
+Các quy tắc còn lại được thực hiện trong Server Action \texttt{createCardDependency}. Action xác thực phiên, yêu cầu quyền chỉnh sửa bảng, loại tự phụ thuộc và truy vấn đồng thời hai thẻ với điều kiện thuộc đúng bảng--tổ chức, chưa bị lưu trữ và nằm trong danh sách chưa bị lưu trữ. Sau đó, hệ thống kiểm tra cạnh trùng trước khi duyệt đồ thị. Việc kiểm tra ở máy chủ tạo lớp bảo vệ độc lập với danh sách ứng viên trên giao diện.
+
+Khi chuẩn bị thêm cạnh \(u \rightarrow v\), hệ thống cần xác định trong đồ thị hiện tại có đường đi từ \(v\) tới \(u\) hay không. Nếu đường đi đó tồn tại, cạnh mới sẽ nối \(u\) trở lại \(v\) và tạo chu trình. Hàm kiểm tra tải các cạnh có đỉnh nguồn thuộc bảng và tổ chức hiện tại, xây danh sách kề theo hướng từ thẻ chặn tới các thẻ bị chặn, sau đó duyệt BFS từ \(v\). Mã giả của bước kiểm tra được trình bày trong Thuật toán \ref{alg:chapter5_dependency_bfs}.
+
+\begin{algorithm}[H]
+\DontPrintSemicolon
+\KwIn{Tập cạnh hiện có \(E\), cạnh dự kiến \(u \rightarrow v\)}
+\KwOut{\texttt{true} nếu cạnh mới tạo chu trình, ngược lại \texttt{false}}
+Tạo danh sách kề \(Adj\) từ các cạnh trong \(E\)\;
+Khởi tạo hàng đợi \(Q \leftarrow [v]\), chỉ số đầu \(h \leftarrow 1\) và tập đã thăm \(Visited \leftarrow \{v\}\)\;
+\While{\(h \leq |Q|\)}{
+    \(x \leftarrow Q[h]\), sau đó \(h \leftarrow h+1\)\;
+    \If{\(x = u\)}{
+        \Return{\texttt{true}}\;
+    }
+    \ForEach{\(y \in Adj[x]\)}{
+        \If{\(y \notin Visited\)}{
+            Thêm \(y\) vào \(Visited\) và cuối hàng đợi \(Q\)\;
+        }
+    }
+}
+\Return{\texttt{false}}\;
+\caption{Kiểm tra chu trình trước khi thêm quan hệ phụ thuộc}
+\label{alg:chapter5_dependency_bfs}
+\end{algorithm}
+
+Tập \texttt{Visited} bảo đảm mỗi đỉnh chỉ được đưa vào hàng đợi một lần. Trong mã giả, chỉ số \(h\) tăng dần nên thao tác lấy phần tử kế tiếp có chi phí \(O(1)\). Khi đó, bước xây dựng danh sách kề và duyệt BFS có độ phức tạp thời gian \(O(V+E)\), còn độ phức tạp không gian là \(O(V+E)\) khi tính cả danh sách kề, hàng đợi và tập đỉnh đã thăm. BFS phù hợp vì bài toán chỉ cần kiểm tra tính khả đạt khi thêm một cạnh, không cần tính lại thứ tự tô pô của toàn bộ bảng.
+
+Bản cài đặt TypeScript hiện sử dụng \texttt{Array.shift()} để lấy phần tử đầu hàng đợi. Thao tác này có thể phải dịch chuyển các phần tử còn lại, vì vậy không thể dùng trực tiếp cận \(O(V+E)\) của hàng đợi trừu tượng để khẳng định độ phức tạp chặt cho mã hiện tại. Việc thay bằng chỉ số đầu như trong mã giả sẽ làm cách cài đặt phù hợp với phân tích tuyến tính mà không thay đổi kết quả duyệt.
+
+Hình \ref{fig:chapter5_dependency_cycle_check} minh họa trường hợp đã có đường \(v \rightarrow x \rightarrow u\). Khi người dùng thêm \(u \rightarrow v\), BFS bắt đầu từ \(v\), lần lượt tới \(x\) và \(u\), từ đó từ chối cạnh mới. Nếu không tới được \(u\), cạnh được xem là không tạo chu trình tại thời điểm kiểm tra.
+
+\begin{figure}[H]
+    \centering
+    \chapterfiveplaceholder{Hinhve/chapter5_dependency_cycle_check.png}{1}
+    \caption{Kiểm tra đường đi ngược trước khi thêm cạnh phụ thuộc}
+    \label{fig:chapter5_dependency_cycle_check}
+\end{figure}
+
+Chỉ khi toàn bộ điều kiện đạt, quan hệ mới được tạo. Hệ thống tiếp tục ghi nhật ký dưới ngữ cảnh thẻ bị chặn và phát sự kiện cập nhật cho cả thẻ chặn lẫn thẻ bị chặn. Quan hệ được hiển thị trong hộp thoại chi tiết thẻ và bằng đường nối trên Dòng thời gian.
+
+Khi trạng thái \texttt{isCompleted} của một thẻ thay đổi, dịch vụ cập nhật truy vấn các quan hệ mà thẻ tham gia và phát sự kiện cho các thẻ liên quan. Các máy khách nhận sự kiện sẽ làm mới dữ liệu cần thiết; nhờ đó, số thẻ chặn chưa hoàn thành, trạng thái phụ thuộc và đường nối trên Dòng thời gian được tính lại từ dữ liệu mới.
+
+\subsection{Kết quả đạt được}
+\label{subsection:5.2.3}
+
+Trong luồng xử lý tuần tự thông thường, giải pháp từ chối tự phụ thuộc, cạnh trùng, thẻ không hợp lệ trong phạm vi bảng và cạnh tạo chu trình. Ràng buộc khóa ngoại cùng ràng buộc duy nhất của Prisma bổ sung lớp bảo vệ ở mức lưu trữ, nhưng ràng buộc duy nhất chỉ ngăn cạnh trùng và không bảo vệ tính phi chu trình. Sau khi quan hệ hoặc trạng thái hoàn thành thay đổi, các thẻ liên quan được yêu cầu làm mới để giao diện phản ánh dữ liệu mới.
+
+Kiểm tra chu trình và thao tác ghi cạnh hiện chưa nằm trong cùng một giao dịch có cơ chế cô lập hoặc khóa phù hợp. Nếu hai yêu cầu thêm cạnh chạy đồng thời, cả hai phép kiểm tra có thể đọc cùng một trạng thái cũ trước khi ghi. Vì vậy, khả năng ngăn chu trình đã được xác nhận từ luồng xử lý và mã nguồn hiện tại, nhưng chưa phải cam kết dưới tranh chấp đồng thời.
+
+Hệ thống cũng chưa cưỡng chế thứ tự hoàn thành. Khi người dùng đánh dấu hoàn thành một thẻ còn bị chặn, giao diện liệt kê các thẻ chặn chưa hoàn thành và yêu cầu xác nhận. Người dùng vẫn có thể tiếp tục, còn dịch vụ phía máy chủ không từ chối cập nhật \texttt{isCompleted} dựa trên các quan hệ này. Cơ chế hiện tại vì thế phát hiện và cảnh báo điều kiện chặn, thay vì bắt buộc mọi thẻ tiền nhiệm phải hoàn thành.
+
+Đóng góp của giải pháp là kết hợp mô hình đồ thị có hướng với kiểm tra nghiệp vụ phía máy chủ, ràng buộc toàn vẹn ở tầng lưu trữ và cơ chế làm mới dữ liệu liên quan trên giao diện. Sự phân lớp này xử lý được các sai lệch phổ biến trong luồng tuần tự, đồng thời chỉ ra rõ những trường hợp cần bổ sung cơ chế giao dịch nếu hệ thống được mở rộng cho tải đồng thời cao hơn.
+
+\section{Tích hợp trí tuệ nhân tạo theo nguyên tắc sinh bản nháp có ràng buộc}
+\label{section:5.3}
+
+\subsection{Bài toán đặt ra}
+\label{subsection:5.3.1}
+
+Thông tin công việc ban đầu thường tồn tại dưới dạng thư điện tử, tin nhắn hoặc biên bản họp. Nội dung này có thể chứa nhiều câu, ngày tháng tương đối, tên viết tắt và các đầu việc chưa được phân tách. Việc chuyển nội dung đó thành tiêu đề, mô tả, checklist, hạn hoàn thành, nhãn và người phụ trách đòi hỏi nhiều thao tác thủ công.
+
+Trong thiết kế HustFlow, mọi phản hồi từ dịch vụ AI được xem là dữ liệu đầu vào bên ngoài và không được ghi trực tiếp thành dữ liệu nghiệp vụ. Các trường hợp mà hệ thống chủ động phòng vệ gồm phản hồi sai cấu trúc JSON, định danh không thuộc bảng, đề xuất gán việc cho người chỉ có quyền xem, ngày không hợp lệ hoặc nội dung báo cáo không có căn cứ trong dữ liệu đã cung cấp. Vì vậy, AI chỉ tạo đề xuất và bản nháp; cơ sở dữ liệu cùng các quy tắc tất định tại máy chủ vẫn là nguồn dữ liệu chuẩn.
+
+\subsection{Giải pháp đề xuất}
+\label{subsection:5.3.2}
+
+Tất cả lời gọi OpenAI API \cite{openai} được thực hiện ở phía máy chủ nên khóa API không được chuyển tới trình duyệt. Mô-đun dùng chung gọi điểm cuối Chat Completions với thời gian chờ tối đa 25 giây và chuyển lỗi kỹ thuật thành thông báo phù hợp cho người dùng. Tên mô hình được đọc từ biến \texttt{OPENAI\_MODEL}; giá trị mặc định của dự án là \texttt{gpt-4o-mini}. Cách cấu hình này cho phép thay đổi mô hình mà không làm thay đổi hợp đồng của các Server Action.
+
+Giải pháp kiểm soát đầu ra AI qua ba lớp. Lớp thứ nhất thu hẹp ngữ cảnh trước khi gọi mô hình. Trong Smart Capture, máy chủ kiểm tra quyền chỉnh sửa và chỉ cung cấp văn bản đầu vào, thông tin thời gian cùng các danh sách, nhãn và thành viên thuộc đúng bảng. Thành viên có vai trò \texttt{VIEWER} không nằm trong tập có thể nhận việc. Ngữ cảnh chỉ cung cấp các định danh hợp lệ và prompt yêu cầu mô hình không tạo định danh mới.
+
+Lớp thứ hai kiểm tra và chuẩn hóa phản hồi. Prompt yêu cầu mô hình trả JSON theo cấu trúc xác định trước; phản hồi sau đó được phân tích và kiểm tra bằng Zod. Các quy tắc tất định tiếp tục giới hạn tiêu đề ở 200 ký tự, mô tả ở 3.000 ký tự, đồng thời chuẩn hóa, loại trùng và giới hạn checklist. Mô tả thiếu các đề mục bắt buộc, chứa khối mã hoặc vượt giới hạn được thay bằng nội dung dự phòng từ văn bản gốc.
+
+Ngày do mô hình đề xuất được kiểm tra trước khi chuyển sang ISO 8601. Khi phản hồi chưa có độ lệch múi giờ, hệ thống có thể bổ sung giá trị như \texttt{UTC+07:00}; giá trị không hợp lệ bị loại bỏ. Đề xuất người phụ trách phải kèm bằng chứng từ văn bản đầu vào. Trường hợp bằng chứng khớp nhiều thành viên được trả về dưới dạng cảnh báo, còn định danh danh sách và nhãn ngoài phạm vi bị thay thế hoặc loại bỏ theo quy tắc của hệ thống.
+
+Sau bước chuẩn hóa, Smart Capture chỉ trả về một bản nháp để người dùng rà soát và chỉnh sửa. Khi người dùng xác nhận, lớp thứ ba kiểm tra lại quyền chỉnh sửa, danh sách, thành viên và nhãn tại máy chủ. Thẻ, người phụ trách, nhãn và checklist được tạo trong giao dịch Prisma ở mức cô lập \texttt{ReadCommitted}; nhật ký và sự kiện \texttt{card.created} chỉ được phát sau khi giao dịch thành công. Hình \ref{fig:chapter5_ai_guardrail_pipeline} khái quát ba lớp kiểm soát này.
+
+\begin{figure}[H]
+    \centering
+    \chapterfiveplaceholder{Hinhve/chapter5_ai_guardrail_pipeline.png}{1}
+    \caption{Quy trình kiểm soát đầu ra của trợ lý AI}
+    \label{fig:chapter5_ai_guardrail_pipeline}
+\end{figure}
+
+Ba lớp kiểm soát được áp dụng đầy đủ cho luồng Smart Capture vì luồng này có thể dẫn tới thao tác ghi. Với gợi ý checklist và hỗ trợ mô tả, giai đoạn AI chỉ tạo nội dung để người dùng lựa chọn hoặc chỉnh sửa; việc lưu nội dung được thực hiện bằng thao tác nghiệp vụ riêng và tiếp tục được kiểm tra tại máy chủ. Đối với báo cáo bảng, máy chủ tổng hợp trước các chỉ số, phân bố công việc, thẻ quá hạn, tiến độ checklist và hoạt động gần đây. Mô hình chỉ diễn giải ngữ cảnh đã được giới hạn; phản hồi được Zod kiểm tra và không làm thay đổi dữ liệu nghiệp vụ.
+
+\subsection{Kết quả đạt được}
+\label{subsection:5.3.3}
+
+HustFlow đã triển khai bốn nhóm chức năng gồm Smart Capture, gợi ý checklist, hỗ trợ tạo và cải thiện mô tả thẻ, cùng báo cáo bảng. Mỗi nhóm sử dụng prompt, lược đồ kiểm tra và giới hạn đầu vào, đầu ra phù hợp với nhiệm vụ. Nội dung do mô hình tạo ra không được tự động coi là dữ liệu hợp lệ: Smart Capture cần người dùng xác nhận, các gợi ý nội dung cần được lựa chọn hoặc chỉnh sửa, còn báo cáo chỉ diễn giải dữ liệu do máy chủ chuẩn bị.
+
+Đóng góp của giải pháp không nằm ở việc gọi mô hình ngôn ngữ, mà ở cách chuyển đầu ra có tính xác suất thành dữ liệu được kiểm soát. Ba lớp thu hẹp ngữ cảnh, kiểm tra--chuẩn hóa phản hồi và xác minh trước khi ghi giữ quyết định cuối cùng ở người dùng và các quy tắc nghiệp vụ phía máy chủ.
+
+Đồ án chưa thực hiện nghiên cứu người dùng để đo thời gian nhập liệu, tỷ lệ chấp nhận đề xuất hoặc chất lượng nội dung. Kết quả ngôn ngữ vẫn phụ thuộc vào mô hình, prompt và dữ liệu đầu vào; vì vậy, người dùng cần rà soát nội dung trước khi lưu hoặc sử dụng trong báo cáo.
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Chương này đã phân tích ba đóng góp kỹ thuật của HustFlow. Mỗi giải pháp xử lý một dạng rủi ro khác nhau: trạng thái máy khách không đồng nhất, quan hệ phụ thuộc không hợp lệ và đầu ra AI không xác định. Các giải pháp đều giới hạn dữ liệu theo ngữ cảnh, kiểm tra quy tắc tại máy chủ và duy trì cơ sở dữ liệu làm nguồn dữ liệu chuẩn.
+
+Kết quả cho thấy hệ thống đã hình thành các cơ chế bảo vệ có thể tái sử dụng giữa nhiều chức năng, đồng thời vẫn duy trì đường phục hồi về nguồn dữ liệu chuẩn. Những giới hạn về xử lý đồng thời, bảo đảm giao nhận sự kiện và đánh giá chất lượng AI cũng đã được xác định rõ. Trên cơ sở đó, Chương 6 sẽ tổng kết kết quả toàn đồ án và đề xuất các hướng hoàn thiện tiếp theo.
+\end{document}

@@ -1,10 +1,10 @@
 import type { Card, Prisma } from "@prisma/client";
 
-import type { InputType } from "@/actions/cards/update-card/types";
+import type { UpdateCardInput } from "@/lib/cards/update-card-contract";
 import type { CardUpdatedField } from "@/lib/realtime/types";
 
 type CardDateInput = Pick<
-  InputType,
+  UpdateCardInput,
   | "title"
   | "description"
   | "startDate"
@@ -13,7 +13,7 @@ type CardDateInput = Pick<
   | "reminder"
 >;
 
-type EffectiveCardDatesInput = Pick<InputType, "startDate" | "dueDate"> & {
+type EffectiveCardDatesInput = Pick<UpdateCardInput, "startDate" | "dueDate"> & {
   currentCard: Pick<Card, "startDate" | "dueDate">;
 };
 

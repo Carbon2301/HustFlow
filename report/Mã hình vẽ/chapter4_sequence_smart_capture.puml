@@ -1,0 +1,94 @@
+@startuml
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam defaultFontColor #222222
+
+' Phong cách gần giống Astah: đối tượng vàng nhạt, ghi chú hồng
+skinparam sequence {
+  ArrowColor #333333
+  ArrowThickness 1
+  LifeLineBorderColor #666666
+  LifeLineBackgroundColor #FFFDF0
+  ParticipantBorderColor #666666
+  ParticipantBackgroundColor #FFF2A8
+  ParticipantFontColor #222222
+  ParticipantFontStyle plain
+  ActorBorderColor #666666
+  ActorBackgroundColor #FFF2A8
+  ActorFontColor #222222
+  DividerBackgroundColor #FFF2A8
+  DividerBorderColor #666666
+  GroupBackgroundColor #FFFBE0
+  GroupBorderColor #666666
+}
+
+skinparam BoundaryBackgroundColor #FFF2A8
+skinparam BoundaryBorderColor #666666
+skinparam ControlBackgroundColor #FFF2A8
+skinparam ControlBorderColor #666666
+skinparam DatabaseBackgroundColor #FFF2A8
+skinparam DatabaseBorderColor #666666
+skinparam NoteBackgroundColor #F8C8DC
+skinparam NoteBorderColor #B56B86
+skinparam NoteFontColor #222222
+
+title Phân tích và tạo thẻ bằng Smart Capture
+
+actor "Người dùng" as User
+boundary "Smart Capture Dialog" as UI
+control "analyzeSmartCapture\nServer Action" as Analyze
+control "PermissionService" as Permission
+database "Prisma / MySQL" as DB
+participant "OpenAI API" as AI
+control "createSmartCaptureCard\nServer Action" as Create
+control "RealtimePublisher" as Realtime
+
+User -> UI: Nhập mô tả công việc tự do
+UI -> Analyze: analyzeSmartCapture(input)
+Analyze -> Analyze: safeParse bằng lược đồ Zod
+Analyze -> Analyze: auth lấy userId và orgId
+Analyze -> Permission: requireBoardEditor(boardId)
+Permission -> DB: Tìm BoardMember
+DB --> Permission: Vai trò thành viên
+Permission --> Analyze: permission | error
+Analyze -> DB: Tải song song danh sách,\nthành viên và nhãn
+DB --> Analyze: Ngữ cảnh bảng
+Analyze -> Analyze: Loại thành viên VIEWER\nkhỏi tập có thể giao việc
+Analyze -> AI: Gửi prompt và ngữ cảnh
+AI --> Analyze: Chuỗi JSON
+Analyze -> Analyze: parseAiJson bằng Zod
+Analyze -> Analyze: Chuẩn hóa bản nháp
+note right of Analyze
+  Không ghi dữ liệu ở bước phân tích.
+  Mô tả sai cấu trúc: dùng nội dung dự phòng.
+  Thành viên khớp mơ hồ: trả cảnh báo.
+end note
+Analyze --> UI: ActionState<SmartCaptureDraft>
+UI --> User: Hiển thị bản nháp
+
+User -> UI: Sửa và xác nhận
+UI -> Create: createSmartCaptureCard(draft)
+Create -> Create: safeParse bằng lược đồ Zod
+Create -> Create: auth lấy userId và orgId
+Create -> Permission: requireBoardEditor(boardId)
+Permission -> DB: Tìm BoardMember
+DB --> Permission: Vai trò thành viên
+Permission --> Create: permission | error
+Create -> DB: Kiểm tra list, assignee, label
+DB --> Create: Các định danh tìm thấy
+note right of Create
+  List không hợp lệ: trả lỗi.
+  Assignee/label sai hoặc VIEWER: loại bỏ.
+end note
+Create -> DB: $transaction tạo Card và dữ liệu con
+DB --> Create: Card đã tạo
+Create -> DB: createAuditLog
+Create -> Realtime: triggerCardCreated
+Create -> Create: revalidatePath(board)
+Create --> UI: ActionState<Card>
+UI --> User: Mở thẻ mới
+
+@enduml

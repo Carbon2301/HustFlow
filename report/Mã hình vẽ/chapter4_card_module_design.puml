@@ -1,0 +1,68 @@
+@startuml
+title Thiết kế chi tiết gói quản lý thẻ và cộng tác
+
+top to bottom direction
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam packageStyle rectangle
+skinparam linetype ortho
+skinparam defaultFontName Arial
+skinparam defaultFontSize 14
+skinparam ArrowColor #475569
+skinparam ArrowThickness 1.2
+skinparam nodesep 35
+skinparam ranksep 45
+skinparam class {
+  BackgroundColor white
+  BorderColor #334155
+}
+
+package "presentation.card-modal" #F3E8FF {
+  class CardModal
+  class CardRealtimeSync
+}
+
+package "application.actions.cards" #ECFDF5 {
+  class UpdateCardAction
+}
+
+package "domain.cards" #FFF7ED {
+  class UpdateCardService
+  class BoardPermissionService
+  class CardRealtimePublisher
+}
+
+package "persistence.prisma" #EFF6FF {
+  class PrismaClient
+  class Card
+  class Checklist
+  class CardComment
+  class CardAttachment
+  class CardDependency
+  class BoardMember
+}
+
+' Luồng xử lý chính.
+CardModal ..> UpdateCardAction : gửi yêu cầu
+UpdateCardAction ..> UpdateCardService : điều phối
+UpdateCardService ..> BoardPermissionService : kiểm tra quyền
+UpdateCardService ..> PrismaClient : đọc và ghi
+UpdateCardService ..> CardRealtimePublisher : phát sự kiện
+CardRealtimeSync ..> CardRealtimePublisher : nhận sự kiện
+
+' Các quan hệ dữ liệu cốt lõi của thẻ.
+Card "1" *-- "0..*" Checklist
+Card "1" *-- "0..*" CardComment
+Card "1" *-- "0..*" CardAttachment
+Card "1" o-- "0..*" BoardMember : người phụ trách
+Card "1" --> "0..*" CardDependency : phụ thuộc
+
+note right of CardDependency
+  Ký pháp:
+  *-- hợp thành
+  o-- kết tập
+  --> kết hợp
+  ..> phụ thuộc
+end note
+
+@enduml

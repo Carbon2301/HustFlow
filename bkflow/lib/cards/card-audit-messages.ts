@@ -1,6 +1,6 @@
 import { ACTION, AUDIT_EVENT_TYPE, type Card } from "@prisma/client";
 
-import type { InputType } from "@/actions/cards/update-card/types";
+import type { UpdateCardInput } from "@/lib/cards/update-card-contract";
 import { formatDateTimeInOffset } from "@/lib/date-utils";
 
 export const formatFriendlyDate = (
@@ -50,7 +50,7 @@ export const buildUpdateCardAuditMessage = ({
   dueDateChanged,
 }: {
   input: Pick<
-    InputType,
+    UpdateCardInput,
     | "title"
     | "description"
     | "startDate"

@@ -6,15 +6,15 @@ Chương 1 đã trình bày bối cảnh, mục tiêu và định hướng giả
 \section{Khảo sát hiện trạng}
 \label{section:2.1}
 
-Các công cụ quản lý công việc trực tuyến như Trello, Jira và Asana đã được sử dụng rộng rãi trong nhiều nhóm phát triển phần mềm, nhóm nghiên cứu và tổ chức vừa và nhỏ. Những công cụ này cung cấp nhiều cách tiếp cận khác nhau để tổ chức nhiệm vụ, theo dõi tiến độ và phối hợp giữa các thành viên. Việc khảo sát các hệ thống hiện có giúp xác định những chức năng nền tảng cần có của HustFlow, đồng thời làm rõ các điểm khác biệt mà hệ thống hướng tới.
+Các công cụ quản lý công việc trực tuyến như Trello, Jira và Asana cung cấp nhiều cách tiếp cận để tổ chức nhiệm vụ, theo dõi tiến độ và phối hợp giữa các thành viên. Phần khảo sát này đối chiếu thông tin chức năng được các nhà cung cấp công bố chính thức, qua đó xác định phạm vi chức năng của HustFlow và tránh xem nguyên mẫu như một sản phẩm thay thế toàn diện.
 
-Trello là công cụ tiêu biểu cho mô hình quản lý công việc bằng bảng Kanban. Người dùng có thể tạo bảng, danh sách và thẻ công việc, sau đó kéo thả thẻ giữa các danh sách để phản ánh trạng thái thực hiện. Ưu điểm lớn nhất của Trello là giao diện đơn giản, dễ học và phù hợp với các nhóm nhỏ hoặc quy trình công việc không quá phức tạp. Tuy nhiên, khi nhu cầu quản lý tăng lên, người dùng thường cần thêm các tiện ích mở rộng hoặc gói trả phí để có các góc nhìn nâng cao như lịch, dòng thời gian, báo cáo hoặc tự động hóa. Khả năng quản lý quan hệ phụ thuộc giữa các thẻ và kiểm soát tiến độ tổng thể cũng chưa phải trọng tâm chính của Trello.
+Trello tổ chức công việc theo bảng, danh sách và thẻ; người dùng có thể di chuyển thẻ giữa các danh sách để phản ánh trạng thái thực hiện. Trang công bố gói dịch vụ cho thấy Trello có tự động hóa tích hợp, ứng dụng di động và các chế độ xem Calendar, Timeline, Table, Dashboard, Map; một số chế độ xem và chức năng AI thuộc các gói cao hơn. Trong phạm vi so sánh của đồ án, HustFlow học theo mô hình bảng nhưng tập trung cài đặt quan hệ phụ thuộc giữa các thẻ ngay trong mô hình dữ liệu và kiểm tra chu trình tại máy chủ \cite{trelloofficial}.
 
-Jira là nền tảng mạnh cho các nhóm phát triển phần mềm chuyên nghiệp, đặc biệt trong quy trình phát triển linh hoạt hoặc quy trình phát triển lặp. Jira hỗ trợ quản lý vấn đề, chu kỳ phát triển, danh sách công việc tồn đọng, luồng xử lý, phân quyền và báo cáo ở mức chi tiết. Đây là lựa chọn phù hợp cho các tổ chức có quy trình chặt chẽ và cần khả năng cấu hình sâu. Dù vậy, với các nhóm nhỏ, nhóm sinh viên hoặc nhóm nghiên cứu học thuật, Jira có thể tạo cảm giác phức tạp do nhiều khái niệm, nhiều bước cấu hình và chi phí vận hành cao hơn nhu cầu thực tế. Các tính năng nâng cao của Jira rất mạnh, nhưng không phải lúc nào cũng phù hợp với nhóm cần một công cụ gọn nhẹ, trực quan và triển khai nhanh.
+Jira cung cấp backlog, bảng, danh sách, lịch, dòng thời gian, báo cáo và bảng điều khiển; đồng thời hỗ trợ tự động hóa, vai trò, phân quyền và các chức năng AI theo gói dịch vụ. Gói cao hơn bổ sung lập kế hoạch và quản lý phụ thuộc liên nhóm cùng các cam kết hỗ trợ và mức dịch vụ. HustFlow không hướng tới mức cấu hình và quy mô vận hành đó; nguyên mẫu chỉ cài đặt các luồng cần thiết cho phạm vi tổ chức, bảng và thẻ đã xác định trong đồ án \cite{jiraofficial}.
 
-Asana cung cấp cách tiếp cận cân bằng hơn giữa sự đơn giản và khả năng theo dõi tiến độ. Hệ thống hỗ trợ nhiều chế độ xem như danh sách, bảng, lịch và dòng thời gian, đồng thời cho phép gán người phụ trách, đặt hạn chót và theo dõi quan hệ công việc. Asana phù hợp với nhiều nhóm làm việc phi kỹ thuật lẫn kỹ thuật. Tuy nhiên, một số tính năng quan trọng về báo cáo nâng cao, tự động hóa, quản lý phụ thuộc chi tiết hoặc mở rộng số lượng người dùng thường bị giới hạn theo gói dịch vụ. Ngoài ra, khả năng tùy biến sâu cho quy trình phát triển phần mềm và khả năng tích hợp trợ lý trí tuệ nhân tạo theo ngữ cảnh cụ thể của từng bảng công việc vẫn còn là không gian để cải tiến.
+Asana hỗ trợ danh sách, bảng kiểu Kanban, lịch, Timeline và Gantt; các chế độ xem theo thời gian có thể biểu diễn nhiệm vụ, mốc và quan hệ phụ thuộc. Nền tảng cũng công bố chức năng báo cáo, tự động hóa và AI theo từng gói. HustFlow sử dụng các nhóm chức năng tương tự ở quy mô nguyên mẫu, nhưng phần được nghiên cứu tập trung vào cách kết hợp dữ liệu công việc với kiểm tra phụ thuộc, phân quyền phía máy chủ và quy trình AI sinh bản nháp có bước xác nhận của người dùng \cite{asanaofficial}.
 
-Từ việc khảo sát các công cụ trên, HustFlow được định hướng tập trung giải quyết bài toán quản lý cho các nhóm vừa và nhỏ. Hệ thống sẽ ưu tiên các giá trị cốt lõi bao gồm: giao diện trực quan với thao tác bảng Kanban nhanh, khả năng cộng tác thời gian thực mượt mà, hỗ trợ nhiều chế độ xem tiến độ như bảng Kanban, lịch, biểu đồ Gantt và thống kê, cơ chế kiểm soát phụ thuộc công việc và ngăn ngừa vòng lặp phụ thuộc, tích hợp trợ lý trí tuệ nhân tạo để giảm thao tác nhập liệu thủ công, cùng mô hình gói cước đơn giản. Đây là cơ sở khoa học và thực tiễn vững chắc để xác định các nhóm chức năng và xây dựng các use case chi tiết của hệ thống trong các phần tiếp theo.
+Từ việc đối chiếu tài liệu sản phẩm, HustFlow được giới hạn cho bài toán quản lý công việc của nhóm vừa và nhỏ trong phạm vi đồ án. Hệ thống ưu tiên bảng Kanban, cập nhật gần thời gian thực, các chế độ xem Lịch, Dòng thời gian và Thống kê, kiểm tra chu trình phụ thuộc, trợ lý AI sinh bản nháp và mô hình gói dịch vụ đơn giản. Phạm vi này là cơ sở xác định các nhóm chức năng và xây dựng use case ở các phần tiếp theo, không phải kết luận rằng HustFlow có độ bao phủ hoặc chất lượng vận hành tương đương các sản phẩm thương mại.
 
 
 \section{Tổng quan chức năng}
@@ -31,7 +31,7 @@ Biểu đồ use case tổng quát của HustFlow được trình bày trong Hì
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.85\linewidth]{Hinhve/usecase_tongquan.png}
+\includegraphics[width=0.9\linewidth]{Hinhve/usecase_tongquan.png}
 \caption{Biểu đồ use case tổng quát của hệ thống HustFlow}
 \label{fig:usecase_tongquan}
 \end{figure}
@@ -53,7 +53,7 @@ Các nghiệp vụ xử lý công việc được thể hiện chủ yếu qua Q
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.75\linewidth]{Hinhve/usecase_organization.png}
+\includegraphics[width=0.9\linewidth]{Hinhve/usecase_organization.png}
 \caption{Biểu đồ use case phân rã Quản lý tổ chức}
 \label{fig:usecase_organization}
 \end{figure}
@@ -65,7 +65,7 @@ Cách tách biệt chi tiết này giúp làm rõ ranh giới quyền hạn gi�
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.75\linewidth]{Hinhve/usecase_workspace.png}
+\includegraphics[width=0.9\linewidth]{Hinhve/usecase_workspace.png}
 \caption{Biểu đồ use case phân rã Quản lý bảng}
 \label{fig:usecase_workspace}
 \end{figure}
@@ -77,7 +77,7 @@ Trong phần phân rã, Quản lý bảng cần được tách khỏi Quản lý
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.75\linewidth]{Hinhve/usecase_members.png}
+\includegraphics[width=0.9\linewidth]{Hinhve/usecase_members.png}
 \caption{Biểu đồ use case phân rã Quản lý thành viên và phân quyền bảng}
 \label{fig:usecase_members}
 \end{figure}
@@ -89,7 +89,7 @@ Việc phân rã use case này cần nhấn mạnh rằng quyền quản trị b
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.75\linewidth]{Hinhve/usecase_cards.png}
+\includegraphics[width=0.9\linewidth]{Hinhve/usecase_cards.png}
 \caption{Biểu đồ use case phân rã Quản lý danh sách và thẻ công việc}
 \label{fig:usecase_cards}
 \end{figure}
@@ -101,7 +101,7 @@ Khi phân rã sâu hơn, nhóm chức năng này cũng bao gồm thao tác thi�
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.75\linewidth]{Hinhve/usecase_collab.png}
+\includegraphics[width=0.9\linewidth]{Hinhve/usecase_collab.png}
 \caption{Biểu đồ use case phân rã Cộng tác thời gian thực}
 \label{fig:usecase_collab}
 \end{figure}
@@ -113,7 +113,7 @@ Nhóm chức năng này gắn chặt với Quản lý danh sách và thẻ công
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.75\linewidth]{Hinhve/usecase_reports.png}
+\includegraphics[width=0.9\linewidth]{Hinhve/usecase_reports.png}
 \caption{Biểu đồ use case phân rã Theo dõi tiến độ và báo cáo}
 \label{fig:usecase_reports}
 \end{figure}
@@ -125,7 +125,7 @@ Hình \ref{fig:usecase_reports} cho thấy use case Theo dõi tiến độ và b
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.75\linewidth]{Hinhve/usecase_ai.png}
+\includegraphics[width=0.9\linewidth]{Hinhve/usecase_ai.png}
 \caption{Biểu đồ use case phân rã Sử dụng trợ lý AI}
 \label{fig:usecase_ai}
 \end{figure}
@@ -137,7 +137,7 @@ Kết quả do trợ lý tạo ra được hiển thị dưới dạng bản nh�
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.75\linewidth]{Hinhve/usecase_billing.png}
+\includegraphics[width=0.9\linewidth]{Hinhve/usecase_billing.png}
 \caption{Biểu đồ use case phân rã Quản lý gói dịch vụ và thanh toán}
 \label{fig:usecase_billing}
 \end{figure}
@@ -154,7 +154,7 @@ Biểu đồ hoạt động của quy trình được trình bày trong Hình \r
 
 \begin{figure}[H]
 \centering
-\includegraphics[width=0.85\linewidth]{Hinhve/activity_task_workflow.png}
+\includegraphics[width=1\linewidth]{Hinhve/activity_task_workflow.png}
 \caption{Biểu đồ hoạt động quy trình quản lý thẻ công việc, kiểm tra phụ thuộc và đồng bộ thời gian thực}
 \label{fig:activity_task_workflow}
 \end{figure}

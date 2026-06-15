@@ -1,0 +1,53 @@
+\documentclass[../DoAn.tex]{subfiles}
+\begin{document}
+\phantomsection
+\addcontentsline{toc}{chapter}{DANH MỤC THUẬT NGỮ}
+\begin{center}
+    \textbf{\large DANH MỤC THUẬT NGỮ}
+\end{center}
+
+\begingroup
+\renewcommand{\arraystretch}{1.2}
+\begin{longtable}{|p{4.2cm}|p{9.7cm}|}
+    \hline
+    \textbf{Thuật ngữ} & \textbf{Giải thích} \\ \hline
+    \endfirsthead
+    \hline
+    \textbf{Thuật ngữ} & \textbf{Giải thích} \\ \hline
+    \endhead
+
+    \textbf{Agile} & Phương pháp phát triển phần mềm theo hướng lặp và thích ứng, ưu tiên phản hồi sớm, cộng tác nhóm và điều chỉnh theo thay đổi. \\ \hline
+    \textbf{App Router} & Cơ chế định tuyến của Next.js tổ chức trang, bố cục và điểm xử lý theo cấu trúc thư mục \texttt{app}. \\ \hline
+    \textbf{Audit log} & Nhật ký hoạt động ghi lại thao tác, đối tượng bị tác động, người thực hiện và thời điểm xảy ra thay đổi. \\ \hline
+    \textbf{Backlog} & Danh sách các công việc hoặc yêu cầu chưa được hoàn thành và đang chờ sắp xếp, ưu tiên hoặc đưa vào thực hiện. \\ \hline
+    \textbf{Board} & Bảng công việc thuộc một tổ chức, chứa thành viên, danh sách, thẻ, nhãn và các chế độ xem tiến độ. \\ \hline
+    \textbf{Board member role} & Vai trò thành viên ở cấp bảng: \texttt{ADMIN} quản trị bảng và thành viên; \texttt{MEMBER} được chỉnh sửa nội dung; \texttt{VIEWER} chỉ được xem dữ liệu. \\ \hline
+    \textbf{Cache} & Vùng lưu dữ liệu tạm thời ở phía máy khách nhằm giảm số lần truy vấn và giúp giao diện phản hồi nhanh hơn. \\ \hline
+    \textbf{Card} & Thẻ biểu diễn một công việc, lưu tiêu đề, mô tả, thời gian, trạng thái, người phụ trách và các dữ liệu cộng tác liên quan. \\ \hline
+    \textbf{Checklist} & Danh sách các mục công việc con nằm trong một thẻ, dùng để theo dõi mức độ hoàn thành chi tiết. \\ \hline
+    \textbf{Client Component} & Thành phần React chạy ở phía trình duyệt, được dùng cho giao diện cần trạng thái, sự kiện và tương tác trực tiếp với người dùng. \\ \hline
+    \textbf{Dashboard} & Màn hình tổng hợp các chỉ số và biểu đồ để người dùng theo dõi tình trạng, tiến độ và phân bố công việc. \\ \hline
+    \textbf{Dependency} & Quan hệ phụ thuộc giữa hai thẻ, trong đó một thẻ đóng vai trò chặn và thẻ còn lại là công việc bị chặn. \\ \hline
+    \textbf{Drag and drop} & Cơ chế kéo và thả dùng để sắp xếp hoặc di chuyển danh sách, thẻ và các phần tử công việc trên giao diện. \\ \hline
+    \textbf{Full-stack} & Cách phát triển kết hợp giao diện, xử lý phía máy chủ và truy cập dữ liệu trong cùng một hệ thống ứng dụng. \\ \hline
+    \textbf{Gantt chart} & Biểu đồ tiến độ thể hiện công việc theo trục thời gian, hỗ trợ quan sát thời lượng và quan hệ trước--sau. \\ \hline
+    \textbf{Hook} & Hàm của React hoặc hàm tùy biến đóng gói trạng thái và logic có thể tái sử dụng giữa các thành phần giao diện. \\ \hline
+    \textbf{Kanban} & Phương pháp quản lý công việc trực quan bằng các cột trạng thái và thẻ, cho phép theo dõi luồng công việc qua từng giai đoạn. \\ \hline
+    \textbf{Label} & Nhãn màu gắn với thẻ để phân loại, nhận diện hoặc lọc công việc theo nhóm ý nghĩa. \\ \hline
+    \textbf{List} & Danh sách hoặc cột trong bảng Kanban, chứa các thẻ và thường biểu diễn một trạng thái của quy trình công việc. \\ \hline
+    \textbf{Markdown} & Cú pháp đánh dấu văn bản nhẹ được HustFlow hỗ trợ trong phần mô tả thẻ. \\ \hline
+    \textbf{Optimistic update} & Kỹ thuật cập nhật giao diện trước khi máy chủ xác nhận, sau đó đồng bộ lại hoặc hoàn tác nếu thao tác thất bại. \\ \hline
+    \textbf{Private channel} & Kênh thời gian thực yêu cầu xác thực và kiểm tra quyền trước khi người dùng được phép đăng ký nhận sự kiện. \\ \hline
+    \textbf{Prompt} & Chỉ dẫn và dữ liệu ngữ cảnh được gửi tới mô hình trí tuệ nhân tạo để yêu cầu tạo đầu ra theo nhiệm vụ xác định. \\ \hline
+    \textbf{Real-time synchronization} & Cơ chế phát và nhận sự kiện để các phiên đang mở cùng dữ liệu có thể cập nhật thay đổi mà không cần tải lại trang. \\ \hline
+    \textbf{Route Handler} & Hàm xử lý yêu cầu HTTP tại các tệp \texttt{route.ts} trong Next.js App Router, được dùng để xây dựng các điểm cuối phía máy chủ. \\ \hline
+    \textbf{Server Action} & Hàm phía máy chủ được giao diện gọi để thực hiện thao tác nghiệp vụ như xác thực, kiểm tra quyền và thay đổi dữ liệu. \\ \hline
+    \textbf{Server Component} & Thành phần React được kết xuất ở phía máy chủ, phù hợp để lấy dữ liệu ban đầu mà không chuyển logic truy cập dữ liệu xuống trình duyệt. \\ \hline
+    \textbf{Smart Capture} & Chức năng AI của HustFlow phân tích văn bản tự do để tạo bản nháp thẻ có cấu trúc trước khi người dùng xác nhận lưu. \\ \hline
+    \textbf{Source of truth} & Nguồn dữ liệu chuẩn được dùng để đối chiếu và phục hồi trạng thái; trong HustFlow, cơ sở dữ liệu giữ vai trò này. \\ \hline
+    \textbf{Webhook} & Yêu cầu HTTP do một dịch vụ bên ngoài chủ động gửi tới hệ thống khi sự kiện như thanh toán xảy ra. \\ \hline
+    \textbf{WebSocket} & Giao thức duy trì kết nối hai chiều giữa máy khách và máy chủ, phù hợp cho việc truyền sự kiện gần thời gian thực. \\ \hline
+    \textbf{Workspace} & Không gian làm việc của một tổ chức, dùng để quản lý thành viên, bảng công việc, hoạt động và gói dịch vụ trong cùng phạm vi. \\ \hline
+\end{longtable}
+\endgroup
+\end{document}

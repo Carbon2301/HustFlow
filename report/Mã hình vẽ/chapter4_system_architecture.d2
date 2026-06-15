@@ -1,0 +1,145 @@
+# Kiến trúc tổng thể của hệ thống HustFlow
+# Khuyến nghị khi render:
+# - Layout: ELK
+# - Theme: Neutral default hoặc Grape soda
+# - Export: SVG
+
+direction: down
+
+presentation: {
+  label: "TẦNG TRÌNH BÀY"
+  style: {
+    fill: "#F3E8FF"
+    stroke: "#8B5CF6"
+    stroke-width: 2
+    border-radius: 12
+    font-size: 20
+    bold: true
+  }
+
+  ui: {
+    label: "Thành phần giao diện React\nKanban · Lịch · Dòng thời gian\nChia đôi · Thống kê\nReact Query · Zustand"
+    shape: rectangle
+    style: {
+      fill: "#FFFFFF"
+      stroke: "#8B5CF6"
+      border-radius: 8
+      shadow: true
+      font-size: 17
+    }
+  }
+}
+
+application: {
+  label: "TẦNG XỬ LÝ ỨNG DỤNG"
+  style: {
+    fill: "#ECFDF5"
+    stroke: "#10B981"
+    stroke-width: 2
+    border-radius: 12
+    font-size: 20
+    bold: true
+  }
+
+  processing: {
+    label: "Server Components · Server Actions\nRoute Handlers · Kiểm tra dữ liệu Zod"
+    shape: rectangle
+    style: {
+      fill: "#FFFFFF"
+      stroke: "#10B981"
+      border-radius: 8
+      shadow: true
+      font-size: 17
+    }
+  }
+}
+
+business: {
+  label: "TẦNG NGHIỆP VỤ"
+  style: {
+    fill: "#FFF7ED"
+    stroke: "#F97316"
+    stroke-width: 2
+    border-radius: 12
+    font-size: 20
+    bold: true
+  }
+
+  rules: {
+    label: "Phân quyền và quy tắc nghiệp vụ\nQuản lý bảng, thẻ và cộng tác\nPhụ thuộc · AI · Nhật ký · Đồng bộ"
+    shape: rectangle
+    style: {
+      fill: "#FFFFFF"
+      stroke: "#F97316"
+      border-radius: 8
+      shadow: true
+      font-size: 17
+    }
+  }
+}
+
+data: {
+  label: "TẦNG TRUY CẬP DỮ LIỆU"
+  style: {
+    fill: "#EFF6FF"
+    stroke: "#0EA5E9"
+    stroke-width: 2
+    border-radius: 12
+    font-size: 20
+    bold: true
+  }
+
+  prisma: {
+    label: "Prisma ORM"
+    shape: rectangle
+    style: {
+      fill: "#FFFFFF"
+      stroke: "#0EA5E9"
+      border-radius: 8
+      shadow: true
+      font-size: 17
+    }
+  }
+
+  mysql: {
+    label: "Cơ sở dữ liệu MySQL"
+    shape: cylinder
+    style: {
+      fill: "#FFFFFF"
+      stroke: "#0EA5E9"
+      shadow: true
+      font-size: 17
+    }
+  }
+
+  prisma -> mysql
+}
+
+external: {
+  label: "DỊCH VỤ BÊN NGOÀI\n\nClerk · Pusher · OpenAI\nStripe · UploadThing · Unsplash"
+  shape: cloud
+  style: {
+    fill: "#FEF2F2"
+    stroke: "#EF4444"
+    stroke-width: 2
+    shadow: true
+    font-size: 17
+    bold: true
+  }
+}
+
+presentation.ui -> application.processing
+application.processing -> business.rules
+business.rules -> data.prisma
+
+presentation.ui -> external {
+  style.stroke-dash: 5
+}
+
+application.processing -> external {
+  style.stroke-dash: 5
+}
+
+business.rules -> external {
+  style.stroke-dash: 5
+}

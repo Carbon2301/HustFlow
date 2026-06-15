@@ -1,0 +1,81 @@
+@startuml
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 0
+skinparam defaultFontName Arial
+skinparam defaultFontSize 13
+skinparam defaultFontColor #222222
+
+' Phong cách gần giống Astah: đối tượng vàng nhạt, ghi chú hồng
+skinparam sequence {
+  ArrowColor #333333
+  ArrowThickness 1
+  LifeLineBorderColor #666666
+  LifeLineBackgroundColor #FFFDF0
+  ParticipantBorderColor #666666
+  ParticipantBackgroundColor #FFF2A8
+  ParticipantFontColor #222222
+  ParticipantFontStyle plain
+  ActorBorderColor #666666
+  ActorBackgroundColor #FFF2A8
+  ActorFontColor #222222
+  DividerBackgroundColor #FFF2A8
+  DividerBorderColor #666666
+  GroupBackgroundColor #FFFBE0
+  GroupBorderColor #666666
+}
+
+skinparam BoundaryBackgroundColor #FFF2A8
+skinparam BoundaryBorderColor #666666
+skinparam ControlBackgroundColor #FFF2A8
+skinparam ControlBorderColor #666666
+skinparam DatabaseBackgroundColor #FFF2A8
+skinparam DatabaseBorderColor #666666
+skinparam NoteBackgroundColor #F8C8DC
+skinparam NoteBorderColor #B56B86
+skinparam NoteFontColor #222222
+
+title Cập nhật thuộc tính thẻ và đồng bộ thời gian thực
+
+actor "Người dùng A" as UserA
+boundary "Giao diện thẻ" as UI
+control "updateCard\nServer Action" as Action
+control "CardApplicationService" as Service
+control "PermissionService" as Permission
+database "Prisma / MySQL" as DB
+control "RealtimePublisher" as Realtime
+boundary "Máy khách thành viên B" as ClientB
+
+UserA -> UI: Lưu thuộc tính thẻ
+UI -> Action: updateCard(input)
+Action -> Action: safeParse
+Action -> Action: auth
+Action -> Service: updateCardService(data, userId, orgId)
+Service -> Permission: requireBoardEditor(boardId)
+Permission -> DB: boardMember.findUnique
+DB --> Permission: BoardMember | null
+Permission -> Permission: validateEditorRole
+Permission --> Service: permission | error
+Service -> DB: card.findFirst
+DB --> Service: Card | null
+Service -> Service: validateCardUpdate
+note right of Service
+  Không có thay đổi: kết thúc và trả Card hiện tại.
+  Khi sửa mô tả, kiểm tra descriptionUpdatedAt,
+  sau đó gọi updateMany. Mốc cũ hoặc count = 0:
+  kết thúc và trả DESCRIPTION_CONFLICT.
+end note
+Service -> DB: [Có thay đổi hợp lệ]\ncard.updateMany hoặc card.update
+DB --> Service: Card
+Service -> DB: createAuditLog
+Service -> Realtime: triggerCardUpdated
+Realtime --> ClientB: card.updated
+ClientB -> ClientB: Cập nhật cache hoặc vô hiệu hóa query
+note right of Realtime
+  Nếu trạng thái hoàn thành thay đổi,
+  phát thêm card.updated cho các thẻ phụ thuộc.
+end note
+Service --> Action: ActionState<Card>
+Action --> UI: ActionState<Card>
+UI --> UserA: Hiển thị trạng thái mới
+@enduml

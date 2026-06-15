@@ -1,0 +1,176 @@
+// Simplified HustFlow ERD for dbdiagram.io.
+// Only keys, relationships, and important business attributes are shown.
+
+Table Board {
+  id varchar [pk]
+  orgId varchar [not null]
+  title varchar [not null]
+}
+
+Table List {
+  id varchar [pk]
+  boardId varchar [not null]
+  title varchar [not null]
+  order int [not null]
+}
+
+Table Card {
+  id varchar [pk]
+  listId varchar [not null]
+  title varchar [not null]
+  order int [not null]
+  startDate datetime
+  dueDate datetime
+  isCompleted boolean [not null]
+}
+
+Table CardDependency {
+  id varchar [pk]
+  blockerCardId varchar [not null]
+  blockedCardId varchar [not null]
+
+  indexes {
+    (blockerCardId, blockedCardId) [unique]
+  }
+}
+
+Table CardAttachment {
+  id varchar [pk]
+  cardId varchar [not null]
+  type varchar [not null]
+  name varchar [not null]
+  url text [not null]
+}
+
+Table CardComment {
+  id varchar [pk]
+  cardId varchar [not null]
+  parentId varchar
+  userId varchar [not null]
+  content text [not null]
+}
+
+Table CardCommentReaction {
+  id varchar [pk]
+  commentId varchar [not null]
+  userId varchar [not null]
+  emoji varchar [not null]
+
+  indexes {
+    (commentId, userId, emoji) [unique]
+  }
+}
+
+Table Notification {
+  id varchar [pk]
+  orgId varchar [not null]
+  recipientUserId varchar [not null]
+  type varchar [not null]
+  title varchar [not null]
+  message text [not null]
+  readAt datetime
+}
+
+Table BoardMember {
+  id varchar [pk]
+  boardId varchar [not null]
+  userId varchar [not null]
+  userName text [not null]
+  role varchar [not null]
+
+  indexes {
+    (boardId, userId) [unique]
+  }
+}
+
+Table CardAssignee {
+  id varchar [pk]
+  cardId varchar [not null]
+  boardMemberId varchar [not null]
+
+  indexes {
+    (cardId, boardMemberId) [unique]
+  }
+}
+
+Table AuditLog {
+  id varchar [pk]
+  orgId varchar [not null]
+  boardId varchar
+  cardId varchar
+  action varchar [not null]
+  eventType varchar [not null]
+  entityId varchar [not null]
+  entityType varchar [not null]
+  userId varchar [not null]
+}
+
+Table OrgLimit {
+  id varchar [pk]
+  orgId varchar [not null, unique]
+  count int [not null]
+}
+
+Table OrgSubscription {
+  id varchar [pk]
+  orgId varchar [not null, unique]
+  stripeSubscriptionId varchar [unique]
+  stripeCurrentPeriodEnd datetime
+}
+
+Table Label {
+  id varchar [pk]
+  boardId varchar [not null]
+  title varchar [not null]
+  color varchar [not null]
+}
+
+Table CardLabel {
+  id varchar [pk]
+  cardId varchar [not null]
+  labelId varchar [not null]
+
+  indexes {
+    (cardId, labelId) [unique]
+  }
+}
+
+Table Checklist {
+  id varchar [pk]
+  cardId varchar [not null]
+  title varchar [not null]
+  order int [not null]
+}
+
+Table ChecklistItem {
+  id varchar [pk]
+  checklistId varchar [not null]
+  assigneeId varchar
+  title varchar [not null]
+  isCompleted boolean [not null]
+  order int [not null]
+  dueDate datetime
+}
+
+Ref: List.boardId > Board.id [delete: cascade]
+Ref: Card.listId > List.id [delete: cascade]
+
+Ref: CardDependency.blockerCardId > Card.id [delete: cascade]
+Ref: CardDependency.blockedCardId > Card.id [delete: cascade]
+
+Ref: CardAttachment.cardId > Card.id [delete: cascade]
+Ref: CardComment.cardId > Card.id [delete: cascade]
+Ref: CardComment.parentId > CardComment.id [delete: cascade]
+Ref: CardCommentReaction.commentId > CardComment.id [delete: cascade]
+
+Ref: BoardMember.boardId > Board.id [delete: cascade]
+Ref: CardAssignee.cardId > Card.id [delete: cascade]
+Ref: CardAssignee.boardMemberId > BoardMember.id [delete: cascade]
+
+Ref: Label.boardId > Board.id [delete: cascade]
+Ref: CardLabel.cardId > Card.id [delete: cascade]
+Ref: CardLabel.labelId > Label.id [delete: cascade]
+
+Ref: Checklist.cardId > Card.id [delete: cascade]
+Ref: ChecklistItem.checklistId > Checklist.id [delete: cascade]
+Ref: ChecklistItem.assigneeId > BoardMember.id [delete: set null]
