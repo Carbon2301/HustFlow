@@ -1,0 +1,63 @@
+@startuml
+top to bottom direction
+
+skinparam backgroundColor white
+skinparam shadowing false
+skinparam roundcorner 10
+skinparam linetype ortho
+skinparam defaultFontName Arial
+skinparam defaultFontSize 15
+skinparam defaultFontColor #111827
+skinparam ArrowColor #475569
+skinparam ArrowThickness 1.4
+skinparam nodesep 55
+skinparam ranksep 55
+
+rectangle "**DỮ LIỆU ĐẦU VÀO**\nVăn bản công việc và ngữ cảnh bảng" as Input #F8FAFC
+
+rectangle "**LỚP 1 — THU HẸP NGỮ CẢNH**\nKiểm tra quyền và giới hạn dữ liệu theo bảng\nĐầu ra: ngữ cảnh đã giới hạn" as Layer1 #DBEAFE
+
+cloud "OpenAI API" as AI #FEE2E2
+
+rectangle "**LỚP 2 — KIỂM TRA ĐẦU RA**\nKiểm tra phản hồi bằng Zod và chuẩn hóa nội dung" as Layer2 #FFEDD5
+
+rectangle "Bản nháp\nSmart Capture" as Draft #F3E8FF
+rectangle "Gợi ý checklist\nvà mô tả" as Suggestion #F3E8FF
+rectangle "Báo cáo bảng" as Report #F3E8FF
+
+rectangle "Rà soát bản nháp  •  Lựa chọn áp dụng  •  Xem báo cáo\nSmart Capture chỉ tiếp tục khi người dùng xác nhận" as Interaction #F8FAFC
+actor "Người dùng" as User
+
+rectangle "**LỚP 3 — XÁC MINH TRƯỚC KHI GHI**\nKiểm tra lại quyền và đối chiếu định danh\nGhi dữ liệu trong giao dịch ReadCommitted" as Layer3 #DCFCE7
+
+database "MySQL\nNguồn dữ liệu chuẩn" as DB #E0F2FE
+
+note right of Report
+  Không thay đổi
+  dữ liệu nghiệp vụ.
+end note
+
+note right of Layer3
+  Minh họa thao tác ghi
+  của Smart Capture.
+end note
+
+Input -down-> Layer1
+Layer1 -down-> AI
+
+AI -down-> Layer2
+
+Layer2 -down-> Draft
+Layer2 -down-> Suggestion
+Layer2 -down-> Report
+
+Draft -down-> Interaction
+Suggestion -down-> Interaction
+Report -down-> Interaction
+
+Interaction -down-> User
+User -down-> Layer3
+
+Layer3 -down-> DB
+
+@enduml

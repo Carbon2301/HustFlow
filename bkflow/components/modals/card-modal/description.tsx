@@ -539,12 +539,12 @@ export const Description = ({
     await queryClient.invalidateQueries({ queryKey: ["card", data.id] });
   };
 
-  const onSubmit = (formData: FormData) => {
+  const onSubmit = () => {
     if (!canEdit || isLoading || descriptionRequestRef.current) {
       return;
     }
 
-    const description = formData.get("description") as string;
+    const description = draftDescription;
     const boardId = data.list.boardId;
     const baseUpdatedAt =
       getDescriptionBaseUpdatedAt() ?? toTimestampString(data.descriptionUpdatedAt);
@@ -643,7 +643,7 @@ export const Description = ({
               <form
                 onSubmit={(event) => {
                   event.preventDefault();
-                  onSubmit(new FormData(event.currentTarget));
+                  onSubmit();
                 }}
                 onKeyDown={onFormKeyDown}
                 ref={formRef}

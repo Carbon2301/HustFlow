@@ -53,8 +53,7 @@ export const ChecklistPopover = ({
   };
 
   const { execute, isLoading } = useAction(createChecklist, {
-    onSuccess: (data) => {
-      toast.success(`Đã thêm danh sách việc cần làm "${data.title}"`);
+    onSuccess: () => {
       queryClient.invalidateQueries({
         queryKey: ["card", cardId],
       });

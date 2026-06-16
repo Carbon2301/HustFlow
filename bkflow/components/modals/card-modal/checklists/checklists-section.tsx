@@ -311,7 +311,6 @@ export const ChecklistsSection = ({
   const { execute: executeDeleteItem } = useAction(deleteChecklistItem, {
     onSuccess: () => {
       mutationRollbackRef.current = null;
-      toast.success("Đã xoá mục công việc");
       invalidateCard(true);
     },
     onError: (error) => {
