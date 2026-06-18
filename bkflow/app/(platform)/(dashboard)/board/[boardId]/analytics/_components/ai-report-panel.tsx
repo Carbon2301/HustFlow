@@ -51,7 +51,6 @@ export const AiReportPanel = ({
 
     try {
       await navigator.clipboard.writeText(formatReportMarkdown(report, reportRange));
-      toast.success("Đã copy báo cáo.");
     } catch {
       toast.error("Không thể copy báo cáo. Hãy thử lại.");
     }

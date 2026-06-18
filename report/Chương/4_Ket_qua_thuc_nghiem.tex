@@ -698,11 +698,11 @@ Các chức năng AI gồm Smart Capture, đề xuất checklist, hỗ trợ t�
 
 Kết quả bàn giao gồm hai thành phần. Thành phần thứ nhất là gói mã nguồn ứng dụng, bao gồm mã TypeScript, tài nguyên công khai, lược đồ Prisma, cấu hình và file khóa phụ thuộc; các thư mục sinh tự động, file môi trường và dữ liệu bí mật không thuộc gói bàn giao. Thành phần thứ hai là output build production của Next.js, gồm mã máy chủ đã biên dịch, tài nguyên tĩnh và metadata định tuyến. Output này vẫn cần môi trường Node.js, phụ thuộc runtime và các biến môi trường phù hợp khi triển khai.
 
-Bảng \ref{table:chapter4_artifacts} ghi nhận dung lượng tại thời điểm hoàn thiện chương. Gói nguồn được đo trên các file trong thư mục \texttt{bkflow} thuộc phạm vi quản lý phiên bản, gồm file đã được theo dõi và file mới chưa bị loại bởi \texttt{.gitignore}. Output production chỉ tính \texttt{.next/server}, \texttt{.next/static}, \texttt{.next/build} và các file ở gốc \texttt{.next}; thư mục phát triển và cache không được tính.
+Bảng \ref{table:chapter4_artifacts} ghi nhận dung lượng ngày 20/06/2026. Gói nguồn được đo trên các file trong thư mục \texttt{bkflow} thuộc phạm vi quản lý phiên bản, gồm file đã được theo dõi và file mới chưa bị loại bởi \texttt{.gitignore}. Output production chỉ tính \texttt{.next/server}, \texttt{.next/static}, \texttt{.next/build} và các file ở gốc \texttt{.next}; thư mục phát triển và cache không được tính.
 
 \begin{table}[H]
     \centering
-    \caption{Dung lượng các thành phần bàn giao của HustFlow}
+    \caption{Dung lượng các thành phần bàn giao của HustFlow ghi nhận ngày 20/06/2026}
     \label{table:chapter4_artifacts}
     \begin{tabularx}{\linewidth}{|p{0.27\linewidth}|p{0.14\linewidth}|p{0.20\linewidth}|X|}
         \hline
@@ -714,11 +714,11 @@ Bảng \ref{table:chapter4_artifacts} ghi nhận dung lượng tại thời đi�
 
 \subsubsection{Thống kê mã nguồn}
 
-Thống kê trong Bảng \ref{table:chapter4_source_stats} chỉ tính các file \texttt{.ts}, \texttt{.tsx}, \texttt{.css} và \texttt{.prisma} thuộc phạm vi quản lý phiên bản trong thư mục ứng dụng. Thư mục \texttt{node\_modules}, sản phẩm build \texttt{.next}, file khóa gói và tài nguyên ảnh không được tính. Số dòng là số dòng vật lý, được xác định bằng số ký tự xuống dòng cộng một đối với mỗi file không rỗng.
+Thống kê trong Bảng \ref{table:chapter4_source_stats} được ghi nhận ngày 20/06/2026 và phản ánh trạng thái kho mã nguồn tại thời điểm đo. Các số liệu có thể khác với cây làm việc ở thời điểm người đọc đối chiếu nếu mã nguồn tiếp tục được cập nhật. Phạm vi thống kê chỉ tính các file \texttt{.ts}, \texttt{.tsx}, \texttt{.css} và \texttt{.prisma} thuộc phạm vi quản lý phiên bản trong thư mục ứng dụng. Thư mục \texttt{node\_modules}, sản phẩm build \texttt{.next}, file khóa gói và tài nguyên ảnh không được tính. Số dòng là số dòng vật lý, được xác định bằng số ký tự xuống dòng cộng một đối với mỗi file không rỗng.
 
 \begin{table}[H]
     \centering
-    \caption{Thống kê mã nguồn HustFlow tại thời điểm hoàn thiện chương}
+    \caption{Thống kê mã nguồn HustFlow ghi nhận ngày 20/06/2026}
     \label{table:chapter4_source_stats}
     \begin{tabular}{|l|r|r|r|}
         \hline
@@ -731,11 +731,11 @@ Thống kê trong Bảng \ref{table:chapter4_source_stats} chỉ tính các file
     \end{tabular}
 \end{table}
 
-Các chỉ số cấu trúc bổ sung được trình bày trong Bảng \ref{table:chapter4_structure_stats}. Do HustFlow chủ yếu sử dụng component hàm, hook và service thay cho hệ thống lớp hướng đối tượng, số file TSX và số mô-đun nghiệp vụ được dùng để phản ánh quy mô cấu trúc thay cho chỉ tiêu ``số lớp''.
+Các chỉ số cấu trúc bổ sung, được ghi nhận cùng ngày 20/06/2026, được trình bày trong Bảng \ref{table:chapter4_structure_stats}. Do HustFlow chủ yếu sử dụng component hàm, hook và service thay cho hệ thống lớp hướng đối tượng, số file TSX và số mô-đun nghiệp vụ được dùng để phản ánh quy mô cấu trúc thay cho chỉ tiêu ``số lớp''.
 
 \begin{table}[H]
     \centering
-    \caption{Thống kê cấu trúc mô-đun của ứng dụng}
+    \caption{Thống kê cấu trúc mô-đun của ứng dụng ghi nhận ngày 20/06/2026}
     \label{table:chapter4_structure_stats}
     \begin{tabularx}{\linewidth}{|p{0.35\linewidth}|r|X|}
         \hline
@@ -802,7 +802,7 @@ Hình \ref{fig:chapter4_result_smart_capture} trình bày bản nháp đầu ra 
     \label{fig:chapter4_result_smart_capture}
 \end{figure}
 
-Hình \ref{fig:chapter4_result_analytics} trình bày trang Thống kê và báo cáo AI của bảng. Trang này tổng hợp các chỉ số về số lượng và tiến độ thẻ, công việc chưa lên lịch hoặc quá hạn, phân bố công việc theo danh sách và khối lượng công việc của thành viên. Báo cáo AI sử dụng dữ liệu đã được truy vấn từ hệ thống để tóm tắt kết quả, nhận diện rủi ro và đề xuất hành động; mô hình không tự tạo thêm số liệu ngoài dữ liệu đầu vào.
+Hình \ref{fig:chapter4_result_analytics} trình bày trang Thống kê và báo cáo AI của bảng. Trang này tổng hợp các chỉ số về số lượng và tiến độ thẻ, công việc chưa lên lịch hoặc quá hạn, phân bố công việc theo danh sách và khối lượng công việc của thành viên. Trước khi gọi mô hình, máy chủ chuẩn bị ngữ cảnh gồm các chỉ số và hoạt động đã truy vấn từ hệ thống; prompt yêu cầu mô hình chỉ sử dụng ngữ cảnh này để tóm tắt kết quả, nhận diện rủi ro và đề xuất hành động. Phản hồi được kiểm tra cấu trúc và giới hạn dữ liệu bằng Zod, nhưng cài đặt hiện tại chưa đối chiếu tất định từng số liệu hoặc nhận định trong nội dung do mô hình tạo ra.
 
 \begin{figure}[H]
     \centering

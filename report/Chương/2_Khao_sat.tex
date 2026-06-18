@@ -196,8 +196,8 @@ Phần này đặc tả bảy use case cốt lõi của HustFlow được lựa 
 \ucfieldalt{Tiền điều kiện} & Người dùng đã đăng nhập và là thành viên của tổ chức tương ứng. \\ \hline
 \ucfield{Luồng sự kiện chính} & \uccell{\begin{enumerate}[leftmargin=*, nosep, itemsep=1pt]
   \item Người dùng chọn chức năng tạo bảng mới trên giao diện không gian làm việc của tổ chức.
-  \item Hệ thống hiển thị hộp thoại yêu cầu nhập tiêu đề bảng và chọn hình nền hoặc màu nền đại diện.
-  \item Người dùng nhập tiêu đề bảng, chọn hình nền hoặc màu nền và xác nhận gửi yêu cầu.
+  \item Hệ thống hiển thị hộp thoại yêu cầu nhập tiêu đề bảng và chọn ảnh nền.
+  \item Người dùng nhập tiêu đề bảng, chọn ảnh nền từ danh sách được cung cấp và xác nhận gửi yêu cầu.
   \item Hệ thống kiểm tra quyền hạn của người dùng trong tổ chức và truy xuất thông tin gói dịch vụ hiện tại.
   \item Hệ thống kiểm tra hạn mức số lượng bảng tối đa được phép tạo của gói dịch vụ.
   \item Nếu dữ liệu hợp lệ và tổ chức còn hạn mức, hệ thống tạo bảng trong cơ sở dữ liệu, gán người tạo làm quản trị viên bảng và liên kết bảng với tổ chức hiện tại.
@@ -338,7 +338,7 @@ Phần này đặc tả bảy use case cốt lõi của HustFlow được lựa 
   \item Hệ thống phát sự kiện thời gian thực để hiển thị bình luận mới trên giao diện của người dùng khác đang mở thẻ.
 \end{enumerate}} \\ \hline
 \ucfieldalt{Luồng sự kiện thay thế} & \uccell{\begin{enumerate}[leftmargin=*, nosep, itemsep=1pt]
-  \item[5a.] Nếu nội dung bình luận trống hoặc vượt quá giới hạn ký tự, hệ thống chặn gửi và yêu cầu người dùng chỉnh sửa.
+  \item[5a.] Nếu nội dung bình luận trống hoặc chỉ chứa khoảng trắng, hệ thống chặn gửi và yêu cầu người dùng nhập nội dung hợp lệ.
   \item[7a.] Nếu thành viên được nhắc tên không còn quyền truy cập thẻ, hệ thống vẫn lưu bình luận nhưng không tạo thông báo nhắc tên cho thành viên đó.
 \end{enumerate}} \\ \hline
 \ucfield{Hậu điều kiện} & Bình luận được hiển thị trong lịch sử thảo luận của thẻ, thông báo được gửi tới thành viên được nhắc tên và giao diện thảo luận được cập nhật thời gian thực. \\ \hline

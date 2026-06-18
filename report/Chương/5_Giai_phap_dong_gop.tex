@@ -143,7 +143,7 @@ Hệ thống cũng chưa cưỡng chế thứ tự hoàn thành. Khi người d�
 
 Thông tin công việc ban đầu thường tồn tại dưới dạng thư điện tử, tin nhắn hoặc biên bản họp. Nội dung này có thể chứa nhiều câu, ngày tháng tương đối, tên viết tắt và các đầu việc chưa được phân tách. Việc chuyển nội dung đó thành tiêu đề, mô tả, checklist, hạn hoàn thành, nhãn và người phụ trách đòi hỏi nhiều thao tác thủ công.
 
-Trong thiết kế HustFlow, mọi phản hồi từ dịch vụ AI được xem là dữ liệu đầu vào bên ngoài và không được ghi trực tiếp thành dữ liệu nghiệp vụ. Các trường hợp mà hệ thống chủ động phòng vệ gồm phản hồi sai cấu trúc JSON, định danh không thuộc bảng, đề xuất gán việc cho người chỉ có quyền xem, ngày không hợp lệ hoặc nội dung báo cáo không có căn cứ trong dữ liệu đã cung cấp. Vì vậy, AI chỉ tạo đề xuất và bản nháp; cơ sở dữ liệu cùng các quy tắc tất định tại máy chủ vẫn là nguồn dữ liệu chuẩn.
+Trong thiết kế HustFlow, mọi phản hồi từ dịch vụ AI được xem là dữ liệu đầu vào bên ngoài. Đối với các luồng có thể dẫn tới thay đổi dữ liệu, hệ thống không ghi trực tiếp phản hồi của mô hình mà thực hiện kiểm tra và yêu cầu người dùng xác nhận. Các trường hợp được kiểm soát bằng quy tắc tất định gồm phản hồi sai cấu trúc JSON, định danh không thuộc bảng, đề xuất gán việc cho thành viên không thuộc tập có thể nhận việc, chẳng hạn người có vai trò \texttt{VIEWER}, và ngày không hợp lệ. Đối với báo cáo AI, hệ thống giới hạn ngữ cảnh đầu vào, yêu cầu mô hình không tạo thông tin ngoài ngữ cảnh và kiểm tra cấu trúc phản hồi; tuy nhiên, cài đặt hiện tại chưa xác minh ngữ nghĩa từng nhận định hoặc số liệu trong báo cáo. Vì vậy, cơ sở dữ liệu và các quy tắc nghiệp vụ tại máy chủ vẫn là nguồn dữ liệu chuẩn, còn đầu ra AI cần được người dùng rà soát trước khi sử dụng.
 
 \subsection{Giải pháp đề xuất}
 \label{subsection:5.3.2}
@@ -165,16 +165,16 @@ Sau bước chuẩn hóa, Smart Capture chỉ trả về một bản nháp để
     \label{fig:chapter5_ai_guardrail_pipeline}
 \end{figure}
 
-Ba lớp kiểm soát được áp dụng đầy đủ cho luồng Smart Capture vì luồng này có thể dẫn tới thao tác ghi. Với gợi ý checklist và hỗ trợ mô tả, giai đoạn AI chỉ tạo nội dung để người dùng lựa chọn hoặc chỉnh sửa; việc lưu nội dung được thực hiện bằng thao tác nghiệp vụ riêng và tiếp tục được kiểm tra tại máy chủ. Đối với báo cáo bảng, máy chủ tổng hợp trước các chỉ số, phân bố công việc, thẻ quá hạn, tiến độ checklist và hoạt động gần đây. Mô hình chỉ diễn giải ngữ cảnh đã được giới hạn; phản hồi được Zod kiểm tra và không làm thay đổi dữ liệu nghiệp vụ.
+Ba lớp kiểm soát được áp dụng đầy đủ cho luồng Smart Capture vì luồng này có thể dẫn tới thao tác ghi. Với gợi ý checklist và hỗ trợ mô tả, giai đoạn AI chỉ tạo nội dung để người dùng lựa chọn hoặc chỉnh sửa; việc lưu nội dung được thực hiện bằng thao tác nghiệp vụ riêng và tiếp tục được kiểm tra tại máy chủ. Đối với báo cáo bảng, máy chủ tổng hợp trước các chỉ số, phân bố công việc, thẻ quá hạn, tiến độ checklist và hoạt động gần đây. Prompt yêu cầu mô hình diễn giải trong phạm vi ngữ cảnh này và phản hồi được Zod kiểm tra về cấu trúc, nhưng hệ thống chưa có bước đối chiếu tất định từng số liệu hoặc kết luận được tạo ra. Báo cáo AI không làm thay đổi dữ liệu nghiệp vụ.
 
 \subsection{Kết quả đạt được}
 \label{subsection:5.3.3}
 
-HustFlow đã triển khai bốn nhóm chức năng gồm Smart Capture, gợi ý checklist, hỗ trợ tạo và cải thiện mô tả thẻ, cùng báo cáo bảng. Mỗi nhóm sử dụng prompt, lược đồ kiểm tra và giới hạn đầu vào, đầu ra phù hợp với nhiệm vụ. Nội dung do mô hình tạo ra không được tự động coi là dữ liệu hợp lệ: Smart Capture cần người dùng xác nhận, các gợi ý nội dung cần được lựa chọn hoặc chỉnh sửa, còn báo cáo chỉ diễn giải dữ liệu do máy chủ chuẩn bị.
+HustFlow đã triển khai bốn nhóm chức năng gồm Smart Capture, gợi ý checklist, hỗ trợ tạo và cải thiện mô tả thẻ, cùng báo cáo bảng. Mỗi nhóm sử dụng prompt, lược đồ kiểm tra và giới hạn đầu vào, đầu ra phù hợp với nhiệm vụ. Nội dung do mô hình tạo ra không được tự động coi là dữ liệu hợp lệ: Smart Capture cần người dùng xác nhận, các gợi ý nội dung cần được lựa chọn hoặc chỉnh sửa, còn báo cáo được tạo từ ngữ cảnh do máy chủ chuẩn bị và vẫn cần người dùng rà soát.
 
 Đóng góp của giải pháp không nằm ở việc gọi mô hình ngôn ngữ, mà ở cách chuyển đầu ra có tính xác suất thành dữ liệu được kiểm soát. Ba lớp thu hẹp ngữ cảnh, kiểm tra--chuẩn hóa phản hồi và xác minh trước khi ghi giữ quyết định cuối cùng ở người dùng và các quy tắc nghiệp vụ phía máy chủ.
 
-Đồ án chưa thực hiện nghiên cứu người dùng để đo thời gian nhập liệu, tỷ lệ chấp nhận đề xuất hoặc chất lượng nội dung. Kết quả ngôn ngữ vẫn phụ thuộc vào mô hình, prompt và dữ liệu đầu vào; vì vậy, người dùng cần rà soát nội dung trước khi lưu hoặc sử dụng trong báo cáo.
+Đồ án chưa thực hiện nghiên cứu người dùng để đo thời gian nhập liệu, tỷ lệ chấp nhận đề xuất hoặc chất lượng nội dung. Kết quả ngôn ngữ vẫn phụ thuộc vào mô hình, prompt và dữ liệu đầu vào. Riêng với báo cáo AI, kiểm tra Zod chỉ xác nhận cấu trúc và giới hạn của phản hồi, không chứng minh tính đúng đắn của từng nhận định hoặc số liệu; mô hình vẫn có thể diễn giải sai hoặc đưa ra kết luận chưa được dữ liệu chứng minh đầy đủ. Vì vậy, người dùng cần rà soát nội dung trước khi lưu hoặc sử dụng trong báo cáo.
 
 %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 
