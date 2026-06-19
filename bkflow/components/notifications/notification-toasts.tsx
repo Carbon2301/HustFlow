@@ -1,17 +1,13 @@
 "use client";
 
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { format } from "date-fns";
-import { vi } from "date-fns/locale";
 import { Bell, Clock, X, LayoutDashboard, LayoutList, KanbanSquare } from "lucide-react";
-import { useRouter } from "next/navigation";
 
 import { cn, formatNotificationText } from "@/lib/utils";
-import { useCardModal } from "@/hooks/use-card-modal";
 import { useNotifications } from "@/hooks/use-notifications";
 import { NotificationItem } from "@/components/notifications/types";
-import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
+import { getReminderNotificationDisplay } from "@/components/notifications/notification-display";
+import { useOpenNotification } from "@/components/notifications/use-open-notification";
 
 const SHOWN_STORAGE_KEY = "shown-notification-toasts";
 const AUTO_DISMISS_MS = 5600;
@@ -42,22 +38,8 @@ const writeShownIds = (ids: string[]) => {
   window.localStorage.setItem(SHOWN_STORAGE_KEY, JSON.stringify(ids));
 };
 
-const formatNotificationTime = (date: string | null) => {
-  if (!date) {
-    return "";
-  }
-
-  try {
-    return format(new Date(date), "HH:mm", { locale: vi });
-  } catch {
-    return "";
-  }
-};
-
 export const NotificationToasts = () => {
-  const router = useRouter();
-  const cardModal = useCardModal();
-  const queryClient = useQueryClient();
+  const openNotificationTarget = useOpenNotification();
   const {
     unreadNotifications,
     isStorageReady,
@@ -213,35 +195,7 @@ export const NotificationToasts = () => {
   const openNotification = async (notification: NotificationItem) => {
     markAsRead(notification.id);
     dismissToast(notification.id);
-
-    if (notification.cardId) {
-      const toastId = toast.loading("Đang mở thẻ...");
-      try {
-        const response = await fetch(`/api/cards/${notification.cardId}`);
-        if (!response.ok) {
-          if (response.status === 404) {
-            toast.error("Thẻ không tồn tại hoặc đã bị xóa.", { id: toastId });
-          } else if (response.status === 403) {
-            toast.error("Bạn không có quyền truy cập thẻ này.", { id: toastId });
-          } else {
-            toast.error("Có lỗi xảy ra khi tải dữ liệu thẻ.", { id: toastId });
-          }
-          return;
-        }
-
-        const data = await response.json();
-        queryClient.setQueryData(["card", notification.cardId], data);
-        toast.dismiss(toastId);
-        cardModal.onOpen(notification.cardId);
-      } catch (err) {
-        toast.error("Có lỗi xảy ra khi tải dữ liệu thẻ.", { id: toastId });
-      }
-      return;
-    }
-
-    if (notification.boardId) {
-      router.push(`/board/${notification.boardId}`);
-    }
+    await openNotificationTarget(notification);
   };
 
   if (visibleToasts.length === 0) {
@@ -253,6 +207,9 @@ export const NotificationToasts = () => {
       {visibleToasts.map((toast) => {
         const formatted = formatNotificationText(toast.item.title, toast.item.message);
         const isReminder = toast.item.type === "CARD_REMINDER";
+        const reminderDisplay = isReminder
+          ? getReminderNotificationDisplay(toast.item)
+          : null;
         return (
           <div
             key={toast.item.id}
@@ -279,7 +236,7 @@ export const NotificationToasts = () => {
               <div className="min-w-0 flex-1">
                 <div className="flex items-start justify-between gap-x-3">
                   <p className="truncate text-sm font-bold text-slate-900">
-                    {isReminder ? "Thẻ sắp đến hạn" : formatted.title}
+                    {reminderDisplay?.title ?? formatted.title}
                   </p>
                   <button
                     type="button"
@@ -295,11 +252,7 @@ export const NotificationToasts = () => {
                 </div>
                 {isReminder ? (
                   <p className="mt-1 text-sm leading-snug text-slate-600">
-                    Thẻ{" "}
-                    <span className="font-semibold text-slate-900">
-                      &quot;{toast.item.cardTitle}&quot;
-                    </span>{" "}
-                    sẽ hết hạn lúc {formatNotificationTime(toast.item.dueDate)}
+                    {reminderDisplay?.message ?? formatted.message}
                   </p>
                 ) : (
                   <p className="mt-1 line-clamp-2 text-sm leading-snug text-slate-600">

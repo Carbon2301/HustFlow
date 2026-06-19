@@ -54,17 +54,19 @@ export const createNotification = async ({
     let notification: Notification;
 
     if (dedupeKey) {
-      const existingUnreadNotification = await db.notification.findFirst({
+      const existingNotification = await db.notification.findFirst({
         where: {
           dedupeKey,
-          readAt: null,
+          ...(type === NOTIFICATION_TYPE.CARD_REMINDER
+            ? {}
+            : { readAt: null }),
         },
         select: {
           id: true,
         },
       });
 
-      if (existingUnreadNotification) {
+      if (existingNotification) {
         return;
       }
 

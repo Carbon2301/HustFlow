@@ -42,9 +42,17 @@ export type NotificationCreatedPayload = {
   message: string;
   actor?: RealtimeActor | null;
   boardId?: string | null;
+  boardTitle?: string | null;
   cardId?: string | null;
+  cardTitle?: string | null;
+  listTitle?: string | null;
   commentId?: string | null;
+  dueDate?: string | null;
+  triggerTime?: string | null;
+  reminderLabel?: string | null;
+  dedupeKey?: string | null;
   createdAt: string;
+  updatedAt: string;
   invalidate: RealtimeQueryInvalidation[];
 };
 

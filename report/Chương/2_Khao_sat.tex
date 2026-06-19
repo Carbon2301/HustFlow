@@ -394,23 +394,28 @@ Phần này đặc tả bảy use case cốt lõi của HustFlow được lựa 
 \ucfield{Mã use case} & UC007 \\ \hline
 \ucfield{Tên use case} & Tạo thẻ tự động từ văn bản thô \\ \hline
 \ucfield{Tác nhân} & Thành viên bảng, quản trị viên bảng, trợ lý AI \\ \hline
-\ucfieldalt{Tiền điều kiện} & Hệ thống kết nối bình thường với dịch vụ API trí tuệ nhân tạo và người dùng có quyền chỉnh sửa trên bảng. \\ \hline
+\ucfieldalt{Tiền điều kiện} & Người dùng có quyền chỉnh sửa trên bảng và bảng hiện tại có ít nhất một danh sách đang hoạt động để tạo thẻ. \\ \hline
 \ucfield{Luồng sự kiện chính} & \uccell{\begin{enumerate}[leftmargin=*, nosep, itemsep=1pt]
-  \item Người dùng chọn chức năng tạo thẻ bằng AI tại một danh sách trong bảng.
+  \item Người dùng chọn chức năng tạo thẻ bằng AI trên bảng công việc.
   \item Hệ thống hiển thị hộp thoại yêu cầu nhập văn bản mô tả công việc tự do.
   \item Người dùng nhập văn bản mô tả và yêu cầu AI phân tích.
-  \item Hệ thống đóng gói yêu cầu cùng ngữ cảnh bảng hiện tại và gửi tới dịch vụ trợ lý AI.
-  \item Trợ lý AI phân tích nội dung và trả về dữ liệu có cấu trúc gồm tiêu đề đề xuất, mô tả chuẩn hóa và danh sách checklist gợi ý.
-  \item Hệ thống kiểm tra định dạng dữ liệu trả về và hiển thị bản nháp thẻ cho người dùng xem trước.
-  \item Người dùng rà soát, chỉnh sửa bản nháp nếu cần, chọn danh sách đích và xác nhận tạo thẻ.
-  \item Hệ thống lưu thẻ công việc và các mục checklist mới vào cơ sở dữ liệu, ghi nhật ký hoạt động và thông báo thành công.
+  \item Hệ thống kiểm tra quyền chỉnh sửa, kiểm tra độ dài nội dung đầu vào, đóng gói yêu cầu cùng ngữ cảnh bảng hiện tại và gửi tới dịch vụ trợ lý AI.
+  \item Trợ lý AI phân tích nội dung và trả về bản nháp có cấu trúc gồm tiêu đề, mô tả, danh sách checklist gợi ý và có thể kèm hạn chót, người phụ trách, nhãn hoặc danh sách đích.
+  \item Hệ thống kiểm tra, chuẩn hóa dữ liệu trả về; các giá trị không hợp lệ bị loại bỏ hoặc thay bằng giá trị dự phòng, sau đó bản nháp thẻ được hiển thị cho người dùng xem trước.
+  \item Người dùng rà soát, chỉnh sửa tiêu đề, mô tả, checklist, hạn chót, người phụ trách, nhãn và danh sách đích nếu cần rồi xác nhận tạo thẻ.
+  \item Hệ thống kiểm tra lại quyền chỉnh sửa và danh sách đích, lưu thẻ công việc cùng các checklist, người phụ trách và nhãn hợp lệ vào cơ sở dữ liệu.
+  \item Hệ thống ghi nhật ký hoạt động, phát sự kiện đồng bộ thời gian thực, làm mới dữ liệu bảng, mở thẻ vừa tạo và thông báo thành công.
 \end{enumerate}} \\ \hline
 \ucfieldalt{Luồng sự kiện thay thế} & \uccell{\begin{enumerate}[leftmargin=*, nosep, itemsep=1pt]
-  \item[4a.] Nếu dịch vụ AI lỗi, quá tải hoặc quá thời gian phản hồi, hệ thống thông báo dịch vụ bận và cho phép người dùng thử lại hoặc tạo thẻ thủ công.
-  \item[5a.] Nếu kết quả trả về không đúng cấu trúc yêu cầu, hệ thống báo lỗi xử lý và cho phép gửi lại yêu cầu phân tích.
+  \item[3a.] Nếu nội dung trống hoặc vượt quá giới hạn cho phép, hệ thống chặn yêu cầu phân tích và hiển thị thông báo lỗi phù hợp.
+  \item[4a.] Nếu người dùng không còn quyền chỉnh sửa hoặc bảng không có danh sách đang hoạt động, hệ thống từ chối thao tác.
+  \item[4b.] Nếu dịch vụ AI lỗi, quá tải hoặc quá thời gian phản hồi, hệ thống hiển thị thông báo lỗi và cho phép người dùng thử lại hoặc tạo thẻ thủ công.
+  \item[5a.] Nếu kết quả trả về không đúng cấu trúc JSON yêu cầu, hệ thống báo lỗi xử lý và cho phép gửi lại yêu cầu phân tích.
+  \item[6a.] Nếu một số gợi ý như người phụ trách, nhãn hoặc danh sách đích không hợp lệ, hệ thống bỏ qua các gợi ý đó hoặc thay bằng giá trị mặc định trong phạm vi bảng.
   \item[7a.] Nếu người dùng hủy bản nháp, hệ thống không tạo thẻ mới.
+  \item[8a.] Nếu danh sách đích không còn tồn tại khi người dùng xác nhận, hệ thống từ chối lưu và yêu cầu chọn lại danh sách.
 \end{enumerate}} \\ \hline
-\ucfield{Hậu điều kiện} & Thẻ công việc và các mục checklist tương ứng được tạo trong danh sách của bảng sau khi người dùng phê duyệt bản nháp do AI tạo ra. \\ \hline
+\ucfield{Hậu điều kiện} & Sau khi người dùng phê duyệt bản nháp, thẻ công việc được tạo trong danh sách đã chọn; các checklist, người phụ trách và nhãn hợp lệ được gắn vào thẻ, nhật ký hoạt động được ghi nhận và dữ liệu bảng được cập nhật. \\ \hline
 \end{longtable}
 \endgroup
 \arrayrulecolor{black}

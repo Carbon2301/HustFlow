@@ -90,7 +90,7 @@ export const CardModal = () => {
   const { data: cardData, error, isError } = useQuery<CardWithList>({
     queryKey: ["card", id],
     queryFn: () => fetcher(`/api/cards/${id}`),
-    enabled: !!id,
+    enabled: !!id && isOpen,
   });
 
   useEffect(() => {
@@ -110,20 +110,24 @@ export const CardModal = () => {
   const { data: auditLogsData } = useQuery<AuditLog[]>({
     queryKey: ["card-logs", id],
     queryFn: () => fetcher(`/api/cards/${id}/logs`),
-    enabled: !!id,
+    enabled: !!id && isOpen,
   });
 
   const { data: commentsData } = useQuery<CardCommentWithReplies[]>({
     queryKey: ["card-comments", id],
     queryFn: () => fetcher(`/api/cards/${id}/comments`),
-    enabled: !!id,
+    enabled: !!id && isOpen,
   });
   const canEdit = cardData?.currentMemberRole !== BoardMemberRole.VIEWER;
 
   return (
     <Dialog
       open={isOpen}
-      onOpenChange={onClose}
+      onOpenChange={(open) => {
+        if (!open) {
+          onClose();
+        }
+      }}
     >
       <CardRealtimeSync cardId={id} isOpen={isOpen} />
       <DialogContent

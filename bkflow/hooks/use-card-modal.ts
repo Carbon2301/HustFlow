@@ -32,7 +32,6 @@ export const useCardModal = create<CardModalStore>((set, get) => ({
 
     set({
       isOpen: false,
-      id: undefined,
       targetChecklistItemId: undefined,
       closeCallback: undefined,
     });

@@ -1,7 +1,6 @@
 "use client";
 
 import { useState } from "react";
-import { useRouter } from "next/navigation";
 import {
   Bell,
   CheckSquare,
@@ -17,7 +16,7 @@ import {
   UserPlus,
   Users,
 } from "lucide-react";
-import { format, formatDistanceToNow, isPast } from "date-fns";
+import { formatDistanceToNow } from "date-fns";
 import { vi } from "date-fns/locale";
 
 import {
@@ -28,11 +27,13 @@ import {
 import { Button } from "@/components/ui/button";
 import { Hint } from "@/components/hint";
 import { cn, formatNotificationText } from "@/lib/utils";
-import { useCardModal } from "@/hooks/use-card-modal";
 import { useNotifications } from "@/hooks/use-notifications";
 import { NotificationItem } from "@/components/notifications/types";
-import { toast } from "sonner";
-import { useQueryClient } from "@tanstack/react-query";
+import {
+  formatNotificationDateTime,
+  getReminderNotificationDisplay,
+} from "@/components/notifications/notification-display";
+import { useOpenNotification } from "@/components/notifications/use-open-notification";
 
 const getNotificationIcon = (type: NotificationItem["type"]) => {
   switch (type) {
@@ -52,42 +53,8 @@ const getNotificationIcon = (type: NotificationItem["type"]) => {
   }
 };
 
-const formatDueDate = (dateStr: string | null) => {
-  if (!dateStr) {
-    return "";
-  }
-
-  try {
-    return format(new Date(dateStr), "dd/MM/yyyy 'lúc' HH:mm", {
-      locale: vi,
-    });
-  } catch {
-    return "";
-  }
-};
-
-const formatReminderStatus = (dueDateStr: string | null) => {
-  if (!dueDateStr) {
-    return { text: "", overdue: false };
-  }
-
-  try {
-    const due = new Date(dueDateStr);
-    const overdue = isPast(due);
-    const relative = formatDistanceToNow(due, { locale: vi });
-    if (overdue) {
-      return { text: `Quá hạn ${relative} trước`, overdue: true };
-    }
-    return { text: `Còn ${relative} nữa đến hạn`, overdue: false };
-  } catch {
-    return { text: "", overdue: false };
-  }
-};
-
 export const NotificationsPopover = () => {
-  const router = useRouter();
-  const cardModal = useCardModal();
-  const queryClient = useQueryClient();
+  const openNotification = useOpenNotification();
   const [open, setOpen] = useState(false);
   const [onlyUnread, setOnlyUnread] = useState(true);
   const [currentPage, setCurrentPage] = useState(1);
@@ -135,85 +102,7 @@ export const NotificationsPopover = () => {
     }
 
     setOpen(false);
-
-    if (notification.boardId && notification.cardId) {
-      const toastId = toast.loading("Đang mở thẻ...");
-
-      try {
-        const response = await fetch(`/api/cards/${notification.cardId}`);
-
-        if (!response.ok) {
-          if (response.status === 404) {
-            toast.error("Thẻ không tồn tại hoặc đã bị xóa.", { id: toastId });
-          } else if (response.status === 403) {
-            toast.error("Bạn không có quyền truy cập thẻ này.", { id: toastId });
-          } else {
-            toast.error("Có lỗi xảy ra khi tải dữ liệu thẻ.", { id: toastId });
-          }
-          return;
-        }
-
-        const data = await response.json();
-        const boardId = data?.list?.boardId || notification.boardId;
-        queryClient.setQueryData(["card", notification.cardId], data);
-        toast.dismiss(toastId);
-        router.push(`/board/${boardId}?cardId=${notification.cardId}`);
-      } catch {
-        toast.error("Có lỗi xảy ra khi tải dữ liệu thẻ.", { id: toastId });
-      }
-      return;
-    }
-
-    if (notification.boardId) {
-      const toastId = toast.loading("Đang mở bảng...");
-
-      try {
-        const response = await fetch(`/api/boards/${notification.boardId}`);
-
-        if (!response.ok) {
-          if (response.status === 404) {
-            toast.error("Bảng không tồn tại hoặc đã bị xóa.", { id: toastId });
-          } else if (response.status === 403) {
-            toast.error("Bạn không có quyền truy cập bảng này.", { id: toastId });
-          } else {
-            toast.error("Có lỗi xảy ra khi tải dữ liệu bảng.", { id: toastId });
-          }
-          return;
-        }
-
-        toast.dismiss(toastId);
-        router.push(`/board/${notification.boardId}`);
-      } catch {
-        toast.error("Có lỗi xảy ra khi tải dữ liệu bảng.", { id: toastId });
-      }
-      return;
-    }
-
-    if (notification.cardId) {
-      const toastId = toast.loading("Đang mở thẻ...");
-      try {
-        const response = await fetch(`/api/cards/${notification.cardId}`);
-        if (!response.ok) {
-          if (response.status === 404) {
-            toast.error("Thẻ không tồn tại hoặc đã bị xóa.", { id: toastId });
-          } else if (response.status === 403) {
-            toast.error("Bạn không có quyền truy cập thẻ này.", { id: toastId });
-          } else {
-            toast.error("Có lỗi xảy ra khi tải dữ liệu thẻ.", { id: toastId });
-          }
-          return;
-        }
-
-        const data = await response.json();
-        queryClient.setQueryData(["card", notification.cardId], data);
-        toast.dismiss(toastId);
-        cardModal.onOpen(notification.cardId);
-      } catch {
-        toast.error("Có lỗi xảy ra khi tải dữ liệu thẻ.", { id: toastId });
-      }
-      return;
-    }
-
+    await openNotification(notification);
   };
 
   const getPageNumbers = () => {
@@ -256,9 +145,9 @@ export const NotificationsPopover = () => {
       <PopoverContent
         align="end"
         sideOffset={10}
-        className="flex w-[420px] flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white p-0 shadow-2xl"
+        className="flex max-h-[calc(100vh-5rem)] w-[min(calc(100vw-2rem),420px)] flex-col overflow-hidden rounded-xl border border-neutral-200 bg-white p-0 shadow-2xl"
       >
-        <div className="flex items-center justify-between border-b border-neutral-100 bg-neutral-50/50 px-5 py-4">
+        <div className="flex shrink-0 items-center justify-between border-b border-neutral-100 bg-neutral-50/50 px-5 py-4">
           <h3 className="text-lg font-semibold text-neutral-800">
             Thông báo
           </h3>
@@ -297,9 +186,9 @@ export const NotificationsPopover = () => {
           </div>
         </div>
 
-        <div className="flex min-h-[300px] flex-1 flex-col justify-between p-4">
+        <div className="flex min-h-0 flex-1 flex-col p-4">
           {isLoading ? (
-            <div className="my-auto flex flex-col gap-y-3">
+            <div className="my-auto flex min-h-[240px] flex-col gap-y-3">
               {[1, 2, 3].map((index) => (
                 <div
                   key={index}
@@ -317,16 +206,19 @@ export const NotificationsPopover = () => {
               </p>
             </div>
           ) : (
-            <div className="flex flex-col gap-y-3">
-              <ul className="space-y-2.5">
+            <div className="flex min-h-0 flex-1 flex-col gap-y-3">
+              <ul className="min-h-0 flex-1 space-y-2.5 overflow-y-auto pr-1">
                 {paginatedNotifications.map((notification) => {
                   const notificationIsRead = isRead(notification.id);
                   const Icon = getNotificationIcon(notification.type);
                   const formatted = formatNotificationText(notification.title, notification.message);
                   const isReminder = notification.type === "CARD_REMINDER";
-                  const { text: reminderText, overdue } = formatReminderStatus(
-                    notification.dueDate,
-                  );
+                  const reminderDisplay = isReminder
+                    ? getReminderNotificationDisplay(notification)
+                    : null;
+                  const dueDateText = isReminder
+                    ? formatNotificationDateTime(notification.dueDate)
+                    : null;
 
                   return (
                     <li
@@ -355,7 +247,7 @@ export const NotificationsPopover = () => {
                           </span>
                           <div className="min-w-0 flex-1">
                             <p className="truncate text-sm font-semibold text-neutral-900">
-                              {formatted.title}
+                              {reminderDisplay?.title ?? formatted.title}
                             </p>
                             {!isReminder ? (
                               <p className="mt-0.5 line-clamp-2 text-xs leading-5 text-neutral-600">
@@ -363,54 +255,62 @@ export const NotificationsPopover = () => {
                               </p>
                             ) : (
                               <div className="mt-1 space-y-1.5">
-                                <div className="flex items-center gap-x-1.5 text-[12px] text-neutral-500">
-                                  <Clock className="h-3 w-3 flex-shrink-0 text-rose-400" />
-                                  <span>
-                                    Hết hạn:{" "}
-                                    <span className="font-medium text-rose-500">
-                                      {formatDueDate(notification.dueDate)}
+                                {dueDateText ? (
+                                  <div className="flex items-center gap-x-1.5 text-[12px] text-neutral-500">
+                                    <Clock className="h-3 w-3 flex-shrink-0 text-rose-400" />
+                                    <span>
+                                      Hết hạn:{" "}
+                                      <span className="font-medium text-rose-500">
+                                        {dueDateText}
+                                      </span>
                                     </span>
-                                  </span>
-                                </div>
+                                  </div>
+                                ) : (
+                                  <p className="line-clamp-2 text-xs leading-5 text-neutral-600">
+                                    {reminderDisplay?.message ?? formatted.message}
+                                  </p>
+                                )}
 
-                                <div className="flex flex-wrap items-center gap-x-1.5 text-[12px] text-neutral-500">
-                                  {notification.boardTitle && (
-                                    <>
-                                      <LayoutDashboard className="h-3 w-3 flex-shrink-0 text-violet-400" />
-                                      <span className="truncate font-medium text-violet-600">
-                                        {notification.boardTitle}
-                                      </span>
-                                    </>
-                                  )}
-                                  {notification.listTitle && (
-                                    <>
-                                      <span className="text-neutral-300">/</span>
-                                      <LayoutList className="h-3 w-3 flex-shrink-0 text-neutral-400" />
-                                      <span className="truncate font-medium text-neutral-700">
-                                        {notification.listTitle}
-                                      </span>
-                                    </>
-                                  )}
-                                  {notification.cardTitle && (
-                                    <>
-                                      <span className="text-neutral-300">/</span>
-                                      <KanbanSquare className="h-3 w-3 flex-shrink-0 text-neutral-400" />
-                                      <span className="truncate">{notification.cardTitle}</span>
-                                    </>
-                                  )}
-                                </div>
+                                {(notification.boardTitle || notification.listTitle || notification.cardTitle) && (
+                                  <div className="flex flex-wrap items-center gap-x-1.5 text-[12px] text-neutral-500">
+                                    {notification.boardTitle && (
+                                      <>
+                                        <LayoutDashboard className="h-3 w-3 flex-shrink-0 text-violet-400" />
+                                        <span className="truncate font-medium text-violet-600">
+                                          {notification.boardTitle}
+                                        </span>
+                                      </>
+                                    )}
+                                    {notification.listTitle && (
+                                      <>
+                                        <span className="text-neutral-300">/</span>
+                                        <LayoutList className="h-3 w-3 flex-shrink-0 text-neutral-400" />
+                                        <span className="truncate font-medium text-neutral-700">
+                                          {notification.listTitle}
+                                        </span>
+                                      </>
+                                    )}
+                                    {notification.cardTitle && (
+                                      <>
+                                        <span className="text-neutral-300">/</span>
+                                        <KanbanSquare className="h-3 w-3 flex-shrink-0 text-neutral-400" />
+                                        <span className="truncate">{notification.cardTitle}</span>
+                                      </>
+                                    )}
+                                  </div>
+                                )}
 
-                                {reminderText && (
+                                {reminderDisplay?.statusText && (
                                   <div
                                     className={cn(
                                       "inline-flex items-center gap-x-1.5 rounded-full border px-2 py-0.5 text-[11px] font-medium",
-                                      overdue
+                                      reminderDisplay.overdue
                                         ? "border-red-100 bg-red-50 text-red-600"
                                         : "border-amber-100 bg-amber-50 text-amber-600",
                                     )}
                                   >
                                     <Clock className="h-2.5 w-2.5" />
-                                    {reminderText}
+                                    {reminderDisplay.statusText}
                                   </div>
                                 )}
                               </div>
@@ -496,7 +396,7 @@ export const NotificationsPopover = () => {
               </ul>
 
               {totalPages > 1 && (
-                <div className="mt-1 flex items-center justify-center gap-x-1 border-t border-neutral-100 pt-3">
+                <div className="mt-1 flex shrink-0 items-center justify-center gap-x-1 border-t border-neutral-100 pt-3">
                   <Button
                     onClick={() => setCurrentPage((page) => Math.max(1, page - 1))}
                     disabled={currentPage === 1}

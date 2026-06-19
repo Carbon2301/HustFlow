@@ -52,12 +52,66 @@ export const useNotifications = () => {
   const { mutate: markNotification } = useMutation({
     mutationFn: ({ id, read }: { id: string; read: boolean }) =>
       patchNotification(id, read),
-    onSuccess: invalidateNotifications,
+    onMutate: async ({ id, read }) => {
+      await queryClient.cancelQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
+
+      const previousNotifications =
+        queryClient.getQueryData<NotificationItem[]>(NOTIFICATIONS_QUERY_KEY);
+      const readAt = read ? new Date().toISOString() : null;
+
+      queryClient.setQueryData<NotificationItem[]>(
+        NOTIFICATIONS_QUERY_KEY,
+        (currentNotifications = []) =>
+          currentNotifications.map((notification) =>
+            notification.id === id
+              ? { ...notification, readAt }
+              : notification,
+          ),
+      );
+
+      return { previousNotifications };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousNotifications) {
+        queryClient.setQueryData(
+          NOTIFICATIONS_QUERY_KEY,
+          context.previousNotifications,
+        );
+      }
+    },
+    onSettled: invalidateNotifications,
   });
 
   const { mutate: markAllNotifications } = useMutation({
     mutationFn: patchAllNotificationsRead,
-    onSuccess: invalidateNotifications,
+    onMutate: async () => {
+      await queryClient.cancelQueries({ queryKey: NOTIFICATIONS_QUERY_KEY });
+
+      const previousNotifications =
+        queryClient.getQueryData<NotificationItem[]>(NOTIFICATIONS_QUERY_KEY);
+      const readAt = new Date().toISOString();
+
+      queryClient.setQueryData<NotificationItem[]>(
+        NOTIFICATIONS_QUERY_KEY,
+        (currentNotifications = []) =>
+          currentNotifications.map((notification) =>
+            notification.readAt
+              ? notification
+              : { ...notification, readAt },
+          ),
+      );
+
+      return { previousNotifications };
+    },
+    onError: (_error, _variables, context) => {
+      if (context?.previousNotifications) {
+        queryClient.setQueryData(
+          NOTIFICATIONS_QUERY_KEY,
+          context.previousNotifications,
+        );
+      }
+    },
+    onSettled: invalidateNotifications,
   });
 
   const unreadNotifications = useMemo(

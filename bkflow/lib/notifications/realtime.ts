@@ -28,9 +28,17 @@ export const triggerNotificationCreated = async (
             }
           : null,
         boardId: notification.boardId,
+        boardTitle: notification.boardTitle,
         cardId: notification.cardId,
+        cardTitle: notification.cardTitle,
+        listTitle: notification.listTitle,
         commentId: notification.commentId,
+        dueDate: notification.dueDate?.toISOString() ?? null,
+        triggerTime: notification.triggerTime?.toISOString() ?? null,
+        reminderLabel: notification.reminderLabel,
+        dedupeKey: notification.dedupeKey,
         createdAt: notification.createdAt.toISOString(),
+        updatedAt: notification.updatedAt.toISOString(),
         invalidate: [
           {
             queryKey: ["notifications"],

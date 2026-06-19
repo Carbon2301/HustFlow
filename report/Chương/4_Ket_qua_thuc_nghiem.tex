@@ -640,7 +640,7 @@ Các quan hệ sở hữu sử dụng \texttt{onDelete: Cascade}. Vì vậy, khi
 \subsection{Thư viện và công cụ sử dụng}
 \label{subsection:4.3.1}
 
-Các công cụ và thư viện trong Bảng \ref{table:chapter4_tools} được lựa chọn theo vai trò trực tiếp trong quá trình phát triển hoặc vận hành HustFlow; các package giao diện phụ trợ nhỏ không được liệt kê riêng. Phiên bản Node.js, npm, Visual Studio Code và Git được lấy từ công cụ dòng lệnh; phiên bản thư viện được đối chiếu với cây phụ thuộc đã cài đặt và \texttt{package-lock.json}; phiên bản MySQL được truy vấn bằng \texttt{SELECT VERSION()}. Kết quả được ghi nhận ngày 20/06/2026.
+Các công cụ và thư viện trong Bảng \ref{table:chapter4_tools} được lựa chọn theo vai trò trực tiếp trong quá trình phát triển hoặc vận hành HustFlow; các package giao diện phụ trợ nhỏ không được liệt kê riêng. Phiên bản Node.js, npm, Visual Studio Code và Git được lấy từ công cụ dòng lệnh; phiên bản thư viện được đối chiếu với cây phụ thuộc đã cài đặt và \texttt{package-lock.json}; phiên bản MySQL được truy vấn bằng \texttt{SELECT VERSION()}.
 
 \begingroup
 \scriptsize
@@ -677,7 +677,7 @@ Các công cụ và thư viện trong Bảng \ref{table:chapter4_tools} được
 \end{longtable}
 \endgroup
 
-Tên mô hình OpenAI không được xem là phiên bản thư viện cố định. Mã nguồn đọc mô hình từ biến \texttt{OPENAI\_MODEL} và chỉ dùng \texttt{gpt-4o-mini} khi biến này không được khai báo. Dự án hiện chưa cấu hình framework kiểm thử tự động như Jest, Vitest hoặc Playwright; \texttt{npm run lint} và \texttt{npm run build} chỉ cung cấp kiểm tra tĩnh, kiểm tra kiểu và khả năng biên dịch, không thay thế các ca kiểm thử chức năng được trình bày tại phần \ref{section:4.4}.
+Dự án hiện chưa cấu hình framework kiểm thử tự động như Jest, Vitest hoặc Playwright; \texttt{npm run lint} và \texttt{npm run build} chỉ cung cấp kiểm tra tĩnh, kiểm tra kiểu và khả năng biên dịch, không thay thế các ca kiểm thử chức năng được trình bày tại phần \ref{section:4.4}.
 
 \subsection{Kết quả đạt được}
 \label{subsection:4.3.2}
@@ -702,7 +702,7 @@ Bảng \ref{table:chapter4_artifacts} ghi nhận dung lượng ngày 20/06/2026.
 
 \begin{table}[H]
     \centering
-    \caption{Dung lượng các thành phần bàn giao của HustFlow ghi nhận ngày 20/06/2026}
+    \caption{Dung lượng các thành phần bàn giao của HustFlow}
     \label{table:chapter4_artifacts}
     \begin{tabularx}{\linewidth}{|p{0.27\linewidth}|p{0.14\linewidth}|p{0.20\linewidth}|X|}
         \hline
@@ -714,11 +714,11 @@ Bảng \ref{table:chapter4_artifacts} ghi nhận dung lượng ngày 20/06/2026.
 
 \subsubsection{Thống kê mã nguồn}
 
-Thống kê trong Bảng \ref{table:chapter4_source_stats} được ghi nhận ngày 20/06/2026 và phản ánh trạng thái kho mã nguồn tại thời điểm đo. Các số liệu có thể khác với cây làm việc ở thời điểm người đọc đối chiếu nếu mã nguồn tiếp tục được cập nhật. Phạm vi thống kê chỉ tính các file \texttt{.ts}, \texttt{.tsx}, \texttt{.css} và \texttt{.prisma} thuộc phạm vi quản lý phiên bản trong thư mục ứng dụng. Thư mục \texttt{node\_modules}, sản phẩm build \texttt{.next}, file khóa gói và tài nguyên ảnh không được tính. Số dòng là số dòng vật lý, được xác định bằng số ký tự xuống dòng cộng một đối với mỗi file không rỗng.
+Thống kê trong Bảng \ref{table:chapter4_source_stats} được ghi nhận và phản ánh trạng thái kho mã nguồn tại thời điểm đo. Các số liệu có thể khác với cây làm việc ở thời điểm người đọc đối chiếu nếu mã nguồn tiếp tục được cập nhật. Phạm vi thống kê chỉ tính các file \texttt{.ts}, \texttt{.tsx}, \texttt{.css} và \texttt{.prisma} thuộc phạm vi quản lý phiên bản trong thư mục ứng dụng. Thư mục \texttt{node\_modules}, sản phẩm build \texttt{.next}, file khóa gói và tài nguyên ảnh không được tính. Số dòng là số dòng vật lý, được xác định bằng số ký tự xuống dòng cộng một đối với mỗi file không rỗng.
 
 \begin{table}[H]
     \centering
-    \caption{Thống kê mã nguồn HustFlow ghi nhận ngày 20/06/2026}
+    \caption{Thống kê mã nguồn HustFlow}
     \label{table:chapter4_source_stats}
     \begin{tabular}{|l|r|r|r|}
         \hline
@@ -731,11 +731,11 @@ Thống kê trong Bảng \ref{table:chapter4_source_stats} được ghi nhận n
     \end{tabular}
 \end{table}
 
-Các chỉ số cấu trúc bổ sung, được ghi nhận cùng ngày 20/06/2026, được trình bày trong Bảng \ref{table:chapter4_structure_stats}. Do HustFlow chủ yếu sử dụng component hàm, hook và service thay cho hệ thống lớp hướng đối tượng, số file TSX và số mô-đun nghiệp vụ được dùng để phản ánh quy mô cấu trúc thay cho chỉ tiêu ``số lớp''.
+Các chỉ số cấu trúc bổ sung được trình bày trong Bảng \ref{table:chapter4_structure_stats}. Do HustFlow chủ yếu sử dụng component hàm, hook và service thay cho hệ thống lớp hướng đối tượng, số file TSX và số mô-đun nghiệp vụ được dùng để phản ánh quy mô cấu trúc thay cho chỉ tiêu ``số lớp''.
 
 \begin{table}[H]
     \centering
-    \caption{Thống kê cấu trúc mô-đun của ứng dụng ghi nhận ngày 20/06/2026}
+    \caption{Thống kê cấu trúc mô-đun của ứng dụng}
     \label{table:chapter4_structure_stats}
     \begin{tabularx}{\linewidth}{|p{0.35\linewidth}|r|X|}
         \hline
@@ -854,8 +854,6 @@ Bảng \ref{table:chapter4_functional_tests} trình bày chín ca kiểm thử c
 \label{subsection:4.4.3}
 
 Kết quả cho thấy cả chín ca kiểm thử chức năng đều đạt, không có ca không đạt, tương ứng tỷ lệ đạt 100\%. Các ca phủ định được xem là đạt khi hệ thống từ chối đúng thao tác không hợp lệ và giữ nguyên dữ liệu. Do không phát sinh ca thất bại nên phần này không có nguyên nhân lỗi cần phân tích.
-
-Ngoài kiểm thử chức năng, hai kiểm tra kỹ thuật được thực hiện trên mã nguồn. Lệnh \texttt{npm run build} hoàn tất quá trình biên dịch production và kiểm tra kiểu TypeScript. Lệnh \texttt{npm run lint} hoàn tất với 0 lỗi và 3 cảnh báo về mã chưa sử dụng; các cảnh báo không làm lệnh thất bại. Hai kết quả này đều được đánh giá đạt nhưng không được tính vào chín ca kiểm thử chức năng.
 
 \section{Triển khai}
 \label{section:4.5}
