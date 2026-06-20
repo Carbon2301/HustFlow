@@ -1,5 +1,7 @@
 import "server-only";
 
+import { logger } from "@/lib/logger";
+
 import { AI_MODEL, AI_REQUEST_TIMEOUT_MS } from "./config";
 
 type GenerateAiTextInput = {
@@ -67,7 +69,16 @@ export const generateAiText = async ({
     const payload = (await response.json().catch(() => null)) as ChatCompletionResponse | null;
 
     if (!response.ok) {
-      console.error("[OPENAI_CHAT_COMPLETION_ERROR]", payload);
+      logger.error(
+        "[OPENAI_CHAT_COMPLETION_ERROR]",
+        new Error(payload?.error?.message ?? `OpenAI returned ${response.status}`),
+        {
+          action: "openai-chat-completion",
+          aiFeature: "shared-generate-text",
+          aiModel: AI_MODEL,
+          status: response.status,
+        },
+      );
       throw new Error("AI chưa phản hồi thành công. Vui lòng thử lại.");
     }
 
@@ -80,6 +91,13 @@ export const generateAiText = async ({
     return content;
   } catch (error) {
     if (error instanceof Error && error.name === "AbortError") {
+      logger.warn("[OPENAI_CHAT_COMPLETION_TIMEOUT]", {
+        action: "openai-chat-completion",
+        aiFeature: "shared-generate-text",
+        aiModel: AI_MODEL,
+        timeoutMs: AI_REQUEST_TIMEOUT_MS,
+      });
+
       throw new Error("AI phản hồi quá lâu. Vui lòng thử lại.");
     }
 

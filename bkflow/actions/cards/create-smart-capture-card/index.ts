@@ -8,6 +8,7 @@ import { createAuditLog } from "@/lib/create-audit-log";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { isAssignableBoardMember } from "@/lib/boards/board-member-role";
+import { logger } from "@/lib/logger";
 import { requireBoardEditor } from "@/lib/permissions";
 import { triggerCardCreated } from "@/lib/boards/realtime";
 
@@ -271,7 +272,14 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       },
     };
   } catch (error) {
-    console.error("[CREATE_SMART_CAPTURE_CARD_ERROR]", error);
+    logger.error("[CREATE_SMART_CAPTURE_CARD_ERROR]", error, {
+      action: "create-smart-capture-card",
+      aiFeature: "smart-capture",
+      orgId,
+      userId,
+      boardId,
+      listId,
+    });
 
     return { error: "Tạo thẻ từ Smart Capture thất bại." };
   }

@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextRequest, NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 export async function PATCH(
   req: NextRequest,
@@ -64,7 +65,11 @@ export async function PATCH(
 
     return NextResponse.json(updatedNotification);
   } catch (error) {
-    console.error("[NOTIFICATION_PATCH_ERROR]", error);
+    logger.error("[NOTIFICATION_PATCH_ERROR]", error, {
+      route: "/api/notifications/[notificationId]",
+      action: "notification-patch",
+    });
+
     return new NextResponse("Internal Error", { status: 500 });
   }
 }

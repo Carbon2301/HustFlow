@@ -8,6 +8,7 @@ import { AI_CHECKLIST_LIMITS } from "@/lib/ai/config";
 import { parseAiJson } from "@/lib/ai/json";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import { requireBoardEditor } from "@/lib/permissions";
 
 import { GenerateAiChecklist } from "./schema";
@@ -178,7 +179,14 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       },
     };
   } catch (error) {
-    console.error("[GENERATE_AI_CHECKLIST_ERROR]", error);
+    logger.error("[GENERATE_AI_CHECKLIST_ERROR]", error, {
+      action: "generate-ai-checklist",
+      aiFeature: "checklist-generation",
+      orgId,
+      userId,
+      boardId,
+      cardId,
+    });
 
     return {
       error: error instanceof Error

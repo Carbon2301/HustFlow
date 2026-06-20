@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 export async function PATCH() {
   try {
@@ -45,7 +46,11 @@ export async function PATCH() {
 
     return NextResponse.json({ ok: true });
   } catch (error) {
-    console.error("[NOTIFICATIONS_READ_ALL_ERROR]", error);
+    logger.error("[NOTIFICATIONS_READ_ALL_ERROR]", error, {
+      route: "/api/notifications/read-all",
+      action: "notifications-read-all",
+    });
+
     return new NextResponse("Internal Error", { status: 500 });
   }
 }

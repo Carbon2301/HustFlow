@@ -2,6 +2,7 @@ import { auth, currentUser } from "@clerk/nextjs/server"
 import { ACTION, AUDIT_EVENT_TYPE, ENTITY_TYPE } from "@prisma/client";
 
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 type CurrentUser = NonNullable<Awaited<ReturnType<typeof currentUser>>>;
 
@@ -77,6 +78,12 @@ export const createAuditLog = async (props: Props) => {
       }
     });
   } catch (error) {
-    console.log("[AUDIT_LOG_ERROR]", error);
+    logger.error("[AUDIT_LOG_ERROR]", error, {
+      action: "create-audit-log",
+      entityId: props.entityId,
+      entityType: props.entityType,
+      boardId: props.boardId,
+      cardId: props.cardId,
+    });
   }
 }

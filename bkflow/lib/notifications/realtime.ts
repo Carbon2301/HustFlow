@@ -4,6 +4,7 @@ import type { Notification } from "@prisma/client";
 
 import { realtimeChannels } from "@/lib/realtime/channels";
 import { REALTIME_EVENTS } from "@/lib/realtime/events";
+import { logger } from "@/lib/logger";
 import { triggerRealtimeEvent } from "@/lib/realtime/server";
 
 export const triggerNotificationCreated = async (
@@ -47,6 +48,12 @@ export const triggerNotificationCreated = async (
       },
     });
   } catch (error) {
-    console.error("[NOTIFICATION_REALTIME_ERROR]", error);
+    logger.error("[NOTIFICATION_REALTIME_ERROR]", error, {
+      action: "notification-realtime",
+      eventType: notification.type,
+      orgId: notification.orgId,
+      boardId: notification.boardId,
+      cardId: notification.cardId,
+    });
   }
 };

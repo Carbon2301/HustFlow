@@ -7,6 +7,7 @@ import { revalidatePath } from "next/cache";
 import { createAuditLog } from "@/lib/create-audit-log";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import { requireBoardEditor } from "@/lib/permissions";
 import {
   triggerChecklistCreated,
@@ -214,7 +215,15 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       },
     };
   } catch (error) {
-    console.error("[CREATE_AI_CHECKLIST_ITEMS_ERROR]", error);
+    logger.error("[CREATE_AI_CHECKLIST_ITEMS_ERROR]", error, {
+      action: "create-ai-checklist-items",
+      aiFeature: "checklist-generation",
+      orgId,
+      userId,
+      boardId,
+      cardId,
+      checklistId,
+    });
 
     return {
       error: error instanceof Error

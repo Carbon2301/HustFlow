@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { z } from "zod";
 
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import { requireBoardEditor } from "@/lib/permissions";
 import { createUploadthing, type FileRouter } from "uploadthing/next";
 import { UploadThingError } from "uploadthing/server";
@@ -78,7 +79,9 @@ export const ourFileRouter = {
       };
     })
     .onUploadComplete(async ({ metadata, file }) => {
-      console.info("[UPLOADTHING_CARD_ATTACHMENT_UPLOADED]", {
+      logger.info("[UPLOADTHING_CARD_ATTACHMENT_UPLOADED]", {
+        route: "/api/uploadthing",
+        action: "card-attachment-upload",
         cardId: metadata.cardId,
         boardId: metadata.boardId,
         fileKey: file.key,

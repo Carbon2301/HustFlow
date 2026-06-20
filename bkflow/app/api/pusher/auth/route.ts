@@ -4,6 +4,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { parseRealtimeChannelName } from "@/lib/realtime/channels";
 import { getServerPusher } from "@/lib/realtime/server";
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 
 const parsePusherAuthRequest = async (req: NextRequest) => {
   const contentType = req.headers.get("content-type") ?? "";
@@ -124,7 +125,11 @@ export async function POST(req: NextRequest) {
 
     return NextResponse.json(authResponse);
   } catch (error) {
-    console.error("[PUSHER_AUTH_ERROR]", error);
+    logger.error("[PUSHER_AUTH_ERROR]", error, {
+      route: "/api/pusher/auth",
+      action: "pusher-auth",
+    });
+
     return new NextResponse("Internal Error", { status: 500 });
   }
 }

@@ -7,6 +7,7 @@ import { generateAiText } from "@/lib/ai/client";
 import { parseAiJson } from "@/lib/ai/json";
 import { getBoardAnalyticsData } from "@/lib/analytics/board-report-data";
 import { createSafeAction } from "@/lib/create-safe-action";
+import { logger } from "@/lib/logger";
 import { requireBoardEditor } from "@/lib/permissions";
 
 import { GenerateAiBoardReport } from "./schema";
@@ -94,7 +95,14 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       data: parsed,
     };
   } catch (error) {
-    console.error("[GENERATE_AI_BOARD_REPORT_ERROR]", error);
+    logger.error("[GENERATE_AI_BOARD_REPORT_ERROR]", error, {
+      action: "generate-ai-board-report",
+      aiFeature: "board-report",
+      orgId,
+      userId,
+      boardId,
+      range,
+    });
 
     return {
       error: error instanceof Error

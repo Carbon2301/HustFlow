@@ -1,6 +1,7 @@
 import { NOTIFICATION_TYPE, Notification } from "@prisma/client";
 
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import { triggerNotificationCreated } from "@/lib/notifications/realtime";
 
 type NotificationActor = {
@@ -119,7 +120,14 @@ export const createNotification = async ({
 
     await triggerNotificationCreated(notification);
   } catch (error) {
-    console.log("[CREATE_NOTIFICATION_ERROR]", error);
+    logger.error("[CREATE_NOTIFICATION_ERROR]", error, {
+      action: "create-notification",
+      eventType: type,
+      orgId,
+      boardId,
+      cardId,
+      commentId,
+    });
   }
 };
 

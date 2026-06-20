@@ -1,5 +1,7 @@
 import { z } from "zod";
 
+import { logger } from "@/lib/logger";
+
 const stripCodeFence = (value: string) => {
   const trimmed = value.trim();
   const fenced = trimmed.match(/^```(?:json)?\s*([\s\S]*?)\s*```$/i);
@@ -28,7 +30,11 @@ export const parseAiJson = <T>(
     const parsed = JSON.parse(extractJsonObject(raw));
     return schema.parse(parsed);
   } catch (error) {
-    console.error("[AI_JSON_PARSE_ERROR]", error, raw);
+    logger.error("[AI_JSON_PARSE_ERROR]", error, {
+      action: "ai-json-parse",
+      aiFeature: "shared-parse-json",
+      rawLength: raw.length,
+    });
     throw new Error(errorMessage);
   }
 };

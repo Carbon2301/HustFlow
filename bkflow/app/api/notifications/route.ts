@@ -2,6 +2,7 @@ import { auth } from "@clerk/nextjs/server";
 import { NextResponse } from "next/server";
 
 import { db } from "@/lib/db";
+import { logger } from "@/lib/logger";
 import { ensureDueReminderNotifications } from "@/lib/notifications/reminder-notifications";
 
 export async function GET() {
@@ -27,7 +28,11 @@ export async function GET() {
 
     return NextResponse.json(notifications);
   } catch (error) {
-    console.error("[NOTIFICATIONS_GET_ERROR]", error);
+    logger.error("[NOTIFICATIONS_GET_ERROR]", error, {
+      route: "/api/notifications",
+      action: "notifications-get",
+    });
+
     return new NextResponse("Internal Error", { status: 500 });
   }
 }

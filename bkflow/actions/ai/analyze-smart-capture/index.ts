@@ -9,6 +9,7 @@ import { parseAiJson } from "@/lib/ai/json";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { db } from "@/lib/db";
 import { isAssignableBoardMember } from "@/lib/boards/board-member-role";
+import { logger } from "@/lib/logger";
 import { requireBoardEditor } from "@/lib/permissions";
 
 import { AnalyzeSmartCapture } from "./schema";
@@ -387,7 +388,13 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       },
     };
   } catch (error) {
-    console.error("[ANALYZE_SMART_CAPTURE_ERROR]", error);
+    logger.error("[ANALYZE_SMART_CAPTURE_ERROR]", error, {
+      action: "analyze-smart-capture",
+      aiFeature: "smart-capture",
+      orgId,
+      userId,
+      boardId,
+    });
 
     return {
       error: error instanceof Error
