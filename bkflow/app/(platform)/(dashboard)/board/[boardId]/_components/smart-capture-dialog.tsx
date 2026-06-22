@@ -1,7 +1,7 @@
 "use client";
 
 import { useMemo, useState } from "react";
-import { AlignLeft, Bot, Calendar, CheckSquare, LayoutGrid, Loader2, Plus, Sparkles, Tag, Type, User, X } from "lucide-react";
+import { AlignLeft, Bot, Calendar, CheckSquare, FileText, LayoutGrid, Loader2, Plus, Sparkles, Tag, Type, User, X } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
 import type { BoardMember, Label, List } from "@prisma/client";
@@ -321,7 +321,10 @@ export const SmartCaptureDialog = ({
           height: "650px",
           maxHeight: "calc(100vh - 32px)",
         }}
-        className="w-[calc(100vw-2rem)] max-w-3xl overflow-hidden rounded-2xl border border-neutral-200 bg-white p-0 shadow-2xl sm:max-w-3xl"
+        className={cn(
+          "w-[calc(100vw-2rem)] overflow-hidden rounded-2xl border border-neutral-200 bg-white p-0 shadow-2xl",
+          step === "preview" ? "max-w-6xl sm:max-w-6xl" : "max-w-3xl sm:max-w-3xl",
+        )}
         showCloseButton={false}
       >
         <DialogHeader className="border-b border-neutral-200 px-5 py-4">
@@ -396,9 +399,31 @@ export const SmartCaptureDialog = ({
               )}
             </div>
           ) : (
-            <div className="grid min-h-0 gap-5 lg:grid-cols-[minmax(0,1fr)_260px]">
-              <div className="min-h-0 space-y-4">
-                <div className="rounded-xl border border-neutral-200/80 bg-white p-4 shadow-xs hover:shadow-sm transition-all duration-200 space-y-3">
+            <div className="grid min-h-0 gap-4 lg:grid-cols-[260px_minmax(0,1fr)_250px]">
+              <section className="flex min-h-0 flex-col rounded-xl border border-neutral-200 bg-neutral-50/70 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <label className="inline-flex items-center gap-1.5 rounded-md bg-violet-50 px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-violet-700">
+                    <FileText className="h-3.5 w-3.5" />
+                    Nội dung gốc
+                  </label>
+                  <span className="shrink-0 rounded-full bg-white px-2 py-0.5 text-xs font-semibold text-neutral-500 ring-1 ring-neutral-200">
+                    {trimmedRawTextLength}/{SMART_CAPTURE_RAW_TEXT_MAX_LENGTH}
+                  </span>
+                </div>
+                <div className="mt-3 min-h-[180px] max-h-[260px] flex-1 overflow-y-auto whitespace-pre-wrap rounded-lg border border-neutral-200 bg-white px-3 py-3 text-sm leading-6 text-neutral-700 styled-scrollbar lg:max-h-[430px]">
+                  {rawText}
+                </div>
+              </section>
+
+              <section className="min-h-0 rounded-xl border border-neutral-200 bg-white p-4">
+                <div className="mb-4 flex items-center justify-between gap-3">
+                  <label className="inline-flex items-center gap-1.5 rounded-md bg-violet-50 px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-violet-700">
+                    <Sparkles className="h-3.5 w-3.5" />
+                    Bản nháp thẻ
+                  </label>
+                </div>
+                <div className="min-h-0 space-y-4">
+                  <div className="space-y-3 border-b border-neutral-100 pb-4">
                   <div className="flex items-center justify-between">
                     <label htmlFor="smart-capture-title" className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-violet-50 text-violet-700 text-xs font-bold uppercase tracking-wider">
                       <Type className="h-3.5 w-3.5" />
@@ -414,7 +439,7 @@ export const SmartCaptureDialog = ({
                   />
                 </div>
 
-                <div className="rounded-xl border border-neutral-200/80 bg-white p-4 shadow-xs hover:shadow-sm transition-all duration-200 space-y-3">
+                <div className="space-y-3 border-b border-neutral-100 pb-4">
                   <div className="flex items-center justify-between">
                     <label htmlFor="smart-capture-description" className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-violet-50 text-violet-700 text-xs font-bold uppercase tracking-wider">
                       <AlignLeft className="h-3.5 w-3.5" />
@@ -436,7 +461,7 @@ export const SmartCaptureDialog = ({
                   />
                 </div>
 
-                <div className="rounded-xl border border-neutral-200/80 bg-white p-4 shadow-xs hover:shadow-sm transition-all duration-200 space-y-3">
+                <div className="space-y-3">
                   <div className="flex items-center justify-between">
                     <label className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-violet-50 text-violet-700 text-xs font-bold uppercase tracking-wider">
                       <CheckSquare className="h-3.5 w-3.5" />
@@ -503,9 +528,16 @@ export const SmartCaptureDialog = ({
                     </div>
                   </div>
                 </div>
-              </div>
+                </div>
+              </section>
 
-              <div className="space-y-5 rounded-xl border border-neutral-200 bg-neutral-50/70 p-4 shadow-sm">
+              <section className="space-y-5 rounded-xl border border-neutral-200 bg-neutral-50/70 p-4">
+                <div className="flex items-center justify-between gap-3">
+                  <label className="inline-flex items-center gap-1.5 rounded-md bg-violet-50 px-2.5 py-1 text-xs font-bold uppercase tracking-wider text-violet-700">
+                    <LayoutGrid className="h-3.5 w-3.5" />
+                    Thông tin thẻ
+                  </label>
+                </div>
                 <div className="space-y-2">
                   <label htmlFor="smart-capture-list" className="inline-flex items-center gap-1.5 px-2.5 py-1 rounded-md bg-violet-50 text-violet-700 text-xs font-bold uppercase tracking-wider">
                     <LayoutGrid className="h-3.5 w-3.5" />
@@ -643,7 +675,7 @@ export const SmartCaptureDialog = ({
                     )}
                   </div>
                 </div>
-              </div>
+              </section>
             </div>
           )}
         </div>
