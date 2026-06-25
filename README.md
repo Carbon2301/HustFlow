@@ -9,7 +9,7 @@ Hướng dẫn chạy HustFlow trên máy local, cấu hình Stripe và triển 
 - Node.js 20+
 - MySQL
 - npm
-- Tài khoản Clerk, Pusher, UploadThing, Unsplash và OpenAI
+- Tài khoản Clerk, Pusher, UploadThing, Unsplash, OpenAI và Sentry
 - Stripe CLI nếu cần kiểm thử thanh toán
 
 ### Cài đặt
@@ -57,6 +57,13 @@ OPENAI_MODEL="gpt-4o-mini"
 # Stripe
 STRIPE_API_KEY="sk_test_..."
 STRIPE_WEBHOOK_SECRET="whsec_..."
+
+# Sentry
+NEXT_PUBLIC_SENTRY_DSN=""
+SENTRY_ENVIRONMENT="development"
+SENTRY_ORG=""
+SENTRY_PROJECT=""
+SENTRY_AUTH_TOKEN=""
 ```
 
 Khởi tạo cấu trúc database:

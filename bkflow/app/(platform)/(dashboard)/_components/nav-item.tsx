@@ -76,7 +76,7 @@ export const NavItem = ({
       <AccordionTrigger
         onClick={() => onExpand(organization.id)}
         className={cn(
-          "flex items-center gap-x-2 p-2 text-neutral-600 rounded-lg hover:bg-neutral-100 transition-colors text-start no-underline hover:no-underline group",
+          "flex items-center gap-x-2 p-2 text-neutral-600 rounded-lg hover:bg-neutral-100 transition-colors text-start no-underline hover:no-underline group w-full min-w-0",
           isActive && !isExpanded && "bg-violet-50 text-violet-700 hover:bg-violet-50/80"
         )}
       >
