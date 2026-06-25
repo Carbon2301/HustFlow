@@ -2,8 +2,7 @@ import { z } from "zod";
 
 const DueDateValue = z.union([z.date(), z.string().datetime(), z.null()]);
 
-export const CreateSmartCaptureCard = z.object({
-  boardId: z.string().min(1),
+const SmartCaptureCardDraft = z.object({
   listId: z.string().min(1),
   title: z.string()
     .transform((value) => value.replace(/\s+/g, " ").trim())
@@ -30,4 +29,9 @@ export const CreateSmartCaptureCard = z.object({
       .transform((value) => value.replace(/\s+/g, " ").trim())
       .pipe(z.string().max(120)),
   ).max(20).default([]),
+});
+
+export const CreateSmartCaptureCards = z.object({
+  boardId: z.string().min(1),
+  drafts: z.array(SmartCaptureCardDraft).min(1).max(5),
 });

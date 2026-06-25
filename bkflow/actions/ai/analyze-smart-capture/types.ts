@@ -33,7 +33,14 @@ export type SmartCaptureDraft = {
   assigneeWarnings: string[];
   suggestedAssigneeBoardMemberIds: string[];
   suggestedLabelIds: string[];
+  sourceExcerpt: string;
+  splitReason: string;
+};
+
+export type SmartCaptureAnalysis = {
+  drafts: SmartCaptureDraft[];
+  splitSummary: string;
 };
 
 export type InputType = z.infer<typeof AnalyzeSmartCapture>;
-export type ReturnType = ActionState<InputType, SmartCaptureDraft>;
+export type ReturnType = ActionState<InputType, SmartCaptureAnalysis>;
