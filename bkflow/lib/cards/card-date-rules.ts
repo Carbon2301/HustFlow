@@ -49,6 +49,14 @@ export const validateCardDateRange = (
   if (
     startDate &&
     dueDate &&
+    new Date(dueDate).getTime() - new Date(startDate).getTime() < 15 * 60_000
+  ) {
+    return "Khoảng thời gian tối thiểu là 15 phút.";
+  }
+
+  if (
+    startDate &&
+    dueDate &&
     new Date(startDate).getTime() > new Date(dueDate).getTime()
   ) {
     return "Ngày bắt đầu phải trước hoặc bằng ngày hết hạn.";

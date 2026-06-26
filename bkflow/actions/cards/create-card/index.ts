@@ -8,6 +8,7 @@ import { createAuditLog } from "@/lib/create-audit-log";
 import { createSafeAction } from "@/lib/create-safe-action";
 import { requireBoardEditor } from "@/lib/permissions";
 import { triggerCardCreated } from "@/lib/boards/realtime";
+import { validateCardDateRange } from "@/lib/cards/card-date-rules";
 
 import { CreateCard } from "./schema";
 import { InputType, ReturnType } from "./types";
@@ -59,13 +60,14 @@ const handler = async (data: InputType): Promise<ReturnType> => {
 
     const newOrder = lastCard ? lastCard.order + 1 : 1;
 
-    if (
-      startDate &&
-      dueDate &&
-      dueDate.getTime() - startDate.getTime() < 15 * 60_000
-    ) {
+    const dateRangeError = validateCardDateRange(
+      startDate ?? null,
+      dueDate ?? null,
+    );
+
+    if (dateRangeError) {
       return {
-        error: "Khoảng thời gian tối thiểu là 15 phút.",
+        error: dateRangeError,
       };
     }
 
