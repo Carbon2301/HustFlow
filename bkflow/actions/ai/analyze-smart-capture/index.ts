@@ -37,6 +37,13 @@ const GROUP_ASSIGNMENT_EVIDENCES = [
   "everyone",
   "tat ca thanh vien",
 ];
+const HIGH_PRIORITY_EVIDENCES = [
+  "lam gap",
+  "khan cap",
+  "uu tien cao",
+  "urgent",
+  "asap",
+];
 
 const trimWhitespace = (value: string | null | undefined) =>
   (value ?? "").replace(/\s+/g, " ").trim();
@@ -385,6 +392,59 @@ const extractChecklistItemsFromSource = (value: string) => {
   return normalizeChecklistItems(items);
 };
 
+const extractInlineChecklistItems = (value: string) => {
+  const firstSentence = value.replace(/\r\n/g, "\n").split(/[.!?](?:\s|$)/u)[0] ?? "";
+  const colonIndex = firstSentence.indexOf(":");
+  const gomMatch = /\bgồm\s+(.+)$/iu.exec(firstSentence);
+  const hasActionChain = colonIndex >= 0 || Boolean(gomMatch) ||
+    (firstSentence.includes(",") && /\s+và\s+/iu.test(firstSentence));
+
+  if (!hasActionChain) {
+    return [];
+  }
+
+  let chain = colonIndex >= 0
+    ? firstSentence.slice(colonIndex + 1)
+    : (gomMatch?.[1] ?? firstSentence);
+
+  if (!gomMatch && colonIndex < 0) {
+    chain = chain
+      .replace(/^\s*(?:\d+[).]\s*)?(?:[\p{Lu}][\p{L}\s]{0,60}?)\s+(?=tổng hợp|kiểm tra|viết|chuẩn bị|gửi|tạo|đặt|xác nhận)/u, "")
+      .trim();
+  }
+
+  // Chỉ dùng danh sách hành động cùng một câu; các câu về mức ưu tiên/hạn chót
+  // không trở thành checklist.
+  return normalizeChecklistItems(
+    chain
+      .split(/,|\s+và\s+/iu)
+      .map((item) => item.replace(/^\s*(?:gồm\s+)?/iu, "").trim())
+      .filter((item) => item.length >= 3 && !isMetadataChecklistLine(item)),
+  );
+};
+
+const getPriorityLabelIdsFromSource = (
+  rawText: string,
+  labels: { id: string; title: string }[],
+) => {
+  const normalizedSource = normalizeAssigneeEvidence(rawText);
+  const hasHighPriorityIntent = HIGH_PRIORITY_EVIDENCES.some((evidence) =>
+    includesEvidencePhrase(normalizedSource, evidence),
+  );
+
+  if (!hasHighPriorityIntent) {
+    return [];
+  }
+
+  return labels
+    .filter((label) => {
+      const normalizedTitle = normalizeAssigneeEvidence(label.title);
+
+      return ["high", "cao", "uu tien cao", "urgent"].includes(normalizedTitle);
+    })
+    .map((label) => label.id);
+};
+
 const hasTimezoneSuffix = (value: string) =>
   /(?:z|[+-]\d{2}:?\d{2})$/i.test(value.trim());
 
@@ -437,6 +497,86 @@ const extractFallbackDueDate = (
   const isoLikeValue = `${year.toString().padStart(4, "0")}-${month
     .toString()
     .padStart(2, "0")}-${day.toString().padStart(2, "0")}T23:59:00${timezoneOffset}`;
+
+  return parseDueDate(isoLikeValue, timezoneLabel);
+};
+
+const getDateParts = (value: string | undefined) => {
+  const match = value?.match(/^(\d{4})-(\d{2})-(\d{2})T/);
+
+  if (!match) {
+    const now = new Date();
+    return { year: now.getFullYear(), month: now.getMonth() + 1, day: now.getDate() };
+  }
+
+  return { year: Number(match[1]), month: Number(match[2]), day: Number(match[3]) };
+};
+
+const getRelativeVietnameseDueDate = (
+  value: string,
+  localNowIso: string | undefined,
+  timezoneLabel: string | undefined,
+) => {
+  const normalized = normalizeVietnameseForCompare(value);
+  const dayNames: Record<string, number> = {
+    "thu hai": 1,
+    "thu ba": 2,
+    "thu tu": 3,
+    "thu nam": 4,
+    "thu sau": 5,
+    "thu bay": 6,
+    "chu nhat": 0,
+  };
+  const weekday = Object.entries(dayNames).find(([name]) =>
+    new RegExp(`(?:^|\\s)${name}(?:\\s|$)`, "u").test(normalized),
+  )?.[1];
+  const isTomorrow = /(?:^|\s)ngay mai(?:\s|$)/u.test(normalized);
+
+  if (weekday === undefined && !isTomorrow) {
+    return null;
+  }
+
+  const base = getDateParts(localNowIso);
+  const baseUtc = Date.UTC(base.year, base.month - 1, base.day);
+  const baseWeekday = new Date(baseUtc).getUTCDay();
+  let offsetDays: number;
+
+  if (isTomorrow) {
+    offsetDays = 1;
+  } else {
+    const targetWeekday = Number(weekday);
+    const isNextWeek = /\btuan sau\b/u.test(normalized);
+    const mondayBasedDay = baseWeekday === 0 ? 7 : baseWeekday;
+    const currentWeekMonday = baseUtc - (mondayBasedDay - 1) * 86_400_000;
+    const targetInCurrentWeek = targetWeekday === 0 ? 6 : targetWeekday - 1;
+    const targetUtc = currentWeekMonday + (isNextWeek ? 7 : 0) * 86_400_000 + targetInCurrentWeek * 86_400_000;
+    offsetDays = Math.round((targetUtc - baseUtc) / 86_400_000);
+
+    if (!isNextWeek && offsetDays < 0) {
+      offsetDays += 7;
+    }
+  }
+
+  const dueDate = new Date(baseUtc + offsetDays * 86_400_000);
+  const timeMatch = normalized.match(/(\d{1,2})\s*(?:gio|h)(?:\s*(\d{1,2})\s*(?:phut|p))?\s*(sang|chieu|toi|dem)?/u);
+  let hours = timeMatch ? Number(timeMatch[1]) : 23;
+  const minutes = timeMatch?.[2] ? Number(timeMatch[2]) : (timeMatch ? 0 : 59);
+  const period = timeMatch?.[3];
+
+  if ((period === "chieu" || period === "toi") && hours < 12) {
+    hours += 12;
+  }
+
+  if (period === "dem" && hours === 12) {
+    hours = 0;
+  }
+
+  if (hours > 23 || minutes > 59) {
+    return null;
+  }
+
+  const timezoneOffset = timezoneLabel?.match(/^UTC([+-]\d{2}:\d{2})$/)?.[1] ?? "Z";
+  const isoLikeValue = `${dueDate.getUTCFullYear()}-${String(dueDate.getUTCMonth() + 1).padStart(2, "0")}-${String(dueDate.getUTCDate()).padStart(2, "0")}T${String(hours).padStart(2, "0")}:${String(minutes).padStart(2, "0")}:00${timezoneOffset}`;
 
   return parseDueDate(isoLikeValue, timezoneLabel);
 };
@@ -496,6 +636,16 @@ const extractExplicitAssigneeMentions = (value: string) => {
       .pop() ?? beforePhrase;
 
     addMention(likelyName);
+  }
+
+  for (const line of value.replace(/\r\n/g, "\n").split("\n")) {
+    const match = line.match(
+      /^\s*(?:\d+[).]\s*)?([^,:.\n]{1,80}?)\s+(?=tổng hợp|kiểm tra|viết|chuẩn bị|gửi|tạo|đặt|xác nhận)\b/iu,
+    );
+
+    if (match?.[1]) {
+      addMention(match[1]);
+    }
   }
 
   return Array.from(new Set(mentions.map(trimWhitespace).filter(Boolean)));
@@ -1086,6 +1236,7 @@ const handler = async (data: InputType): Promise<ReturnType> => {
       const labelIds = Array.from(new Set([
         ...labelIdsFromAi,
         ...labelIdsFromSource,
+        ...getPriorityLabelIdsFromSource(draftSourceText, labels),
       ]));
       const suggestedListId =
         card.listId &&
@@ -1101,17 +1252,21 @@ const handler = async (data: InputType): Promise<ReturnType> => {
           ? "AI giữ nội dung trong một thẻ vì các ý liên quan cùng một công việc."
           : `Đề xuất thẻ ${index + 1} từ một phần nội dung nguồn.`),
       ).slice(0, SPLIT_REASON_MAX_LENGTH);
-      const checklistItems = normalizeChecklistItems(card.checklistItems);
+      const checklistItems = normalizeChecklistItems([
+        ...card.checklistItems,
+        ...extractChecklistItemsFromSource(draftSourceText),
+        ...extractInlineChecklistItems(draftSourceText),
+      ]);
+      const deterministicDueDate =
+        getRelativeVietnameseDueDate(draftSourceText, localNowIso, timezoneLabel) ??
+        extractFallbackDueDate(draftSourceText, localNowIso, timezoneLabel);
 
       return {
         title: title || "Thẻ mới từ Smart Capture",
         description: normalizeDescription(card.description, draftSourceText),
-        checklistItems: checklistItems.length > 0
-          ? checklistItems
-          : extractChecklistItemsFromSource(draftSourceText),
+        checklistItems,
         dueDateIso:
-          parseDueDate(card.dueDateIso, timezoneLabel) ??
-          extractFallbackDueDate(draftSourceText, localNowIso, timezoneLabel),
+          deterministicDueDate ?? parseDueDate(card.dueDateIso, timezoneLabel),
         assigneeBoardMemberIds,
         labelIds,
         listId: suggestedListId ?? lists[0].id,
