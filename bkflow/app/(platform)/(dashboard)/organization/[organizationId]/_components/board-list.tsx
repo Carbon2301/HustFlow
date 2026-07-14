@@ -1,7 +1,16 @@
 import Link from "next/link";
 import { auth } from "@clerk/nextjs/server";
 import { redirect } from "next/navigation";
-import { HelpCircle, LayoutGrid, Lock, Plus } from "lucide-react";
+import {
+  Archive,
+  CalendarClock,
+  CheckCircle2,
+  CircleDashed,
+  HelpCircle,
+  LayoutGrid,
+  Lock,
+  Plus,
+} from "lucide-react";
 
 import { db } from "@/lib/db";
 import { Hint } from "@/components/hint";
@@ -17,6 +26,80 @@ import { UpgradeBillingTile } from "./upgrade-billing-tile";
 
 type BoardListProps = {
   isPro?: boolean;
+};
+
+type WorkspaceStatsProps = {
+  totalCards: number;
+  completedCards: number;
+  overdueCards: number;
+  unscheduledCards: number;
+};
+
+const WorkspaceStats = ({
+  totalCards,
+  completedCards,
+  overdueCards,
+  unscheduledCards,
+}: WorkspaceStatsProps) => {
+  const completionRate = totalCards === 0
+    ? 0
+    : Math.round((completedCards / totalCards) * 100);
+
+  const statistics = [
+    {
+      label: "Tổng số thẻ",
+      value: totalCards,
+      icon: Archive,
+      iconClassName: "bg-sky-50 text-sky-600 ring-sky-100",
+    },
+    {
+      label: "Hoàn thành",
+      value: completedCards,
+      icon: CheckCircle2,
+      iconClassName: "bg-emerald-50 text-emerald-600 ring-emerald-100",
+    },
+    {
+      label: "Quá hạn",
+      value: overdueCards,
+      icon: CircleDashed,
+      iconClassName: "bg-rose-50 text-rose-600 ring-rose-100",
+    },
+    {
+      label: "Chưa lên lịch",
+      value: unscheduledCards,
+      icon: CalendarClock,
+      iconClassName: "bg-amber-50 text-amber-600 ring-amber-100",
+    },
+    {
+      label: "Tỷ lệ hoàn thành",
+      value: `${completionRate}%`,
+      icon: LayoutGrid,
+      iconClassName: "bg-blue-50 text-blue-600 ring-blue-100",
+    },
+  ];
+
+  return (
+    <section aria-label="Thống kê không gian làm việc" className="grid grid-cols-2 gap-3 sm:grid-cols-3 lg:grid-cols-5">
+      {statistics.map(({ label, value, icon: Icon, iconClassName }) => (
+        <div
+          key={label}
+          className="flex min-h-28 items-center justify-between rounded-2xl border border-neutral-100 bg-white px-5 py-4 shadow-sm"
+        >
+          <div className="min-w-0">
+            <p className="text-xs font-semibold uppercase tracking-wide text-neutral-500">
+              {label}
+            </p>
+            <p className="mt-1 text-3xl font-bold leading-none text-neutral-900">
+              {value}
+            </p>
+          </div>
+          <div className={`ml-3 flex h-12 w-12 shrink-0 items-center justify-center rounded-2xl ring-1 ${iconClassName}`}>
+            <Icon className="h-5 w-5" />
+          </div>
+        </div>
+      ))}
+    </section>
+  );
 };
 
 export const BoardList = async ({
@@ -43,6 +126,24 @@ export const BoardList = async ({
         orderBy: {
           createdAt: "desc",
         },
+        include: {
+          lists: {
+            where: {
+              archivedAt: null,
+            },
+            select: {
+              cards: {
+                where: {
+                  archivedAt: null,
+                },
+                select: {
+                  isCompleted: true,
+                  dueDate: true,
+                },
+              },
+            },
+          },
+        },
       }),
       getAvailableCount(),
       isProProp === undefined ? checkSubscription() : Promise.resolve(isProProp),
@@ -52,9 +153,23 @@ export const BoardList = async ({
 
   const remainingBoards = Math.max(MAX_FREE_BOARDS - availableCount, 0);
   const hasReachedFreeLimit = !isPro && remainingBoards <= 0;
+  const cards = boards.flatMap((board) => board.lists.flatMap((list) => list.cards));
+  const now = new Date();
+  const totalCards = cards.length;
+  const completedCards = cards.filter((card) => card.isCompleted).length;
+  const overdueCards = cards.filter(
+    (card) => !card.isCompleted && card.dueDate !== null && card.dueDate < now,
+  ).length;
+  const unscheduledCards = cards.filter((card) => card.dueDate === null).length;
 
   return (
     <div className="space-y-5">
+      <WorkspaceStats
+        totalCards={totalCards}
+        completedCards={completedCards}
+        overdueCards={overdueCards}
+        unscheduledCards={unscheduledCards}
+      />
       <div className="flex items-center gap-x-2 text-neutral-700 font-semibold text-sm">
         <LayoutGrid className="h-4 w-4 text-violet-600" />
         <span>Bảng của bạn</span>
